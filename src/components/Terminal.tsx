@@ -17,6 +17,14 @@ const Terminal: React.FC<TerminalProps> = ({ cwd, isActive, onTitleChange, onExi
   const pidRef = useRef<number | null>(null);
   const [isReady, setIsReady] = useState(false);
   const lastPressRef = useRef<{ key: string, time: number } | null>(null);
+  const onTitleChangeRef = useRef(onTitleChange);
+  const onExitRef = useRef(onExit);
+
+  // Update refs when callbacks change
+  useEffect(() => {
+    onTitleChangeRef.current = onTitleChange;
+    onExitRef.current = onExit;
+  }, [onTitleChange, onExit]);
 
   useEffect(() => {
     if (!terminalRef.current) return;
@@ -162,12 +170,12 @@ const Terminal: React.FC<TerminalProps> = ({ cwd, isActive, onTitleChange, onExi
       });
       
       term.onTitleChange((title) => {
-          if (onTitleChange) onTitleChange(title);
+          if (onTitleChangeRef.current) onTitleChangeRef.current(title);
       });
 
       window.electron.onTerminalExit(pid, () => {
           term.write('\r\n\x1b[31mTerminal exited.\x1b[0m\r\n');
-          if (onExit) onExit();
+          if (onExitRef.current) onExitRef.current();
       });
 
       // Handle unmount

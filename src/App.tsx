@@ -7,6 +7,7 @@ interface Tab {
   id: string;
   title: string;
   cwd?: string;
+  isManualTitle?: boolean;
 }
 
 interface Project {
@@ -51,12 +52,7 @@ const CollapsibleSection: React.FC<{
   );
 };
 
-const DEFAULT_PROJECTS: Project[] = [
-  { name: 'CmdGUI', path: 'C:\\Users\\squal\\OneDrive\\Documents\\App-Dev\\Gemini-Workspace-Manager' },
-  { name: 'Game Scraper', path: 'C:\\Users\\squal\\OneDrive\\Documents\\App-Dev\\game-scraper-app' },
-  { name: 'Rider Mesh', path: 'C:\\Users\\squal\\OneDrive\\Documents\\App-Dev\\rider-mesh-android' },
-  { name: 'Documents', path: 'C:\\Users\\squal\\OneDrive\\Documents' }
-];
+const DEFAULT_PROJECTS: Project[] = [];
 
 const loadState = <T,>(key: string, defaultVal: T): T => {
   const saved = localStorage.getItem(key);
@@ -71,7 +67,7 @@ const loadState = <T,>(key: string, defaultVal: T): T => {
 };
 
 const App: React.FC = () => {
-  const [tabs, setTabs] = useState<Tab[]>(() => loadState('tabs', [{ id: '1', title: 'Home', cwd: undefined }]));
+  const [tabs, setTabs] = useState<Tab[]>(() => loadState('tabs', [{ id: '1', title: 'Terminal', cwd: undefined }]));
   const [activeTabId, setActiveTabId] = useState<string>(() => loadState('activeTabId', '1'));
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   
@@ -179,6 +175,13 @@ const App: React.FC = () => {
         setActiveTabId(newTabs[newTabs.length - 1].id);
     }
     setTabs(newTabs);
+  };
+
+  const handleRenameTab = (id: string, currentTitle: string) => {
+    const newTitle = prompt('Rename Task:', currentTitle);
+    if (newTitle && newTitle.trim()) {
+      setTabs(prev => prev.map(t => t.id === id ? { ...t, title: newTitle.trim(), isManualTitle: true } : t));
+    }
   };
 
   const filteredProjects = projects.filter(p => 
@@ -378,7 +381,13 @@ const App: React.FC = () => {
                         title={tab.cwd || 'Terminal'}
                     >
                         <span className="project-icon">💻</span>
-                        <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis' }}>{tab.title}</span>
+                        <span 
+                          style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis' }}
+                          onDoubleClick={(e) => { e.stopPropagation(); handleRenameTab(tab.id, tab.title); }}
+                          title="Double-click to rename"
+                        >
+                          {tab.title}
+                        </span>
                         <span 
                             onClick={(e) => closeTab(tab.id, e)}
                             className="task-close-btn"
@@ -427,12 +436,37 @@ const App: React.FC = () => {
                             cwd={tab.cwd} 
                             isActive={activeTabId === tab.id}
                             onTitleChange={(t) => {
-                                // Clean up title
-                                let cleanTitle = t;
-                                if (cleanTitle.startsWith('Administrator: ')) cleanTitle = cleanTitle.replace('Administrator: ', '');
-                                if (cleanTitle.includes('\\')) cleanTitle = cleanTitle.split('\\').pop() || cleanTitle;
-                                
-                                setTabs(prev => prev.map(pt => pt.id === tab.id ? { ...pt, title: cleanTitle } : pt));
+                                setTabs(prev => {
+                                    const currentTab = prev.find(pt => pt.id === tab.id);
+                                    if (!currentTab || currentTab.isManualTitle) return prev;
+
+                                    // Clean up title
+                                    let cleanTitle = t;
+                                    if (cleanTitle.startsWith('Administrator: ')) cleanTitle = cleanTitle.replace('Administrator: ', '');
+                                    
+                                    // Generic titles to ignore if we already have a better one
+                                    const genericTitles = [
+                                        'Windows PowerShell', 
+                                        'powershell.exe', 
+                                        'pwsh.exe', 
+                                        'pwsh',
+                                        'cmd.exe', 
+                                        'Command Prompt',
+                                        'Terminal'
+                                    ];
+
+                                    // If the incoming title is generic AND we already have a custom title, ignore it
+                                    if (genericTitles.includes(cleanTitle) && currentTab.title && !genericTitles.includes(currentTab.title)) {
+                                        return prev;
+                                    }
+
+                                    if (cleanTitle.includes('\\')) cleanTitle = cleanTitle.split('\\').pop() || cleanTitle;
+                                    
+                                    // Only update if it actually changed
+                                    if (currentTab.title === cleanTitle) return prev;
+
+                                    return prev.map(pt => pt.id === tab.id ? { ...pt, title: cleanTitle } : pt);
+                                });
                             }}
                         />
                     </div>

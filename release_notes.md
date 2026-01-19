@@ -1,3 +1,20 @@
+## 🚀 Release: CmdGUI v1.0.8
+
+### 💻 UX & Terminal Improvements
+*   **Smarter Task Naming:** Terminal tabs now intelligently ignore generic shell names (like "Windows PowerShell") if a project name or folder path is already set.
+*   **Manual Task Renaming:** Added the ability to manually rename any active task by double-clicking its title in the sidebar. Manual names are preserved and won't be overwritten by automatic terminal updates.
+*   **Clean Start Experience:** Removed hardcoded default projects. New installations now start with a clean, empty Project Manager list.
+
+### ⚙️ Settings & Updates
+*   **Manual Update Check:** Added a "Check for Updates" button in the Settings modal under a new **ABOUT** tab.
+*   **Dynamic Versioning:** The app now correctly displays its current version by fetching it directly from the system.
+*   **UI Reorganization:** Moved app version and update controls to a dedicated About tab for a cleaner documentation experience.
+
+### 🛠️ Stability
+*   **Refactored Title Logic:** Improved terminal title synchronization to prevent "stale" state issues during tab switching or directory changes.
+
+---
+
 ## 🚀 Release: CmdGUI v1.0.7
 
 ### 🛠️ DevOps & CI/CD

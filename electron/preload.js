@@ -26,5 +26,7 @@ contextBridge.exposeInMainWorld('electron', {
   getProjectInfo: (path) => ipcRenderer.invoke('project-get-info', path),
   checkAdmin: () => ipcRenderer.invoke('app-check-admin'),
   relaunchAdmin: () => ipcRenderer.send('app-relaunch-admin'),
-  openExternal: (url) => ipcRenderer.invoke('shell-open-external', url)
+  openExternal: (url) => ipcRenderer.invoke('shell-open-external', url),
+  checkForUpdates: () => ipcRenderer.invoke('app-check-for-updates'),
+  getVersion: () => ipcRenderer.invoke('app-get-version')
 });

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -6,7 +6,37 @@ interface SettingsModalProps {
 }
 
 const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
-  const [activeTab, setActiveTab] = useState<'project' | 'cli'>('project');
+  const [activeTab, setActiveTab] = useState<'project' | 'cli' | 'about'>('project');
+  const [checkingUpdate, setCheckingUpdate] = useState(false);
+  const [updateStatus, setUpdateStatus] = useState<string | null>(null);
+  const [appVersion, setAppVersion] = useState<string>('1.0.8');
+
+  useEffect(() => {
+    if (isOpen) {
+      window.electron.getVersion().then(setAppVersion);
+    }
+  }, [isOpen]);
+
+  const handleCheckUpdate = async () => {
+    setCheckingUpdate(true);
+    setUpdateStatus('Checking for updates...');
+    try {
+      const result = await window.electron.checkForUpdates();
+      if (result.success) {
+        if (result.updateInfo) {
+          setUpdateStatus(`Update available: ${result.updateInfo.version}`);
+        } else {
+          setUpdateStatus('Your app is up to date!');
+        }
+      } else {
+        setUpdateStatus(`Error: ${result.error || 'Unknown error'}`);
+      }
+    } catch (err) {
+      setUpdateStatus('Failed to check for updates.');
+    } finally {
+      setCheckingUpdate(false);
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -37,12 +67,18 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
           >
             GEMINI - CLI
           </div>
+          <div 
+            className={`modal-tab ${activeTab === 'about' ? 'active' : ''}`}
+            onClick={() => setActiveTab('about')}
+          >
+            ABOUT
+          </div>
         </div>
 
         {/* Content */}
         <div className="modal-content">
           
-          {activeTab === 'project' ? (
+          {activeTab === 'project' && (
             <>
               <section className="modal-section">
                 <h3 className="modal-section-title">Active Interface Shortcuts</h3>
@@ -117,22 +153,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                     <li>If a task is complex, ask the agent to <strong>"Plan first"</strong> before executing any code.</li>
                  </ul>
               </section>
-
-              <section className="modal-section">
-                <h3 className="modal-section-title">About</h3>
-                <div className="command-grid">
-                  <div className="command-item">
-                    <div className="command-name-col"><span className="command-pill">Version</span></div>
-                    <div className="command-desc-col"><div>1.0.7</div></div>
-                  </div>
-                  <div className="command-item">
-                    <div className="command-name-col"><span className="command-pill">Author</span></div>
-                    <div className="command-desc-col"><div>HarryA</div></div>
-                  </div>
-                </div>
-              </section>
             </>
-          ) : (
+          )}
+
+          {activeTab === 'cli' && (
             <>
               <section className="modal-section">
                 <h3 className="modal-section-title">Slash Commands (/)</h3>
@@ -213,104 +237,41 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                     </div>
                 </div>
               </section>
+            </>
+          )}
+
+          {activeTab === 'about' && (
+            <>
+              <section className="modal-section">
+                <h3 className="modal-section-title">App Information</h3>
+                <div className="command-grid">
+                  <div className="command-item">
+                    <div className="command-name-col"><span className="command-pill">Version</span></div>
+                    <div className="command-desc-col"><div>{appVersion}</div></div>
+                  </div>
+                  <div className="command-item">
+                    <div className="command-name-col"><span className="command-pill">Author</span></div>
+                    <div className="command-desc-col"><div>HarryA</div></div>
+                  </div>
+                </div>
+              </section>
 
               <section className="modal-section">
-                <h3 className="modal-section-title">PowerShell Interface (ISE) Shortcuts</h3>
-                
-                <h4 style={{fontSize: '14px', marginBottom: '10px', color: '#888'}}>Editing Text</h4>
-                <div className="command-grid">
-                    <div className="command-item">
-                      <div className="command-name-col"><span className="command-pill">F1</span></div>
-                      <div className="command-desc-col"><div>Help</div></div>
+                <h3 className="modal-section-title">Updates</h3>
+                <div style={{ padding: '10px 0' }}>
+                  <button 
+                    className="sidebar-footer-btn" 
+                    style={{ width: 'auto', padding: '10px 20px', backgroundColor: '#007acc', color: 'white', border: 'none', borderRadius: '4px', cursor: checkingUpdate ? 'not-allowed' : 'pointer' }}
+                    onClick={handleCheckUpdate}
+                    disabled={checkingUpdate}
+                  >
+                    {checkingUpdate ? 'Checking...' : 'Check for Updates'}
+                  </button>
+                  {updateStatus && (
+                    <div style={{ marginTop: '15px', color: '#ccc', fontSize: '14px' }}>
+                      {updateStatus}
                     </div>
-                    <div className="command-item">
-                      <div className="command-name-col"><span className="command-pill">CTRL+A</span></div>
-                      <div className="command-desc-col"><div>Select All</div></div>
-                    </div>
-                    <div className="command-item">
-                      <div className="command-name-col"><span className="command-pill">CTRL+C / X / V</span></div>
-                      <div className="command-desc-col"><div>Copy / Cut / Paste</div></div>
-                    </div>
-                    <div className="command-item">
-                      <div className="command-name-col"><span className="command-pill">CTRL+Z / Y</span></div>
-                      <div className="command-desc-col"><div>Undo / Redo</div></div>
-                    </div>
-                    <div className="command-item">
-                      <div className="command-name-col"><span className="command-pill">CTRL+F / H</span></div>
-                      <div className="command-desc-col"><div>Find / Replace in Script</div></div>
-                    </div>
-                    <div className="command-item">
-                      <div className="command-name-col"><span className="command-pill">F3 / SHIFT+F3</span></div>
-                      <div className="command-desc-col"><div>Find Next / Previous</div></div>
-                    </div>
-                    <div className="command-item">
-                      <div className="command-name-col"><span className="command-pill">CTRL+Space</span></div>
-                      <div className="command-desc-col"><div>Show Intellisense Help</div></div>
-                    </div>
-                    <div className="command-item">
-                      <div className="command-name-col"><span className="command-pill">CTRL+U / SHIFT+U</span></div>
-                      <div className="command-desc-col"><div>Make Lowercase / Uppercase</div></div>
-                    </div>
-                    <div className="command-item">
-                      <div className="command-name-col"><span className="command-pill">CTRL+M</span></div>
-                      <div className="command-desc-col"><div>Expand or Collapse Outlining</div></div>
-                    </div>
-                </div>
-
-                <h4 style={{fontSize: '14px', margin: '20px 0 10px', color: '#888'}}>Running Scripts</h4>
-                <div className="command-grid">
-                    <div className="command-item">
-                      <div className="command-name-col"><span className="command-pill">F5</span></div>
-                      <div className="command-desc-col"><div>Run Script</div></div>
-                    </div>
-                    <div className="command-item">
-                      <div className="command-name-col"><span className="command-pill">F8</span></div>
-                      <div className="command-desc-col"><div>Run Selection</div></div>
-                    </div>
-                    <div className="command-item">
-                      <div className="command-name-col"><span className="command-pill">CTRL+BREAK</span></div>
-                      <div className="command-desc-col"><div>Stop Execution</div></div>
-                    </div>
-                </div>
-
-                <h4 style={{fontSize: '14px', margin: '20px 0 10px', color: '#888'}}>Debugging</h4>
-                <div className="command-grid">
-                    <div className="command-item">
-                      <div className="command-name-col"><span className="command-pill">F9 / F10 / F11</span></div>
-                      <div className="command-desc-col"><div>Breakpoint / Step Over / Step Into</div></div>
-                    </div>
-                    <div className="command-item">
-                      <div className="command-name-col"><span className="command-pill">SHIFT+F11</span></div>
-                      <div className="command-desc-col"><div>Step Out</div></div>
-                    </div>
-                    <div className="command-item">
-                      <div className="command-name-col"><span className="command-pill">CTRL+SHIFT+D</span></div>
-                      <div className="command-desc-col"><div>Display Call Stack</div></div>
-                    </div>
-                    <div className="command-item">
-                      <div className="command-name-col"><span className="command-pill">CTRL+SHIFT+F9</span></div>
-                      <div className="command-desc-col"><div>Remove All Breakpoints</div></div>
-                    </div>
-                </div>
-
-                <h4 style={{fontSize: '14px', margin: '20px 0 10px', color: '#888'}}>Customizing View</h4>
-                <div className="command-grid">
-                    <div className="command-item">
-                      <div className="command-name-col"><span className="command-pill">CTRL+D / I</span></div>
-                      <div className="command-desc-col"><div>Go to Console / Script Pane</div></div>
-                    </div>
-                    <div className="command-item">
-                      <div className="command-name-col"><span className="command-pill">CTRL+R</span></div>
-                      <div className="command-desc-col"><div>Toggle Script Pane</div></div>
-                    </div>
-                    <div className="command-item">
-                      <div className="command-name-col"><span className="command-pill">CTRL+1 / 2 / 3</span></div>
-                      <div className="command-desc-col"><div>Move Script Pane Up/Right/Maximize</div></div>
-                    </div>
-                    <div className="command-item">
-                      <div className="command-name-col"><span className="command-pill">CTRL++ / -</span></div>
-                      <div className="command-desc-col"><div>Zoom In / Out</div></div>
-                    </div>
+                  )}
                 </div>
               </section>
             </>

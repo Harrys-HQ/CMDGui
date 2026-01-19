@@ -10,6 +10,8 @@ export interface ElectronAPI {
     checkAdmin: () => Promise<boolean>;
     relaunchAdmin: () => void;
     openExternal: (url: string) => Promise<void>;
+    checkForUpdates: () => Promise<{ success: boolean; updateInfo?: any; error?: string }>;
+    getVersion: () => Promise<string>;
 }
 
 declare global {

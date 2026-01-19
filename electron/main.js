@@ -204,6 +204,21 @@ ipcMain.handle('terminal-create', (event, options) => {
   return pid;
 });
 
+// --- IPC Handlers for Updates ---
+
+ipcMain.handle('app-check-for-updates', async () => {
+  try {
+    const result = await autoUpdater.checkForUpdates();
+    return { success: true, updateInfo: result ? result.updateInfo : null };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('app-get-version', () => {
+  return app.getVersion();
+});
+
 ipcMain.on('terminal-write', (event, { pid, data }) => {
   if (terminals[pid]) {
     terminals[pid].write(data);
