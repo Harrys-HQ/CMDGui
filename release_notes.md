@@ -1,4 +1,4 @@
-## 🚀 Release: CmdGUI v1.0.4
+## 🚀 Release: CmdGUI v1.0.5
 
 ### 📖 Documentation & UX
 *   **Reorganized Documentation:** The "Settings & Docs" modal now features a tabbed interface for better organization:
