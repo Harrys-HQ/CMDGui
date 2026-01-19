@@ -1,0 +1,369 @@
+@import './modal.css';
+
+:root {
+  /* Color Palette - VS Code Dark Theme Inspired */
+  --bg-root: #1e1e1e;
+  --bg-sidebar: #252526;
+  --bg-activity: #333333;
+  --bg-tab-active: #1e1e1e;
+  --bg-tab-inactive: #2d2d2d;
+  --bg-hover: #2a2d2e;
+  --bg-modal-overlay: rgba(0, 0, 0, 0.5);
+  --bg-modal: #252526;
+  
+  --fg-primary: #cccccc;
+  --fg-secondary: #969696;
+  --fg-active: #ffffff;
+  
+  --accent-primary: #007acc;
+  --accent-hover: #0062a3;
+  
+  --border-color: #3e3e42;
+  
+  /* Spacing & Layout */
+  --sidebar-width: 250px;
+  --header-height: 35px;
+  
+  /* Fonts */
+  --font-family-ui: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;
+  --font-family-mono: 'Consolas', 'Courier New', monospace;
+  --font-size-sm: 12px;
+  --font-size-md: 13px;
+  --font-size-lg: 14px;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg-root);
+  color: var(--fg-primary);
+  font-family: var(--font-family-ui);
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+  font-size: var(--font-size-md);
+}
+
+#root {
+  display: flex;
+  flex-direction: row;
+  height: 100%;
+  width: 100%;
+}
+
+/* Layout Classes */
+.app-container {
+  display: flex;
+  width: 100%;
+  height: 100%;
+}
+
+.sidebar {
+  width: var(--sidebar-width);
+  background: var(--bg-sidebar);
+  border-right: 1px solid var(--bg-root); /* Subtle separation */
+  display: flex;
+  flex-direction: column;
+  user-select: none;
+}
+
+.sidebar-section {
+  display: flex;
+  flex-direction: column;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.sidebar-section-header {
+  padding: 8px 15px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 700;
+  color: var(--fg-secondary);
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  background-color: var(--bg-sidebar);
+}
+
+.sidebar-section-header:hover {
+  color: var(--fg-active);
+}
+
+.sidebar-section-content {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden; /* Prevent content spill */
+}
+
+/* Specific styling for the action button (like New Terminal) */
+.sidebar-action-btn {
+  cursor: pointer;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 3px;
+  font-size: 14px;
+}
+
+.sidebar-action-btn:hover {
+  background-color: var(--bg-hover);
+  color: var(--fg-active);
+}
+
+.project-list {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.project-item {
+  padding: 6px 15px;
+  cursor: pointer;
+  color: var(--fg-primary);
+  display: flex;
+  align-items: center;
+  transition: background-color 0.1s ease, color 0.1s ease;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 13px;
+}
+
+.project-item:hover {
+  background-color: var(--bg-hover);
+  color: var(--fg-active);
+}
+
+/* Active State for Tasks */
+.project-item.active-task {
+  background-color: var(--bg-activity); /* Slightly lighter background */
+  color: var(--fg-active);
+  border-left: 3px solid var(--accent-primary);
+  padding-left: 12px; /* Adjust for border */
+}
+
+.task-close-btn {
+  margin-left: auto;
+  opacity: 0;
+  cursor: pointer;
+  font-size: 14px;
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 3px;
+}
+
+.project-item:hover .task-close-btn {
+  opacity: 1;
+}
+
+.task-close-btn:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+.project-icon {
+  margin-right: 8px;
+  opacity: 0.7;
+  font-size: 14px;
+}
+
+.sidebar-footer-btn {
+  padding: 10px 15px;
+  cursor: pointer;
+  color: var(--fg-primary);
+  display: flex;
+  align-items: center;
+  border-top: 1px solid var(--border-color);
+  transition: background-color 0.1s ease;
+}
+
+.sidebar-footer-btn:hover {
+  background-color: var(--bg-hover);
+  color: var(--fg-active);
+}
+
+.main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background-color: var(--bg-root);
+}
+
+.terminal-container {
+  flex: 1;
+  position: relative;
+  background: var(--bg-root);
+}
+
+.primary-btn {
+  background: var(--accent-primary);
+  color: white;
+  border: none;
+  padding: 10px;
+  cursor: pointer;
+  font-weight: 600;
+  text-align: center;
+}
+.primary-btn:hover {
+  background: var(--accent-hover);
+}
+
+/* Status Bar */
+
+.status-bar {
+
+  height: 22px;
+
+  background-color: var(--accent-primary);
+
+  color: #ffffff;
+
+  display: flex;
+
+  align-items: center;
+
+  font-size: 11px;
+
+  user-select: none;
+
+  width: 100%;
+
+}
+
+
+
+.status-item {
+
+  padding: 0 10px;
+
+  display: flex;
+
+  align-items: center;
+
+  height: 100%;
+
+  cursor: pointer;
+
+}
+
+
+
+.status-item:hover {
+
+  background-color: rgba(255, 255, 255, 0.2);
+
+}
+
+
+
+/* Sidebar Search */
+
+.sidebar-search-container {
+
+  padding: 8px 15px;
+
+  /* border-bottom: 1px solid var(--border-color); removed for cleaner look inside collapsible */
+  margin-bottom: 5px;
+
+}
+
+
+
+.sidebar-search-input {
+
+  width: 100%;
+
+  background-color: #3c3c3c;
+
+  border: 1px solid transparent;
+
+  color: #cccccc;
+
+  padding: 4px 6px;
+
+  font-size: 12px;
+
+  border-radius: 2px;
+
+  outline: none;
+
+  box-sizing: border-box;
+
+}
+
+
+
+.sidebar-search-input:focus {
+
+  border-color: var(--accent-primary);
+
+}
+
+
+
+.sidebar-search-input::placeholder {
+
+  color: #858585;
+
+}
+
+
+
+/* Resizer */
+
+.resizer {
+
+  width: 4px;
+
+  cursor: col-resize;
+
+  background: transparent;
+
+  transition: background 0.2s;
+
+  z-index: 10;
+
+  border-right: 1px solid var(--border-color);
+
+}
+
+
+
+.resizer:hover, .resizer:active {
+
+  background: var(--accent-primary);
+
+}
+
+
+
+/* Update App Container to allow column direction for Footer */
+
+.app-root-layout {
+
+  display: flex;
+
+  flex-direction: column;
+
+  width: 100%;
+
+  height: 100%;
+
+}
+
+
+
+.workspace-layout {
+
+  display: flex;
+
+  flex: 1;
+
+  overflow: hidden;
+
+}

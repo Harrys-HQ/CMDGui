@@ -1,0 +1,58 @@
+{
+  "name": "cmd-gui",
+  "version": "1.0.0",
+  "description": "",
+  "main": "electron/main.js",
+  "scripts": {
+    "dev": "concurrently \"npm run dev:react\" \"npm run dev:electron\"",
+    "dev:react": "vite",
+    "dev:electron": "wait-on tcp:5173 && electron .",
+    "build": "tsc && vite build",
+    "dist": "npm run build && electron-builder"
+  },
+  "build": {
+    "appId": "com.harrya.cmdgui",
+    "productName": "CmdGUI",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "build/icon.png"
+    },
+    "asarUnpack": [
+      "**/node_modules/node-pty/**/*"
+    ]
+  },
+  "keywords": [],
+  "author": "HarryA",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "concurrently": "^9.2.1",
+    "cross-env": "^10.1.0",
+    "node-pty": "^1.1.0",
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3",
+    "wait-on": "^9.0.3",
+    "xterm": "^5.3.0",
+    "xterm-addon-fit": "^0.8.0"
+  },
+  "devDependencies": {
+    "electron": "^40.0.0",
+    "@types/react": "^19.2.8",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^5.1.2",
+    "electron-builder": "^26.4.0",
+    "typescript": "^5.9.3",
+    "vite": "^7.3.1"
+  },
+  "overrides": {
+    "tar": "^6.2.1"
+  }
+}

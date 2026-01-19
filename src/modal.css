@@ -1,0 +1,134 @@
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--bg-modal-overlay);
+  backdrop-filter: blur(4px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.modal-container {
+  background-color: var(--bg-modal);
+  width: 800px;
+  max-width: 90%;
+  height: 80%;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+  animation: scaleIn 0.2s ease-out;
+}
+
+.modal-header {
+  padding: 15px 20px;
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: var(--bg-sidebar);
+}
+
+.modal-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--fg-active);
+}
+
+.modal-close-btn {
+  background: transparent;
+  border: none;
+  color: var(--fg-secondary);
+  font-size: 24px;
+  cursor: pointer;
+  line-height: 1;
+  transition: color 0.1s;
+}
+
+.modal-close-btn:hover {
+  color: var(--fg-active);
+}
+
+.modal-content {
+  padding: 0 30px 30px 30px;
+  overflow-y: auto;
+  line-height: 1.6;
+  color: var(--fg-primary);
+}
+
+.modal-section {
+  margin-bottom: 30px;
+}
+
+.modal-section-title {
+  color: var(--accent-primary);
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 10px;
+  margin-top: 30px;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+/* Command Grid Layout */
+.command-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+  margin-top: 15px;
+}
+
+.command-item {
+  display: flex;
+  border-bottom: 1px solid var(--bg-activity);
+  padding: 12px 0;
+}
+
+.command-name-col {
+  width: 140px;
+  flex-shrink: 0;
+}
+
+.command-pill {
+  font-family: var(--font-family-mono);
+  background-color: var(--bg-activity);
+  color: #ce9178;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+.command-desc-col {
+  flex: 1;
+}
+
+.command-title {
+  font-weight: 600;
+  color: var(--fg-active);
+  margin-bottom: 4px;
+}
+
+.command-usage code {
+  background: var(--bg-activity);
+  padding: 2px 5px;
+  border-radius: 4px;
+  color: #ce9178;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes scaleIn {
+  from { transform: scale(0.95); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
