@@ -1,7 +1,7 @@
 {
   "name": "cmd-gui",
   "version": "1.0.0",
-  "description": "",
+  "description": "A modern, persistent workspace manager and terminal emulator built with Electron and React.",
   "main": "electron/main.js",
   "scripts": {
     "dev": "concurrently \"npm run dev:react\" \"npm run dev:electron\"",

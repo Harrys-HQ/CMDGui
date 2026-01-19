@@ -1,18 +1,28 @@
 # CmdGUI
 
-CmdGUI is a React + Electron application designed to provide a workspace environment for managing and interacting with your command line projects. It features a multi-tabbed terminal interface and a built-in documentation viewer.
+**CmdGUI** is a developer-focused workspace manager designed to streamline your command-line workflow. Built with **Electron**, **React**, and **TypeScript**, it serves as a central hub for all your active projects, allowing you to manage multiple terminal sessions (PowerShell/Bash) with a persistent state that remembers your setup between launches.
 
-## Features
+## Key Features
 
-- **Multi-Tab Terminal:** Run multiple terminal sessions (PowerShell/Bash) simultaneously.
-- **Integrated Documentation:** View documentation and usage directly within the app.
+*   **🖥️ Integrated Terminal Environment:** Full-featured terminal emulation using `xterm.js` and `node-pty`.
+*   **📂 Project Manager:** Easily add, remove, and switch between project directories from a collapsible sidebar.
+*   **🏷️ Smart Detection:** Automatically identifies and assigns icons to project types (React, Python, Rust, Go, Git).
+*   **📑 Multi-Tab Interface:** Run independent terminal sessions for different tasks or projects simultaneously.
+*   **💾 Persistent State:** Your open tabs, sidebar width, and added projects are saved automatically.
+*   **🛡️ Admin Mode:** Built-in support for relaunching with elevated privileges for administrative tasks.
+
+## Tech Stack
+
+*   **Frontend:** React 19, Vite, TypeScript
+*   **Backend:** Electron, Node.js
+*   **Terminal:** xterm.js, node-pty, xterm-addon-fit
 
 ## Getting Started
 
 ### Prerequisites
 
-- Node.js (v16 or higher recommended)
-- npm
+*   Node.js (v16 or higher recommended)
+*   npm
 
 ### Installation
 
@@ -41,44 +51,7 @@ npm run dist
 
 ## Available Commands
 
-The application provides a "Settings & Docs" modal that lists all available Gemini CLI commands. Here is a quick reference:
-
-### Slash Commands (/)
-
-| Command | Description |
-| :--- | :--- |
-| `/bug` | Report an issue about Gemini CLI. |
-| `/chat` | Save, resume, list, delete, or share conversation history. |
-| `/clear` | Clear the terminal screen. |
-| `/compress` | Summarize chat context to save tokens. |
-| `/copy` | Copy the last output to the clipboard. |
-| `/dir` | Manage workspace directories (`add`, `show`). |
-| `/help` | Display help information. |
-| `/init` | Analyze directory and generate a `GEMINI.md` context file. |
-| `/mcp` | Manage Model Context Protocol servers (`list`, `auth`, `refresh`). |
-| `/memory` | Manage instructional context (`add`, `show`, `refresh`). |
-| `/model` | Select your Gemini model. |
-| `/restore` | Restore project files to a previous state. |
-| `/rewind` | Rewind conversation and revert file changes. |
-| `/settings` | Open the settings editor. |
-| `/skills` | Manage agent skills (`list`, `enable`, `disable`). |
-| `/stats` | Display session statistics. |
-| `/tools` | List available tools. |
-| `/quit` | Exit Gemini CLI. |
-
-### At Commands (@)
-
-| Command | Description |
-| :--- | :--- |
-| `@<path>` | Inject the content of a file or directory into the prompt. |
-| `@` | Pass the query as-is to the model without context management. |
-
-### Shell Mode (!)
-
-| Command | Description |
-| :--- | :--- |
-| `!<command>` | Execute a shell command (e.g., `!git status`). |
-| `!` | Toggle persistent shell mode. |
+The application provides a "Settings & Docs" modal that lists all available Gemini CLI commands if you are using the integrated agent.
 
 ## License
 
