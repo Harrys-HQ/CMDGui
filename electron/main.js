@@ -1,4 +1,5 @@
 const { app, BrowserWindow, ipcMain, dialog, shell, session } = require('electron');
+const { autoUpdater } = require('electron-updater');
 const path = require('path');
 const os = require('os');
 const fs = require('fs');
@@ -58,9 +59,51 @@ function createWindow() {
 
 app.whenReady().then(() => {
   createWindow();
+  
+  if (!process.env.npm_lifecycle_event) {
+    autoUpdater.checkForUpdatesAndNotify();
+  }
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
+  });
+});
+
+// --- Auto Updater Events ---
+
+autoUpdater.on('checking-for-update', () => {
+  console.log('Checking for updates...');
+});
+
+autoUpdater.on('update-available', (info) => {
+  console.log('Update available:', info);
+});
+
+autoUpdater.on('update-not-available', (info) => {
+  console.log('Update not available:', info);
+});
+
+autoUpdater.on('error', (err) => {
+  console.log('Error in auto-updater. ' + err);
+});
+
+autoUpdater.on('download-progress', (progressObj) => {
+  let log_message = "Download speed: " + progressObj.bytesPerSecond;
+  log_message = log_message + ' - Downloaded ' + progressObj.percent + '%';
+  console.log(log_message);
+});
+
+autoUpdater.on('update-downloaded', (info) => {
+  console.log('Update downloaded');
+  dialog.showMessageBox({
+    type: 'info',
+    title: 'Update Ready',
+    message: 'A new version of CmdGUI has been downloaded. Quit and install now?',
+    buttons: ['Yes', 'Later']
+  }).then((result) => {
+    if (result.response === 0) {
+      autoUpdater.quitAndInstall(false, true);
+    }
   });
 });
 

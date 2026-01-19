@@ -1,6 +1,6 @@
 {
   "name": "cmd-gui",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A modern, persistent workspace manager and terminal emulator built with Electron and React.",
   "main": "electron/main.js",
   "scripts": {
@@ -8,7 +8,8 @@
     "dev:react": "vite",
     "dev:electron": "wait-on tcp:5173 && electron .",
     "build": "tsc && vite build",
-    "dist": "npm run build && electron-builder"
+    "dist": "npm run build && electron-builder",
+    "publish": "npm run build && dotenv -- electron-builder -p always"
   },
   "build": {
     "appId": "com.harrya.cmdgui",
@@ -21,6 +22,11 @@
       "electron/**/*",
       "package.json"
     ],
+    "publish": {
+      "provider": "github",
+      "owner": "Harrys-HQ",
+      "repo": "CMDGui"
+    },
     "win": {
       "target": "nsis",
       "icon": "build/icon.png"
@@ -32,10 +38,15 @@
   "keywords": [],
   "author": "HarryA",
   "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Harrys-HQ/CMDGui.git"
+  },
   "type": "commonjs",
   "dependencies": {
     "concurrently": "^9.2.1",
     "cross-env": "^10.1.0",
+    "electron-updater": "^6.7.3",
     "node-pty": "^1.1.0",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
@@ -48,6 +59,7 @@
     "@types/react": "^19.2.8",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.2",
+    "dotenv-cli": "^11.0.0",
     "electron": "^40.0.0",
     "electron-builder": "^26.4.0",
     "typescript": "^5.9.3",

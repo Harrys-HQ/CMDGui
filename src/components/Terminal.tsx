@@ -79,6 +79,14 @@ const Terminal: React.FC<TerminalProps> = ({ cwd, isActive, onTitleChange, onExi
         return false;
       }
 
+      // New Line: Ctrl + Enter
+      if (e.ctrlKey && e.code === 'Enter' && e.type === 'keydown') {
+        if (pidRef.current !== null) {
+          window.electron.writeTerminal(pidRef.current, '\n');
+        }
+        return false;
+      }
+
       // Allow these shortcuts to propagate to the window
       if (e.ctrlKey && (e.key === 't' || e.key === 'w' || e.key === 'Tab')) {
         return false;
