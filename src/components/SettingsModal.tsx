@@ -123,7 +123,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                 <div className="command-grid">
                   <div className="command-item">
                     <div className="command-name-col"><span className="command-pill">Version</span></div>
-                    <div className="command-desc-col"><div>1.0.5</div></div>
+                    <div className="command-desc-col"><div>1.0.6</div></div>
                   </div>
                   <div className="command-item">
                     <div className="command-name-col"><span className="command-pill">Author</span></div>

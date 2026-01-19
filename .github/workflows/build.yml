@@ -10,6 +10,7 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     strategy:
+      fail-fast: false
       matrix:
         os: [windows-latest, macos-latest, ubuntu-latest]
 
@@ -27,12 +28,14 @@ jobs:
         run: npm install
 
       - name: Build and Distribute
+        continue-on-error: ${{ matrix.os == 'ubuntu-latest' }}
         run: npm run dist
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # macOS code signing would require APPLE_ID and APPLE_APP_SPECIFIC_PASSWORD here later
           
       - name: Upload Artifacts
+        if: success() || (matrix.os == 'ubuntu-latest' && failure())
         uses: actions/upload-artifact@v4
         with:
           name: build-${{ matrix.os }}

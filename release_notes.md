@@ -1,11 +1,12 @@
-## 🚀 Release: CmdGUI v1.0.5
+## 🚀 Release: CmdGUI v1.0.6
 
-### 🛠️ DevOps & Documentation
-*   **Automated Build Workflow:** Integrated GitHub Actions to automatically build and package the application for Windows, macOS, and Linux upon tagging a release.
-*   **GEMINI Documentation:** Added `GEMINI.md` to provide structured project rules, guidelines, and context for development.
-*   **Version Synchronization:** Ensured version consistency across `package.json`, `SettingsModal.tsx`, and `release_notes.md`.
+### 🛠️ DevOps & CI/CD
+*   **Resilient Build Workflow:** Disabled `fail-fast` in GitHub Actions to ensure Windows and macOS builds complete even if the Linux build encounters errors.
+*   **Priority Builds:** Configured the workflow to allow the Ubuntu build to fail without cancelling the entire release process.
 
 ---
+
+## 🚀 Release: CmdGUI v1.0.5
 
 ## 🚀 Release: CmdGUI v1.0.4
 
