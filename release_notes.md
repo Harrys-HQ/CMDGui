@@ -1,5 +1,14 @@
 ## 🚀 Release: CmdGUI v1.0.5
 
+### 🛠️ DevOps & Documentation
+*   **Automated Build Workflow:** Integrated GitHub Actions to automatically build and package the application for Windows, macOS, and Linux upon tagging a release.
+*   **GEMINI Documentation:** Added `GEMINI.md` to provide structured project rules, guidelines, and context for development.
+*   **Version Synchronization:** Ensured version consistency across `package.json`, `SettingsModal.tsx`, and `release_notes.md`.
+
+---
+
+## 🚀 Release: CmdGUI v1.0.4
+
 ### 📖 Documentation & UX
 *   **Reorganized Documentation:** The "Settings & Docs" modal now features a tabbed interface for better organization:
     *   **GEMINI - Project:** Focuses on CmdGUI application shortcuts, interface navigation, and pro tips.
@@ -33,7 +42,7 @@
 
 ### 🛡️ Security Enhancements
 *   **External Link Protection:** Configured Electron to open all `http/https` links in the system's default browser instead of the app window.
-*   **Permission Lockdown:** Implemented a strict handler that denies all hardware/system permission requests (camera, mic, notifications) by default.
+*   **Permission Lockdown:** Implemented a strict handler that deletes all hardware/system permission requests (camera, mic, notifications) by default.
 *   **Content Security Policy (CSP):** Added a robust CSP meta tag to `index.html` to prevent unauthorized script execution and XSS attacks.
 
 ### 💻 Terminal Fixes & Features
