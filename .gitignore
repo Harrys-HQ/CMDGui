@@ -106,7 +106,6 @@ out
 
 # Strapi build output
 .cache/
-build/
 
 # OS X
 .DS_Store
