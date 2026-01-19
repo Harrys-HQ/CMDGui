@@ -1,11 +1,11 @@
-const { app, BrowserWindow, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell, session } = require('electron');
 const path = require('path');
 const os = require('os');
 const fs = require('fs');
 const pty = require('node-pty');
 
 // Use powershell.exe on Windows, bash on others
-const shell = os.platform() === 'win32' ? 'powershell.exe' : 'bash';
+const shellCommand = os.platform() === 'win32' ? 'powershell.exe' : 'bash';
 
 let mainWindow;
 const terminals = {};
@@ -35,6 +35,20 @@ function createWindow() {
      mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
      mainWindow.webContents.closeDevTools();
   }
+
+  // Security: Handle external links
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    // Only allow http and https protocols to be opened externally
+    if (url.startsWith('http:') || url.startsWith('https:')) {
+      shell.openExternal(url);
+    }
+    return { action: 'deny' };
+  });
+
+  // Security: Deny all permission requests (camera, mic, notifications, etc.)
+  session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
+    callback(false);
+  });
 }
 
 app.whenReady().then(() => {
@@ -107,7 +121,7 @@ ipcMain.handle('terminal-create', (event, options) => {
   // Default to user home if no cwd provided
   const targetCwd = cwd || os.homedir();
 
-  const ptyProcess = pty.spawn(shell, [], {
+  const ptyProcess = pty.spawn(shellCommand, [], {
     name: 'xterm-color',
     cols: cols || 80,
     rows: rows || 30,
