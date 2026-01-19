@@ -1,10 +1,12 @@
-## 🚀 Release: CmdGUI v1.0.6
+## 🚀 Release: CmdGUI v1.0.7
 
 ### 🛠️ DevOps & CI/CD
-*   **Resilient Build Workflow:** Disabled `fail-fast` in GitHub Actions to ensure Windows and macOS builds complete even if the Linux build encounters errors.
-*   **Priority Builds:** Configured the workflow to allow the Ubuntu build to fail without cancelling the entire release process.
+*   **Build Stability:** Fixed a critical issue where the application icon was missing in the CI environment, causing Windows builds to fail.
+*   **Repository Cleanup:** Updated `.gitignore` to correctly track necessary build assets while excluding temporary build artifacts.
 
 ---
+
+## 🚀 Release: CmdGUI v1.0.6
 
 ## 🚀 Release: CmdGUI v1.0.5
 
