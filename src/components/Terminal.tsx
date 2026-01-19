@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Terminal as Xterm } from 'xterm';
 import { FitAddon } from 'xterm-addon-fit';
+import { WebLinksAddon } from 'xterm-addon-web-links';
 
 interface TerminalProps {
   cwd?: string;
@@ -50,13 +51,34 @@ const Terminal: React.FC<TerminalProps> = ({ cwd, isActive, onTitleChange, onExi
     });
 
     const fitAddon = new FitAddon();
+    const webLinksAddon = new WebLinksAddon();
+    
     term.loadAddon(fitAddon);
+    term.loadAddon(webLinksAddon);
+    
     term.open(terminalRef.current);
     
     xtermRef.current = term;
     fitAddonRef.current = fitAddon;
 
     term.attachCustomKeyEventHandler((e) => {
+      // Copy: Ctrl + Shift + C
+      if (e.ctrlKey && e.shiftKey && e.code === 'KeyC' && e.type === 'keydown') {
+        const selection = term.getSelection();
+        if (selection) {
+          navigator.clipboard.writeText(selection);
+          return false;
+        }
+      }
+
+      // Paste: Ctrl + Shift + V
+      if (e.ctrlKey && e.shiftKey && e.code === 'KeyV' && e.type === 'keydown') {
+        navigator.clipboard.readText().then(text => {
+          term.paste(text);
+        });
+        return false;
+      }
+
       // Allow these shortcuts to propagate to the window
       if (e.ctrlKey && (e.key === 't' || e.key === 'w' || e.key === 'Tab')) {
         return false;

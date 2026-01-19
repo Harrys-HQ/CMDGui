@@ -47,7 +47,12 @@ function createWindow() {
 
   // Security: Deny all permission requests (camera, mic, notifications, etc.)
   session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
-    callback(false);
+    const allowedPermissions = ['clipboard-read', 'clipboard-sanitized-write'];
+    if (allowedPermissions.includes(permission)) {
+      callback(true);
+    } else {
+      callback(false);
+    }
   });
 }
 
