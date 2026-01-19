@@ -25,5 +25,6 @@ contextBridge.exposeInMainWorld('electron', {
   selectFolder: () => ipcRenderer.invoke('dialog-select-folder'),
   getProjectInfo: (path) => ipcRenderer.invoke('project-get-info', path),
   checkAdmin: () => ipcRenderer.invoke('app-check-admin'),
-  relaunchAdmin: () => ipcRenderer.send('app-relaunch-admin')
+  relaunchAdmin: () => ipcRenderer.send('app-relaunch-admin'),
+  openExternal: (url) => ipcRenderer.invoke('shell-open-external', url)
 });

@@ -57,6 +57,33 @@
   color: var(--fg-active);
 }
 
+.modal-tabs {
+  display: flex;
+  background-color: var(--bg-sidebar);
+  border-bottom: 1px solid var(--border-color);
+  padding: 0 20px;
+}
+
+.modal-tab {
+  padding: 10px 20px;
+  cursor: pointer;
+  color: var(--fg-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s;
+  user-select: none;
+}
+
+.modal-tab:hover {
+  color: var(--fg-active);
+}
+
+.modal-tab.active {
+  color: var(--fg-active);
+  border-bottom-color: var(--accent-primary);
+}
+
 .modal-content {
   padding: 0 30px 30px 30px;
   overflow-y: auto;

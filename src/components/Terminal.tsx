@@ -16,6 +16,7 @@ const Terminal: React.FC<TerminalProps> = ({ cwd, isActive, onTitleChange, onExi
   const fitAddonRef = useRef<FitAddon | null>(null);
   const pidRef = useRef<number | null>(null);
   const [isReady, setIsReady] = useState(false);
+  const lastPressRef = useRef<{ key: string, time: number } | null>(null);
 
   useEffect(() => {
     if (!terminalRef.current) return;
@@ -51,7 +52,9 @@ const Terminal: React.FC<TerminalProps> = ({ cwd, isActive, onTitleChange, onExi
     });
 
     const fitAddon = new FitAddon();
-    const webLinksAddon = new WebLinksAddon();
+    const webLinksAddon = new WebLinksAddon((event, uri) => {
+        window.electron.openExternal(uri);
+    });
     
     term.loadAddon(fitAddon);
     term.loadAddon(webLinksAddon);
@@ -62,8 +65,10 @@ const Terminal: React.FC<TerminalProps> = ({ cwd, isActive, onTitleChange, onExi
     fitAddonRef.current = fitAddon;
 
     term.attachCustomKeyEventHandler((e) => {
+      if (e.type !== 'keydown') return true;
+
       // Copy: Ctrl + Shift + C
-      if (e.ctrlKey && e.shiftKey && e.code === 'KeyC' && e.type === 'keydown') {
+      if (e.ctrlKey && e.shiftKey && e.code === 'KeyC') {
         const selection = term.getSelection();
         if (selection) {
           navigator.clipboard.writeText(selection);
@@ -72,19 +77,58 @@ const Terminal: React.FC<TerminalProps> = ({ cwd, isActive, onTitleChange, onExi
       }
 
       // Paste: Ctrl + Shift + V
-      if (e.ctrlKey && e.shiftKey && e.code === 'KeyV' && e.type === 'keydown') {
+      if (e.ctrlKey && e.shiftKey && e.code === 'KeyV') {
         navigator.clipboard.readText().then(text => {
           term.paste(text);
         });
         return false;
       }
 
-      // New Line: Ctrl + Enter
-      if (e.ctrlKey && e.code === 'Enter' && e.type === 'keydown') {
-        if (pidRef.current !== null) {
-          window.electron.writeTerminal(pidRef.current, '\n');
-        }
-        return false;
+      // Handle Basic Controls & Editing via Control Keys
+      if (e.ctrlKey && !e.shiftKey && !e.altKey && pidRef.current !== null) {
+          switch (e.key.toLowerCase()) {
+              case 'a': // Move to start (Home)
+                  window.electron.writeTerminal(pidRef.current, '\x1b[H');
+                  return false;
+              case 'e': // Move to end (End)
+                  window.electron.writeTerminal(pidRef.current, '\x1b[F');
+                  return false;
+              case 'l': // Clear screen
+                  window.electron.writeTerminal(pidRef.current, '\x0c');
+                  return false;
+              case 'u': // Delete to start
+                  window.electron.writeTerminal(pidRef.current, '\x15');
+                  return false;
+              case 'k': // Delete to end (VT) - might depend on shell support
+                   window.electron.writeTerminal(pidRef.current, '\x0b');
+                   return false;
+              case 'c': // Cancel / Interrupt (Double press required)
+                   const nowC = Date.now();
+                   if (lastPressRef.current?.key === 'c' && nowC - lastPressRef.current.time < 500) {
+                       window.electron.writeTerminal(pidRef.current, '\x03');
+                       lastPressRef.current = null;
+                   } else {
+                       lastPressRef.current = { key: 'c', time: nowC };
+                       term.write('\r\n(Press Ctrl+C again to interrupt)\r\n');
+                   }
+                   return false;
+              case 'd': // Exit (Double press required)
+                   const nowD = Date.now();
+                   if (lastPressRef.current?.key === 'd' && nowD - lastPressRef.current.time < 500) {
+                       window.electron.writeTerminal(pidRef.current, '\x04');
+                       lastPressRef.current = null;
+                   } else {
+                       lastPressRef.current = { key: 'd', time: nowD };
+                       term.write('\r\n(Press Ctrl+D again to exit)\r\n');
+                   }
+                   return false;
+              case 'r': // Reverse search
+                   window.electron.writeTerminal(pidRef.current, '\x12');
+                   return false;
+              case 'enter': // New Line (Ctrl+Enter)
+                   window.electron.writeTerminal(pidRef.current, '\n');
+                   return false;
+          }
       }
 
       // Allow these shortcuts to propagate to the window

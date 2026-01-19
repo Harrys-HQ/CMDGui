@@ -51,7 +51,9 @@ npm run dist
 
 ## Available Commands
 
-The application provides a "Settings & Docs" modal that lists all available Gemini CLI commands if you are using the integrated agent.
+The application provides a "Settings & Docs" modal that features a tabbed interface:
+*   **GEMINI - Project:** Documentation for CmdGUI application shortcuts and interface navigation.
+*   **GEMINI - CLI:** A comprehensive list of Gemini CLI slash commands and Windows PowerShell ISE keyboard shortcuts.
 
 ## License
 

@@ -7,8 +7,9 @@ export interface ElectronAPI {
   killTerminal: (pid: number) => void;
   selectFolder: () => Promise<string | null>;
   getProjectInfo: (path: string) => Promise<string>;
-  checkAdmin: () => Promise<boolean>;
-  relaunchAdmin: () => void;
+    checkAdmin: () => Promise<boolean>;
+    relaunchAdmin: () => void;
+    openExternal: (url: string) => Promise<void>;
 }
 
 declare global {

@@ -113,6 +113,14 @@ app.on('window-all-closed', () => {
 
 // --- IPC Handlers for System Dialogs & App Mgmt ---
 
+ipcMain.handle('shell-open-external', (event, url) => {
+  if (url.startsWith('http:') || url.startsWith('https:')) {
+    shell.openExternal(url);
+  }
+});
+
+// --- IPC Handlers for Terminal ---
+
 ipcMain.handle('dialog-select-folder', async () => {
   if (!mainWindow) return null;
   const result = await dialog.showOpenDialog(mainWindow, {

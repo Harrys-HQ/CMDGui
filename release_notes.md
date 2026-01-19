@@ -1,3 +1,30 @@
+## 🚀 Release: CmdGUI v1.0.4
+
+### 📖 Documentation & UX
+*   **Reorganized Documentation:** The "Settings & Docs" modal now features a tabbed interface for better organization:
+    *   **GEMINI - Project:** Focuses on CmdGUI application shortcuts, interface navigation, and pro tips.
+    *   **GEMINI - CLI:** Centralizes Slash commands, At commands, and Shell mode documentation.
+*   **PowerShell ISE Integration:** Added a comprehensive list of Windows PowerShell ISE keyboard shortcuts to the GEMINI - CLI tab, providing a quick reference for editing, running, and debugging scripts.
+
+---
+
+## 🚀 Release: CmdGUI v1.0.3
+
+### 💻 Terminal Enhancements & Shortcuts
+*   **Enhanced Keyboard Controls:** Added standard terminal shortcuts for better navigation and editing:
+    *   **Home/End:** `Ctrl + A` moves to start, `Ctrl + E` moves to end.
+    *   **Screen Management:** `Ctrl + L` to clear the terminal screen.
+    *   **Deletion:** `Ctrl + U` deletes to start, `Ctrl + K` deletes to end.
+    *   **Interrupt & Exit:** Implemented safety with double-press requirements for `Ctrl + C` (Interrupt) and `Ctrl + D` (Exit).
+    *   **History Search:** `Ctrl + R` for reverse history search.
+*   **Improved Stability:** Fixed TypeScript errors in terminal type definitions and interface declarations.
+
+### 🛠️ Developer Experience
+*   **Documentation Update:** Updated the "Settings & Docs" modal with comprehensive terminal shortcut listings.
+*   **Build Optimization:** Resolved syntax errors that prevented successful production builds.
+
+---
+
 ## 🚀 Release: CmdGUI v1.0.1
 
 ### New Features
