@@ -170,6 +170,13 @@ const Terminal: React.FC<TerminalProps> = ({ cwd, isActive, theme, onTitleChange
         return false;
       }
 
+      if (e.ctrlKey && e.code === 'Enter') {
+          if (pidRef.current !== null) {
+              window.electron.writeTerminal(pidRef.current, '\x1bOM');
+          }
+          return false;
+      }
+
       if (e.ctrlKey && !e.shiftKey && !e.altKey && pidRef.current !== null) {
           switch (e.key.toLowerCase()) {
               case 'c': 
