@@ -6,7 +6,7 @@
 
 *   **🖥️ Integrated Terminal Environment:** Full-featured terminal emulation using `xterm.js` and `node-pty`.
 *   **📂 Project Manager:** Easily add, remove, and switch between project directories from a collapsible sidebar.
-*   **🏷️ Smart Detection:** Automatically identifies and assigns icons to project types (React, Python, Rust, Go, Git).
+*   **🏷️ Smart Detection:** Automatically identifies and assigns icons to project types (React, Vue, Angular, Svelte, Node.js, Python, Rust, Go, Docker, .NET, C++, and Git).
 *   **📑 Multi-Tab Interface:** Run independent terminal sessions for different tasks or projects simultaneously.
 *   **💾 Persistent State:** Your open tabs, sidebar width, and added projects are saved automatically.
 *   **🛡️ Admin Mode:** Built-in support for relaunching with elevated privileges for administrative tasks.

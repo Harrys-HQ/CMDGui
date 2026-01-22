@@ -144,6 +144,32 @@ body {
   padding-left: 12px; /* Adjust for border */
 }
 
+/* Alert State for Tasks */
+.project-item.alert-task {
+  color: #f14c4c;
+  font-weight: bold;
+  animation: task-pulse 2s infinite;
+}
+
+/* Confirmation State for Tasks */
+.project-item.confirmation-task {
+  color: #cca700;
+  font-weight: bold;
+  animation: confirmation-pulse 2s infinite;
+}
+
+@keyframes task-pulse {
+  0% { background-color: transparent; }
+  50% { background-color: rgba(241, 76, 76, 0.15); }
+  100% { background-color: transparent; }
+}
+
+@keyframes confirmation-pulse {
+  0% { background-color: transparent; }
+  50% { background-color: rgba(204, 167, 0, 0.15); }
+  100% { background-color: transparent; }
+}
+
 .task-close-btn {
   margin-left: auto;
   opacity: 0;
@@ -200,6 +226,46 @@ body {
   background: var(--bg-root);
 }
 
+.terminal-search-bar {
+  position: absolute;
+  top: 10px;
+  right: 30px;
+  z-index: 100;
+  background: var(--bg-sidebar);
+  border: 1px solid var(--border-color);
+  padding: 5px;
+  display: flex;
+  gap: 5px;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+}
+
+.terminal-search-bar input {
+  background: #3c3c3c;
+  border: 1px solid transparent;
+  color: #cccccc;
+  padding: 2px 6px;
+  font-size: 12px;
+  outline: none;
+}
+
+.terminal-search-bar input:focus {
+  border-color: var(--accent-primary);
+}
+
+.terminal-search-bar button {
+  background: transparent;
+  border: none;
+  color: var(--fg-secondary);
+  cursor: pointer;
+  padding: 0 5px;
+}
+
+.terminal-search-bar button:hover {
+  color: var(--fg-active);
+  background: var(--bg-hover);
+}
+
 .primary-btn {
   background: var(--accent-primary);
   color: white;
@@ -214,156 +280,97 @@ body {
 }
 
 /* Status Bar */
-
 .status-bar {
-
   height: 22px;
-
   background-color: var(--accent-primary);
-
   color: #ffffff;
-
   display: flex;
-
   align-items: center;
-
   font-size: 11px;
-
   user-select: none;
-
   width: 100%;
-
 }
-
-
 
 .status-item {
-
   padding: 0 10px;
-
   display: flex;
-
   align-items: center;
-
   height: 100%;
-
   cursor: pointer;
-
 }
-
-
 
 .status-item:hover {
-
   background-color: rgba(255, 255, 255, 0.2);
-
 }
-
-
 
 /* Sidebar Search */
-
 .sidebar-search-container {
-
   padding: 8px 15px;
-
-  /* border-bottom: 1px solid var(--border-color); removed for cleaner look inside collapsible */
   margin-bottom: 5px;
-
 }
-
-
 
 .sidebar-search-input {
-
   width: 100%;
-
   background-color: #3c3c3c;
-
   border: 1px solid transparent;
-
   color: #cccccc;
-
   padding: 4px 6px;
-
   font-size: 12px;
-
   border-radius: 2px;
-
   outline: none;
-
   box-sizing: border-box;
-
 }
-
-
 
 .sidebar-search-input:focus {
-
   border-color: var(--accent-primary);
-
 }
-
-
 
 .sidebar-search-input::placeholder {
-
   color: #858585;
-
 }
 
+.highlight-match {
+  background-color: rgba(0, 122, 204, 0.6);
+  color: #ffffff;
+  border-radius: 1px;
+}
 
+.dropdown-menu {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  background: #252526;
+  border: 1px solid #3e3e42;
+  border-radius: 3px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+  z-index: 100;
+  min-width: 160px;
+}
 
 /* Resizer */
-
 .resizer {
-
   width: 4px;
-
   cursor: col-resize;
-
   background: transparent;
-
   transition: background 0.2s;
-
   z-index: 10;
-
   border-right: 1px solid var(--border-color);
-
 }
-
-
 
 .resizer:hover, .resizer:active {
-
   background: var(--accent-primary);
-
 }
-
-
 
 /* Update App Container to allow column direction for Footer */
-
 .app-root-layout {
-
   display: flex;
-
   flex-direction: column;
-
   width: 100%;
-
   height: 100%;
-
 }
 
-
-
 .workspace-layout {
-
   display: flex;
-
   flex: 1;
-
   overflow: hidden;
-
 }

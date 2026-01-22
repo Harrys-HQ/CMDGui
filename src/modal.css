@@ -149,6 +149,37 @@
   color: #ce9178;
 }
 
+/* Theme Selection */
+.theme-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 15px;
+}
+
+.theme-option {
+  background: var(--bg-sidebar);
+  border: 1px solid var(--border-color);
+  padding: 15px;
+  border-radius: 6px;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.2s;
+  color: var(--fg-secondary);
+}
+
+.theme-option:hover {
+  background: var(--bg-hover);
+  color: var(--fg-active);
+  border-color: var(--fg-secondary);
+}
+
+.theme-option.selected {
+  border-color: var(--accent-primary);
+  background: var(--bg-activity);
+  color: var(--fg-active);
+  box-shadow: 0 0 0 1px var(--accent-primary);
+}
+
 /* Animations */
 @keyframes fadeIn {
   from { opacity: 0; }

@@ -28,5 +28,18 @@ contextBridge.exposeInMainWorld('electron', {
   relaunchAdmin: () => ipcRenderer.send('app-relaunch-admin'),
   openExternal: (url) => ipcRenderer.invoke('shell-open-external', url),
   checkForUpdates: () => ipcRenderer.invoke('app-check-for-updates'),
-  getVersion: () => ipcRenderer.invoke('app-get-version')
+  getVersion: () => ipcRenderer.invoke('app-get-version'),
+  
+  // Context Menus
+  showContextMenu: (type, data) => ipcRenderer.invoke('context-menu-show', type, data),
+  onTerminalContextAction: (callback) => {
+    const subscription = (event, action) => callback(action);
+    ipcRenderer.on('terminal-context-action', subscription);
+    return () => ipcRenderer.removeListener('terminal-context-action', subscription);
+  },
+  onSidebarContextAction: (callback) => {
+    const subscription = (event, data) => callback(data);
+    ipcRenderer.on('sidebar-context-action', subscription);
+    return () => ipcRenderer.removeListener('sidebar-context-action', subscription);
+  }
 });

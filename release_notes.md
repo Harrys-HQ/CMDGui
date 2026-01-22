@@ -1,3 +1,53 @@
+## 🚀 Release: CmdGUI v1.1.0
+
+### ✨ Terminal & UX Enhancements
+*   **Quick Switcher (`Ctrl + P`):** Added a fuzzy-search modal to instantly jump between active terminal tasks and added projects.
+*   **Admin Mode Visibility:** Added a visual shield badge (🛡️) to terminal tabs running with elevated privileges for better workspace awareness.
+*   **Integrated Terminal Search:** Added a native search bar (`Ctrl + F`) to find text within the terminal buffer. Support for "Find Next", "Find Previous", and "Close" controls.
+*   **Native Context Menus:** Implemented right-click menus across the application:
+    *   **Terminal:** Copy, Paste, and Clear Terminal.
+    *   **Project Manager:** Open in File Explorer, Open in VS Code, and Remove Project.
+    *   **Active Tasks:** Rename Task and Close Task.
+*   **Standardized Keyboard Shortcuts:** 
+    *   `Ctrl + C` now intelligently copies selected text if a selection exists, or sends an interrupt (SIGINT) if not.
+    *   `Ctrl + Shift + C` and `Ctrl + Shift + V` remain supported for explicit clipboard operations.
+*   **Custom Terminal Themes:** Added a new **Appearance** settings tab allowing users to switch between four professional themes: VS Code Dark, Monokai, Solarized Dark, and One Dark.
+*   **Smart Search Highlighting:** Added real-time visual highlighting for search results in the Project Manager and Active Tasks list.
+
+### 📂 Enhanced Project Manager
+*   **Expanded Framework Detection:** Added smart detection for even more project types:
+    *   **Modern JS & Tooling:** Added detection for **Vite**, **Next.js**, **Nuxt.js**, and **Deno** projects.
+    *   **PHP & Laravel:** Recognizes `composer.json` and specifically identifies Laravel framework projects.
+    *   **Ruby:** Detects `Gemfile` and `.rb` files.
+    *   **Java:** Recognizes Maven (`pom.xml`), Gradle (`build.gradle`), and `.java` source files.
+
+### 🧹 Maintenance & Refactoring
+*   **Hook-based Architecture:** Refactored the entire application state management into modular custom hooks (`useTabs`, `useProjects`, `useSidebarResizer`), significantly improving code maintainability and performance.
+*   **Architectural Refactor:** Completely modularized the application sidebar. Extracted `Sidebar`, `ProjectItem`, and `TaskItem` into dedicated components.
+*   **State Management:** Improved persistence logic and cleaned up redundant state closures.
+*   **Confirmation & Permission Detection:** Improved intelligent detection system for background terminals (🔑 icon for `sudo`/passwords).
+
+---
+
+## 🚀 Release: CmdGUI v1.0.9
+
+### 🛠️ Stability & Core Fixes
+*   **Terminal Lifecycle Management:** Fixed a critical bug where closing terminal tabs left orphaned PTY processes running in the background. Terminal processes are now reliably cleaned up on tab closure.
+*   **Code Quality Refactor:** Migrated "Add Terminal" menu logic from manual DOM manipulation to idiomatic React state management for better reliability and performance.
+
+### 📂 Enhanced Project Manager
+*   **Expanded Smart Detection:** The Project Manager now intelligently identifies and assigns icons to a much wider range of project types:
+    *   **Web Frameworks:** Added support for Vue, Angular, Svelte, and generic Node.js projects.
+    *   **Environments:** Added detection for Docker containers (`Dockerfile`, `docker-compose.yml`).
+    *   **Languages & Toolkits:** Added support for .NET (`.sln`, `.csproj`) and C++ (`.cpp`, `.hpp`) projects.
+*   **Visual Iconography:** Updated the sidebar with unique icons for all newly supported project types to help you navigate your workspace faster.
+
+### 🧹 Maintenance
+*   **Stylesheet Optimization:** Cleaned up `index.css` to remove redundant spacing and improve formatting consistency.
+*   **Documentation:** Updated the README to reflect the latest project detection capabilities.
+
+---
+
 ## 🚀 Release: CmdGUI v1.0.8
 
 ### 💻 UX & Terminal Improvements

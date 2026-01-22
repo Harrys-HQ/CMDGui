@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, shell, session } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell, session, Menu } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const path = require('path');
 const os = require('os');
@@ -119,6 +119,40 @@ ipcMain.handle('shell-open-external', (event, url) => {
   }
 });
 
+// --- IPC Handlers for Context Menus ---
+
+ipcMain.handle('context-menu-show', (event, type, data) => {
+  const template = [];
+  
+  if (type === 'terminal') {
+    template.push(
+      { label: 'Copy', accelerator: 'CmdOrCtrl+Shift+C', click: () => event.sender.send('terminal-context-action', 'copy') },
+      { label: 'Paste', accelerator: 'CmdOrCtrl+Shift+V', click: () => event.sender.send('terminal-context-action', 'paste') },
+      { type: 'separator' },
+      { label: 'Clear Terminal', click: () => event.sender.send('terminal-context-action', 'clear') }
+    );
+  } else if (type === 'project') {
+    template.push(
+      { label: 'Open Folder', click: () => shell.openPath(data.path) },
+      { label: 'Open in VS Code', click: () => {
+        require('child_process').exec(`code "${data.path}"`);
+      }},
+      { type: 'separator' },
+      { label: 'Remove Project', click: () => event.sender.send('sidebar-context-action', { action: 'remove-project', path: data.path }) }
+    );
+  } else if (type === 'tab') {
+    template.push(
+      { label: 'Rename', click: () => event.sender.send('sidebar-context-action', { action: 'rename-tab', id: data.id }) },
+      { label: 'Close', click: () => event.sender.send('sidebar-context-action', { action: 'close-tab', id: data.id }) }
+    );
+  }
+
+  if (template.length > 0) {
+    const menu = Menu.buildFromTemplate(template);
+    menu.popup(BrowserWindow.fromWebContents(event.sender));
+  }
+});
+
 // --- IPC Handlers for Terminal ---
 
 ipcMain.handle('dialog-select-folder', async () => {
@@ -133,11 +167,46 @@ ipcMain.handle('dialog-select-folder', async () => {
 ipcMain.handle('project-get-info', async (event, projectPath) => {
   try {
     const files = await fs.promises.readdir(projectPath);
-    if (files.includes('package.json')) return 'react';
-    if (files.includes('requirements.txt') || files.includes('main.py')) return 'python';
-    if (files.includes('Cargo.toml')) return 'rust';
-    if (files.includes('go.mod')) return 'go';
-    if (files.includes('.git')) return 'git';
+    const filesLower = files.map(f => f.toLowerCase());
+
+    if (filesLower.includes('package.json')) {
+      try {
+        const pkgContent = await fs.promises.readFile(path.join(projectPath, 'package.json'), 'utf8');
+        const pkg = JSON.parse(pkgContent);
+        const deps = { ...pkg.dependencies, ...pkg.devDependencies };
+        if (deps['react']) return 'react';
+        if (deps['vue']) return 'vue';
+        if (deps['@angular/core']) return 'angular';
+        if (deps['svelte']) return 'svelte';
+        if (deps['next']) return 'react';
+        if (deps['nuxt']) return 'vue';
+        if (deps['@vitejs/plugin-react'] || filesLower.includes('vite.config.ts') || filesLower.includes('vite.config.js')) return 'react';
+        return 'node';
+      } catch (e) {
+        return 'node';
+      }
+    }
+    
+    if (filesLower.includes('deno.json') || filesLower.includes('deno.jsonc')) return 'deno';
+    if (filesLower.includes('requirements.txt') || filesLower.some(f => f.endsWith('.py')) || filesLower.includes('pyproject.toml')) return 'python';
+    if (filesLower.includes('cargo.toml')) return 'rust';
+    if (filesLower.includes('go.mod')) return 'go';
+    if (filesLower.includes('composer.json')) {
+      try {
+        const compContent = await fs.promises.readFile(path.join(projectPath, 'composer.json'), 'utf8');
+        if (compContent.includes('laravel/framework')) return 'laravel';
+        return 'php';
+      } catch (e) {
+        return 'php';
+      }
+    }
+    if (filesLower.includes('gemfile') || filesLower.some(f => f.endsWith('.rb'))) return 'ruby';
+    if (filesLower.includes('pom.xml') || filesLower.includes('build.gradle') || filesLower.some(f => f.endsWith('.java'))) return 'java';
+    if (filesLower.includes('dockerfile') || filesLower.includes('docker-compose.yml')) return 'docker';
+    if (files.some(f => f.endsWith('.sln') || f.endsWith('.csproj'))) return 'dotnet';
+    if (files.some(f => f.endsWith('.cpp') || f.endsWith('.hpp') || f.endsWith('.cc'))) return 'cpp';
+    if (filesLower.includes('.git')) return 'git';
+    
     return 'folder';
   } catch (err) {
     return 'folder';

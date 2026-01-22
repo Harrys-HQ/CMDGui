@@ -1,3 +1,19 @@
+export interface Tab {
+  id: string;
+  title: string;
+  cwd?: string;
+  isManualTitle?: boolean;
+  hasAlert?: boolean;
+  hasConfirmation?: boolean;
+  isAdmin?: boolean;
+}
+
+export interface Project {
+  name: string;
+  path: string;
+  type?: string;
+}
+
 export interface ElectronAPI {
   createTerminal: (options?: { cols?: number; rows?: number; cwd?: string }) => Promise<number>;
   onTerminalData: (pid: number, callback: (data: string) => void) => () => void;
@@ -12,6 +28,9 @@ export interface ElectronAPI {
     openExternal: (url: string) => Promise<void>;
     checkForUpdates: () => Promise<{ success: boolean; updateInfo?: any; error?: string }>;
     getVersion: () => Promise<string>;
+    showContextMenu: (type: string, data?: any) => Promise<void>;
+    onTerminalContextAction: (callback: (action: string) => void) => () => void;
+    onSidebarContextAction: (callback: (data: any) => void) => () => void;
 }
 
 declare global {
