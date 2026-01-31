@@ -4,25 +4,25 @@
 
 ## Key Features
 
-*   **🖥️ Integrated Terminal Environment:** Full-featured terminal emulation using `xterm.js` and `node-pty`.
-*   **📂 Project Manager:** Easily add, remove, and switch between project directories from a collapsible sidebar.
-*   **🏷️ Smart Detection:** Automatically identifies and assigns icons to project types (React, Vue, Angular, Svelte, Node.js, Python, Rust, Go, Docker, .NET, C++, and Git).
-*   **📑 Multi-Tab Interface:** Run independent terminal sessions for different tasks or projects simultaneously.
-*   **💾 Persistent State:** Your open tabs, sidebar width, and added projects are saved automatically.
-*   **🛡️ Admin Mode:** Built-in support for relaunching with elevated privileges for administrative tasks.
+- **🖥️ Integrated Terminal Environment:** Full-featured terminal emulation using `xterm.js` and `node-pty`.
+- **📂 Project Manager:** Easily add, remove, and switch between project directories from a collapsible sidebar.
+- **🏷️ Smart Detection:** Automatically identifies and assigns icons to project types (React, Vue, Angular, Svelte, Node.js, Python, Rust, Go, Docker, .NET, C++, and Git).
+- **📑 Multi-Tab Interface:** Run independent terminal sessions for different tasks or projects simultaneously.
+- **💾 Persistent State:** Your open tabs, sidebar width, and added projects are saved automatically.
+- **🛡️ Admin Mode:** Built-in support for relaunching with elevated privileges for administrative tasks.
 
 ## Tech Stack
 
-*   **Frontend:** React 19, Vite, TypeScript
-*   **Backend:** Electron, Node.js
-*   **Terminal:** xterm.js, node-pty, xterm-addon-fit
+- **Frontend:** React 19, Vite, TypeScript
+- **Backend:** Electron, Node.js
+- **Terminal:** xterm.js, node-pty, xterm-addon-fit
 
 ## Getting Started
 
 ### Prerequisites
 
-*   Node.js (v16 or higher recommended)
-*   npm
+- Node.js (v16 or higher recommended)
+- npm
 
 ### Installation
 
@@ -52,8 +52,9 @@ npm run dist
 ## Available Commands
 
 The application provides a "Settings & Docs" modal that features a tabbed interface:
-*   **GEMINI - Project:** Documentation for CmdGUI application shortcuts and interface navigation.
-*   **GEMINI - CLI:** A comprehensive list of Gemini CLI slash commands and Windows PowerShell ISE keyboard shortcuts.
+
+- **GEMINI - Project:** Documentation for CmdGUI application shortcuts and interface navigation.
+- **GEMINI - CLI:** A comprehensive list of Gemini CLI slash commands and Windows PowerShell ISE keyboard shortcuts.
 
 ## License
 

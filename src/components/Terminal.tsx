@@ -8,6 +8,7 @@ interface TerminalProps {
   cwd?: string;
   isActive: boolean;
   theme?: string;
+  fontSize?: number;
   onTitleChange?: (title: string) => void;
   onExit?: () => void;
   onNotification?: (type: 'alert' | 'confirmation') => void;
@@ -34,7 +35,7 @@ const getTheme = (themeName: string = 'vscode') => {
     brightBlue: '#3b8eea',
     brightMagenta: '#d670d6',
     brightCyan: '#29b8db',
-    brightWhite: '#e5e5e5'
+    brightWhite: '#e5e5e5',
   };
 
   switch (themeName) {
@@ -51,7 +52,7 @@ const getTheme = (themeName: string = 'vscode') => {
         blue: '#66d9ef',
         magenta: '#ae81ff',
         cyan: '#a1efe4',
-        white: '#f8f8f2'
+        white: '#f8f8f2',
       };
     case 'solarized-dark':
       return {
@@ -66,7 +67,7 @@ const getTheme = (themeName: string = 'vscode') => {
         blue: '#268bd2',
         magenta: '#d33682',
         cyan: '#2aa198',
-        white: '#eee8d5'
+        white: '#eee8d5',
       };
     case 'one-dark':
       return {
@@ -81,14 +82,22 @@ const getTheme = (themeName: string = 'vscode') => {
         blue: '#61afef',
         magenta: '#c678dd',
         cyan: '#56b6c2',
-        white: '#abb2bf'
+        white: '#abb2bf',
       };
     default:
       return baseTheme;
   }
 };
 
-const Terminal: React.FC<TerminalProps> = ({ cwd, isActive, theme, onTitleChange, onExit, onNotification }) => {
+const Terminal: React.FC<TerminalProps> = ({
+  cwd,
+  isActive,
+  theme,
+  fontSize = 14,
+  onTitleChange,
+  onExit,
+  onNotification,
+}) => {
   const terminalRef = useRef<HTMLDivElement>(null);
   const xtermRef = useRef<Xterm | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
@@ -97,8 +106,7 @@ const Terminal: React.FC<TerminalProps> = ({ cwd, isActive, theme, onTitleChange
   const [isReady, setIsReady] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  
-  const lastPressRef = useRef<{ key: string, time: number } | null>(null);
+
   const onTitleChangeRef = useRef(onTitleChange);
   const onExitRef = useRef(onExit);
   const onNotificationRef = useRef(onNotification);
@@ -116,24 +124,24 @@ const Terminal: React.FC<TerminalProps> = ({ cwd, isActive, theme, onTitleChange
 
     const term = new Xterm({
       cursorBlink: true,
-      fontSize: 14,
+      fontSize: fontSize,
       fontFamily: 'Consolas, "Courier New", monospace',
       theme: getTheme(theme),
-      allowProposedApi: true
+      allowProposedApi: true,
     });
 
     const fitAddon = new FitAddon();
     const webLinksAddon = new WebLinksAddon((event, uri) => {
-        window.electron.openExternal(uri);
+      window.electron.openExternal(uri);
     });
     const searchAddon = new SearchAddon();
-    
+
     term.loadAddon(fitAddon);
     term.loadAddon(webLinksAddon);
     term.loadAddon(searchAddon);
-    
+
     term.open(terminalRef.current);
-    
+
     xtermRef.current = term;
     fitAddonRef.current = fitAddon;
     searchAddonRef.current = searchAddon;
@@ -159,7 +167,7 @@ const Terminal: React.FC<TerminalProps> = ({ cwd, isActive, theme, onTitleChange
       }
 
       if (e.ctrlKey && e.shiftKey && e.code === 'KeyV') {
-        navigator.clipboard.readText().then(text => {
+        navigator.clipboard.readText().then((text) => {
           term.paste(text);
         });
         return false;
@@ -171,27 +179,38 @@ const Terminal: React.FC<TerminalProps> = ({ cwd, isActive, theme, onTitleChange
       }
 
       if (e.ctrlKey && e.code === 'Enter') {
-          if (pidRef.current !== null) {
-              window.electron.writeTerminal(pidRef.current, '\x1bOM');
-          }
-          return false;
+        if (pidRef.current !== null) {
+          window.electron.writeTerminal(pidRef.current, '\n');
+        }
+        return false;
       }
 
       if (e.ctrlKey && !e.shiftKey && !e.altKey && pidRef.current !== null) {
-          switch (e.key.toLowerCase()) {
-              case 'c': 
-                   if (!term.hasSelection()) {
-                       window.electron.writeTerminal(pidRef.current, '\x03');
-                       return false;
-                   }
-                   break;
-              case 'l': 
-                  window.electron.writeTerminal(pidRef.current, '\x0c');
-                  return false;
-          }
+        switch (e.key.toLowerCase()) {
+          case 'c':
+            if (!term.hasSelection()) {
+              window.electron.writeTerminal(pidRef.current, '\x03');
+              return false;
+            }
+            break;
+          case 'l':
+            window.electron.writeTerminal(pidRef.current, '\x0c');
+            return false;
+        }
       }
 
-      if (e.ctrlKey && (e.key === 'n' || e.key === 'w' || e.key === 'Tab')) {
+      // Allow Ctrl+N/P/W to pass to shell (Next/Prev/DeleteWord)
+      // Pass Ctrl+Shift+N/P/W to App (New/Switcher/Close)
+      if (
+        e.ctrlKey &&
+        e.shiftKey &&
+        (e.code === 'KeyN' || e.code === 'KeyP' || e.code === 'KeyW')
+      ) {
+        return false;
+      }
+
+      // Pass Tab switching to App
+      if (e.ctrlKey && e.key === 'Tab') {
         return false;
       }
       return true;
@@ -202,92 +221,102 @@ const Terminal: React.FC<TerminalProps> = ({ cwd, isActive, theme, onTitleChange
     let cleanupData: (() => void) | null = null;
     let isUnmounted = false;
 
-    window.electron.createTerminal({
-      cols: term.cols,
-      rows: term.rows,
-      cwd
-    }).then(pid => {
-      if (isUnmounted) {
-        window.electron.killTerminal(pid);
-        return;
-      }
-
-      pidRef.current = pid;
-      setIsReady(true);
-
-      cleanupData = window.electron.onTerminalData(pid, (data) => {
-        term.write(data);
-        
-        if (!isActiveRef.current && onNotificationRef.current) {
-            const lowerData = data.toLowerCase();
-            const confirmationPatterns = ['password', 'sudo', 'confirm', '(y/n)?', '[y/n]', 'press any key'];
-            const alertPatterns = ['permission denied', 'error:', 'fatal:', 'failed', 'exception'];
-            
-            if (confirmationPatterns.some(pattern => lowerData.includes(pattern))) {
-                onNotificationRef.current('confirmation');
-            } else if (alertPatterns.some(pattern => lowerData.includes(pattern))) {
-                onNotificationRef.current('alert');
-            }
+    window.electron
+      .createTerminal({
+        cols: term.cols,
+        rows: term.rows,
+        cwd,
+      })
+      .then((pid) => {
+        if (isUnmounted) {
+          window.electron.killTerminal(pid);
+          return;
         }
-      });
 
-      term.onData(data => {
-        window.electron.writeTerminal(pid, data);
-      });
-      
-      term.onResize(size => {
+        pidRef.current = pid;
+        setIsReady(true);
+
+        cleanupData = window.electron.onTerminalData(pid, (data) => {
+          term.write(data);
+
+          if (!isActiveRef.current && onNotificationRef.current) {
+            const lowerData = data.toLowerCase();
+            const confirmationPatterns = [
+              'password',
+              'sudo',
+              'confirm',
+              '(y/n)?',
+              '[y/n]',
+              'press any key',
+            ];
+            const alertPatterns = ['permission denied', 'error:', 'fatal:', 'failed', 'exception'];
+
+            if (confirmationPatterns.some((pattern) => lowerData.includes(pattern))) {
+              onNotificationRef.current('confirmation');
+            } else if (alertPatterns.some((pattern) => lowerData.includes(pattern))) {
+              onNotificationRef.current('alert');
+            }
+          }
+        });
+
+        term.onData((data) => {
+          window.electron.writeTerminal(pid, data);
+        });
+
+        term.onResize((size) => {
           window.electron.resizeTerminal(pid, size.cols, size.rows);
-      });
-      
-      term.onTitleChange((title) => {
-          if (onTitleChangeRef.current) onTitleChangeRef.current(title);
-      });
+        });
 
-      window.electron.onTerminalExit(pid, () => {
+        term.onTitleChange((title) => {
+          if (onTitleChangeRef.current) onTitleChangeRef.current(title);
+        });
+
+        window.electron.onTerminalExit(pid, () => {
           term.write('\r\n\x1b[31mTerminal exited.\x1b[0m\r\n');
           if (onExitRef.current) onExitRef.current();
+        });
       });
-    });
 
     const handleResize = () => {
-        fitAddon.fit();
-        if (pidRef.current !== null) {
-            window.electron.resizeTerminal(pidRef.current, term.cols, term.rows);
-        }
+      fitAddon.fit();
+      if (pidRef.current !== null) {
+        window.electron.resizeTerminal(pidRef.current, term.cols, term.rows);
+      }
     };
-    
+
     window.addEventListener('resize', handleResize);
 
     const handleContextMenu = (e: MouseEvent) => {
-        e.preventDefault();
-        window.electron.showContextMenu('terminal');
+      e.preventDefault();
+      window.electron.showContextMenu('terminal');
     };
     terminalRef.current?.addEventListener('contextmenu', handleContextMenu);
 
     const cleanupContext = window.electron.onTerminalContextAction((action) => {
-        if (!isActiveRef.current) return;
-        const term = xtermRef.current;
-        if (!term) return;
+      if (!isActiveRef.current) return;
+      const term = xtermRef.current;
+      if (!term) return;
 
-        switch (action) {
-            case 'copy':
-                const selection = term.getSelection();
-                if (selection) {
-                    navigator.clipboard.writeText(selection);
-                    term.clearSelection();
-                }
-                break;
-            case 'paste':
-                navigator.clipboard.readText().then(text => {
-                    term.paste(text);
-                });
-                break;
-            case 'clear':
-                if (pidRef.current !== null) {
-                    window.electron.writeTerminal(pidRef.current, '\x0c');
-                }
-                break;
+      switch (action) {
+        case 'copy': {
+          const selection = term.getSelection();
+          if (selection) {
+            navigator.clipboard.writeText(selection);
+            term.clearSelection();
+          }
+          break;
         }
+        case 'paste':
+          navigator.clipboard.readText().then((text) => {
+            term.paste(text);
+          });
+          break;
+        case 'clear':
+          if (pidRef.current !== null) {
+            window.electron.writeTerminal(pidRef.current, '\x0c');
+          }
+          break;
+      }
     });
 
     return () => {
@@ -305,21 +334,32 @@ const Terminal: React.FC<TerminalProps> = ({ cwd, isActive, theme, onTitleChange
   }, []);
 
   useEffect(() => {
-      if (xtermRef.current) {
-          xtermRef.current.options.theme = getTheme(theme);
-      }
+    if (xtermRef.current) {
+      xtermRef.current.options.theme = getTheme(theme);
+    }
   }, [theme]);
 
   useEffect(() => {
-      if (isActive && fitAddonRef.current && xtermRef.current) {
-          requestAnimationFrame(() => {
-             fitAddonRef.current?.fit();
-             if (pidRef.current !== null && xtermRef.current) {
-                window.electron.resizeTerminal(pidRef.current, xtermRef.current.cols, xtermRef.current.rows);
-                xtermRef.current.focus();
-            }
-          });
-      }
+    if (xtermRef.current) {
+      xtermRef.current.options.fontSize = fontSize;
+      fitAddonRef.current?.fit();
+    }
+  }, [fontSize]);
+
+  useEffect(() => {
+    if (isActive && fitAddonRef.current && xtermRef.current) {
+      requestAnimationFrame(() => {
+        fitAddonRef.current?.fit();
+        if (pidRef.current !== null && xtermRef.current) {
+          window.electron.resizeTerminal(
+            pidRef.current,
+            xtermRef.current.cols,
+            xtermRef.current.rows
+          );
+          xtermRef.current.focus();
+        }
+      });
+    }
   }, [isActive, isReady]);
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -337,10 +377,10 @@ const Terminal: React.FC<TerminalProps> = ({ cwd, isActive, theme, onTitleChange
     <div style={{ width: '100%', height: '100%', position: 'relative' }}>
       {isSearchOpen && (
         <div className="terminal-search-bar">
-          <input 
+          <input
             autoFocus
-            type="text" 
-            placeholder="Search..." 
+            type="text"
+            placeholder="Search..."
             value={searchQuery}
             onChange={handleSearch}
             onKeyDown={(e) => {

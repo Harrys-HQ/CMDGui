@@ -10,22 +10,23 @@
   --bg-hover: #2a2d2e;
   --bg-modal-overlay: rgba(0, 0, 0, 0.5);
   --bg-modal: #252526;
-  
+
   --fg-primary: #cccccc;
   --fg-secondary: #969696;
   --fg-active: #ffffff;
-  
+
   --accent-primary: #007acc;
   --accent-hover: #0062a3;
-  
+
   --border-color: #3e3e42;
-  
+
   /* Spacing & Layout */
   --sidebar-width: 250px;
   --header-height: 35px;
-  
+
   /* Fonts */
-  --font-family-ui: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;
+  --font-family-ui:
+    'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;
   --font-family-mono: 'Consolas', 'Courier New', monospace;
   --font-size-sm: 12px;
   --font-size-md: 13px;
@@ -124,7 +125,9 @@ body {
   color: var(--fg-primary);
   display: flex;
   align-items: center;
-  transition: background-color 0.1s ease, color 0.1s ease;
+  transition:
+    background-color 0.1s ease,
+    color 0.1s ease;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -159,15 +162,27 @@ body {
 }
 
 @keyframes task-pulse {
-  0% { background-color: transparent; }
-  50% { background-color: rgba(241, 76, 76, 0.15); }
-  100% { background-color: transparent; }
+  0% {
+    background-color: transparent;
+  }
+  50% {
+    background-color: rgba(241, 76, 76, 0.15);
+  }
+  100% {
+    background-color: transparent;
+  }
 }
 
 @keyframes confirmation-pulse {
-  0% { background-color: transparent; }
-  50% { background-color: rgba(204, 167, 0, 0.15); }
-  100% { background-color: transparent; }
+  0% {
+    background-color: transparent;
+  }
+  50% {
+    background-color: rgba(204, 167, 0, 0.15);
+  }
+  100% {
+    background-color: transparent;
+  }
 }
 
 .task-close-btn {
@@ -237,7 +252,7 @@ body {
   display: flex;
   gap: 5px;
   border-radius: 4px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
 }
 
 .terminal-search-bar input {
@@ -342,7 +357,7 @@ body {
   background: #252526;
   border: 1px solid #3e3e42;
   border-radius: 3px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
   z-index: 100;
   min-width: 160px;
 }
@@ -357,7 +372,8 @@ body {
   border-right: 1px solid var(--border-color);
 }
 
-.resizer:hover, .resizer:active {
+.resizer:hover,
+.resizer:active {
   background: var(--accent-primary);
 }
 

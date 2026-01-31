@@ -3,12 +3,10 @@ import { Tab } from '../types';
 import { loadState, saveState } from './usePersistence';
 
 export const useTabs = () => {
-  const [tabs, setTabs] = useState<Tab[]>(() => 
+  const [tabs, setTabs] = useState<Tab[]>(() =>
     loadState('tabs', [{ id: '1', title: 'Terminal', cwd: undefined }])
   );
-  const [activeTabId, setActiveTabId] = useState<string>(() => 
-    loadState('activeTabId', '1')
-  );
+  const [activeTabId, setActiveTabId] = useState<string>(() => loadState('activeTabId', '1'));
 
   useEffect(() => saveState('tabs', tabs), [tabs]);
   useEffect(() => saveState('activeTabId', activeTabId), [activeTabId]);
@@ -22,36 +20,39 @@ export const useTabs = () => {
   };
 
   const closeTab = (id: string) => {
-    const newTabs = tabs.filter(t => t.id !== id);
+    const newTabs = tabs.filter((t) => t.id !== id);
     if (newTabs.length === 0) {
-       const newId = Date.now().toString();
-       setTabs([{ id: newId, title: 'Terminal', cwd: undefined }]);
-       setActiveTabId(newId);
-       return;
+      const newId = Date.now().toString();
+      setTabs([{ id: newId, title: 'Terminal', cwd: undefined }]);
+      setActiveTabId(newId);
+      return;
     }
-    
+
     if (activeTabId === id) {
-        setActiveTabId(newTabs[newTabs.length - 1].id);
+      setActiveTabId(newTabs[newTabs.length - 1].id);
     }
     setTabs(newTabs);
   };
 
   const renameTab = (id: string, newTitle: string) => {
     if (newTitle && newTitle.trim()) {
-      setTabs(prev => prev.map(t => 
-        t.id === id ? { ...t, title: newTitle.trim(), isManualTitle: true } : t
-      ));
+      setTabs((prev) =>
+        prev.map((t) => (t.id === id ? { ...t, title: newTitle.trim(), isManualTitle: true } : t))
+      );
     }
   };
 
-  const updateTabStatus = (id: string, status: Partial<Pick<Tab, 'hasAlert' | 'hasConfirmation' | 'title'>>) => {
-    setTabs(prev => prev.map(t => t.id === id ? { ...t, ...status } : t));
+  const updateTabStatus = (
+    id: string,
+    status: Partial<Pick<Tab, 'hasAlert' | 'hasConfirmation' | 'title'>>
+  ) => {
+    setTabs((prev) => prev.map((t) => (t.id === id ? { ...t, ...status } : t)));
   };
 
   const clearTabNotifications = (id: string) => {
-    setTabs(prev => prev.map(t => 
-      t.id === id ? { ...t, hasAlert: false, hasConfirmation: false } : t
-    ));
+    setTabs((prev) =>
+      prev.map((t) => (t.id === id ? { ...t, hasAlert: false, hasConfirmation: false } : t))
+    );
   };
 
   return {
@@ -63,6 +64,6 @@ export const useTabs = () => {
     closeTab,
     renameTab,
     updateTabStatus,
-    clearTabNotifications
+    clearTabNotifications,
   };
 };

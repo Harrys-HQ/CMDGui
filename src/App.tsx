@@ -7,66 +7,83 @@ import QuickSwitcher from './components/QuickSwitcher';
 import { useTabs } from './hooks/useTabs';
 import { useProjects } from './hooks/useProjects';
 import { useSidebarResizer } from './hooks/useSidebarResizer';
-import { loadState, saveState } from './hooks/usePersistence';
+import { useSettings } from './hooks/useSettings';
+import { cleanTerminalTitle } from './utils/terminalUtils';
 
 const App: React.FC = () => {
-  const { 
-    tabs, 
-    activeTabId, 
-    setActiveTabId, 
-    addTab, 
-    closeTab, 
-    renameTab, 
-    updateTabStatus, 
-    clearTabNotifications 
+  const {
+    tabs,
+    activeTabId,
+    setActiveTabId,
+    addTab,
+    closeTab,
+    renameTab,
+    updateTabStatus,
+    clearTabNotifications,
   } = useTabs();
-  
+
   const { projects, addProject, removeProject } = useProjects();
   const { sidebarWidth, startResizing } = useSidebarResizer();
-  
+  const {
+    terminalTheme,
+    setTerminalTheme,
+    terminalFontSize,
+    setTerminalFontSize,
+    isAdmin,
+    relaunchAdmin,
+  } = useSettings();
+
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isQuickSwitcherOpen, setIsQuickSwitcherOpen] = useState(false);
-  const [terminalTheme, setTerminalTheme] = useState(() => loadState('terminalTheme', 'vscode'));
-  const [isAdmin, setIsAdmin] = useState(false);
-  
-  useEffect(() => saveState('terminalTheme', terminalTheme), [terminalTheme]);
-
-  // Check Admin Status
-  useEffect(() => {
-    window.electron.checkAdmin().then(setIsAdmin);
-  }, []);
 
   const handleAddTerminal = async (asAdmin: boolean) => {
     if (asAdmin && !isAdmin) {
-      if (confirm('To run terminals as Administrator, the Workspace Manager must be restarted with elevated privileges.\n\nRestart now?')) {
-        window.electron.relaunchAdmin();
+      if (
+        confirm(
+          'To run terminals as Administrator, the Workspace Manager must be restarted with elevated privileges.\n\nRestart now?'
+        )
+      ) {
+        relaunchAdmin();
       }
       return;
     }
     addTab(undefined, asAdmin);
   };
 
+  // Refs for stable access in event listener
+  const tabsRef = React.useRef(tabs);
+  const closeTabRef = React.useRef(closeTab);
+  const renameTabRef = React.useRef(renameTab);
+  const removeProjectRef = React.useRef(removeProject);
+
   useEffect(() => {
-    const cleanup = window.electron.onSidebarContextAction((data: any) => {
-      const { action, id, path } = data;
-      switch (action) {
+    tabsRef.current = tabs;
+    closeTabRef.current = closeTab;
+    renameTabRef.current = renameTab;
+    removeProjectRef.current = removeProject;
+  });
+
+  useEffect(() => {
+    const cleanup = window.electron.onSidebarContextAction((data) => {
+      switch (data.action) {
         case 'close-tab':
-          closeTab(id);
+          closeTabRef.current(data.id);
           break;
-        case 'rename-tab':
-          const tab = tabs.find(t => t.id === id);
+        case 'rename-tab': {
+          const tab = tabsRef.current.find((t) => t.id === data.id);
           if (tab) {
             const newTitle = prompt('Rename Task:', tab.title);
-            if (newTitle) renameTab(id, newTitle);
+            if (newTitle) renameTabRef.current(data.id, newTitle);
           }
           break;
+        }
         case 'remove-project':
-          removeProject(path);
+          removeProjectRef.current(data.path);
           break;
       }
     });
     return cleanup;
-  }, [tabs]);
+  }, []);
 
   const handleRenameTab = (id: string, currentTitle: string) => {
     const newTitle = prompt('Rename Task:', currentTitle);
@@ -75,27 +92,34 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.ctrlKey && e.key === 'p') {
+      // Quick Switcher: Ctrl + Shift + P (VS Code style) to avoid conflict with Ctrl + P (Previous Line)
+      if (e.ctrlKey && e.shiftKey && e.key === 'P') {
         e.preventDefault();
         setIsQuickSwitcherOpen(true);
       }
-      if (e.ctrlKey && e.key === 'n') {
+      
+      // New Tab: Ctrl + Shift + N (Avoids Ctrl + N - Next Line)
+      if (e.ctrlKey && e.shiftKey && e.key === 'N') {
         e.preventDefault();
         addTab();
       }
-      if (e.ctrlKey && e.key === 'w') {
+
+      // Close Tab: Ctrl + Shift + W (Avoids Ctrl + W - Delete Word)
+      if (e.ctrlKey && e.shiftKey && e.key === 'W') {
         e.preventDefault();
         if (activeTabId) closeTab(activeTabId);
       }
+
+      // Tab Switching: Ctrl + Tab / Ctrl + Shift + Tab
       if (e.ctrlKey && !e.shiftKey && e.key === 'Tab') {
         e.preventDefault();
-        const index = tabs.findIndex(t => t.id === activeTabId);
+        const index = tabs.findIndex((t) => t.id === activeTabId);
         const nextIndex = (index + 1) % tabs.length;
         setActiveTabId(tabs[nextIndex].id);
       }
       if (e.ctrlKey && e.shiftKey && e.key === 'Tab') {
         e.preventDefault();
-        const index = tabs.findIndex(t => t.id === activeTabId);
+        const index = tabs.findIndex((t) => t.id === activeTabId);
         const prevIndex = (index - 1 + tabs.length) % tabs.length;
         setActiveTabId(tabs[prevIndex].id);
       }
@@ -105,7 +129,7 @@ const App: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [tabs, activeTabId]);
 
-  const activeTab = tabs.find(t => t.id === activeTabId);
+  const activeTab = tabs.find((t) => t.id === activeTabId);
 
   useEffect(() => {
     if (activeTabId) {
@@ -116,8 +140,7 @@ const App: React.FC = () => {
   return (
     <div className="app-root-layout">
       <div className="workspace-layout">
-        
-        <Sidebar 
+        <Sidebar
           width={sidebarWidth}
           onResizeStart={startResizing}
           projects={projects}
@@ -127,7 +150,10 @@ const App: React.FC = () => {
           onRemoveProject={removeProject}
           onAddTerminal={handleAddTerminal}
           onSelectTab={setActiveTabId}
-          onCloseTab={(id, e) => { e.stopPropagation(); closeTab(id); }}
+          onCloseTab={(id, e) => {
+            e.stopPropagation();
+            closeTab(id);
+          }}
           onRenameTab={handleRenameTab}
           onOpenSettings={() => setIsSettingsOpen(true)}
           onAddTabWithCwd={(cwd) => addTab(cwd)}
@@ -136,63 +162,63 @@ const App: React.FC = () => {
         <div className="resizer" onMouseDown={startResizing} />
 
         <div className="main-content">
-            <div className="terminal-container">
-                {tabs.map(tab => (
-                    <div 
-                        key={tab.id} 
-                        style={{
-                            display: activeTabId === tab.id ? 'block' : 'none', 
-                            height: '100%',
-                            position: 'absolute',
-                            top: 0,
-                            left: 0,
-                            right: 0,
-                            bottom: 0
-                        }}
-                    >
-                        <Terminal 
-                            cwd={tab.cwd} 
-                            isActive={activeTabId === tab.id}
-                            theme={terminalTheme}
-                            onNotification={(type) => updateTabStatus(tab.id, type === 'alert' ? { hasAlert: true } : { hasConfirmation: true })}
-                            onTitleChange={(t) => {
-                                if (tab.isManualTitle) return;
-                                let cleanTitle = t;
-                                if (cleanTitle.startsWith('Administrator: ')) cleanTitle = cleanTitle.replace('Administrator: ', '');
-                                
-                                const genericTitles = ['Windows PowerShell', 'powershell.exe', 'pwsh.exe', 'pwsh', 'cmd.exe', 'Command Prompt', 'Terminal'];
-                                if (genericTitles.includes(cleanTitle) && tab.title && !genericTitles.includes(tab.title)) return;
-                                if (cleanTitle.includes('\\')) cleanTitle = cleanTitle.split('\\').pop() || cleanTitle;
-                                if (tab.title !== cleanTitle) updateTabStatus(tab.id, { title: cleanTitle });
-                            }}
-                        />
-                    </div>
-                ))}
-            </div>
+          <div className="terminal-container">
+            {tabs.map((tab) => (
+              <div
+                key={tab.id}
+                style={{
+                  display: activeTabId === tab.id ? 'block' : 'none',
+                  height: '100%',
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                }}
+              >
+                <Terminal
+                  cwd={tab.cwd}
+                  isActive={activeTabId === tab.id}
+                  theme={terminalTheme}
+                  fontSize={terminalFontSize}
+                  onNotification={(type) =>
+                    updateTabStatus(
+                      tab.id,
+                      type === 'alert' ? { hasAlert: true } : { hasConfirmation: true }
+                    )
+                  }
+                  onTitleChange={(t) => {
+                    const newTitle = cleanTerminalTitle(t, tab.title, tab.isManualTitle);
+                    if (newTitle) updateTabStatus(tab.id, { title: newTitle });
+                  }}
+                />
+              </div>
+            ))}
+          </div>
         </div>
       </div>
-      
-      <StatusBar 
-        status="Ready" 
-        activeTabTitle={activeTab?.title} 
-        tabCount={tabs.length} 
-      />
 
-      <SettingsModal 
-        isOpen={isSettingsOpen} 
-        onClose={() => setIsSettingsOpen(false)} 
+      <StatusBar status="Ready" activeTabTitle={activeTab?.title} tabCount={tabs.length} />
+
+      <SettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
         terminalTheme={terminalTheme}
         onThemeChange={setTerminalTheme}
+        terminalFontSize={terminalFontSize}
+        onFontSizeChange={setTerminalFontSize}
       />
 
-      <QuickSwitcher 
-        isOpen={isQuickSwitcherOpen}
-        onClose={() => setIsQuickSwitcherOpen(false)}
-        tabs={tabs}
-        projects={projects}
-        onSelectTab={setActiveTabId}
-        onSelectProject={(path) => addTab(path)}
-      />
+      {isQuickSwitcherOpen && (
+        <QuickSwitcher
+          isOpen={isQuickSwitcherOpen}
+          onClose={() => setIsQuickSwitcherOpen(false)}
+          tabs={tabs}
+          projects={projects}
+          onSelectTab={setActiveTabId}
+          onSelectProject={(path) => addTab(path)}
+        />
+      )}
     </div>
   );
 };

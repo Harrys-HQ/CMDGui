@@ -10,42 +10,35 @@ interface QuickSwitcherProps {
   onSelectProject: (path: string) => void;
 }
 
-const QuickSwitcher: React.FC<QuickSwitcherProps> = ({ 
-  isOpen, 
-  onClose, 
-  tabs, 
-  projects, 
-  onSelectTab, 
-  onSelectProject 
+const QuickSwitcher: React.FC<QuickSwitcherProps> = ({
+  onClose,
+  tabs,
+  projects,
+  onSelectTab,
+  onSelectProject,
 }) => {
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const filteredItems = [
-    ...tabs.map(t => ({ id: t.id, name: t.title, type: 'tab', sub: 'Active Task' })),
-    ...projects.map(p => ({ id: p.path, name: p.name, type: 'project', sub: p.path }))
-  ].filter(item => item.name.toLowerCase().includes(query.toLowerCase()));
+    ...tabs.map((t) => ({ id: t.id, name: t.title, type: 'tab', sub: 'Active Task' })),
+    ...projects.map((p) => ({ id: p.path, name: p.name, type: 'project', sub: p.path })),
+  ].filter((item) => item.name.toLowerCase().includes(query.toLowerCase()));
 
   useEffect(() => {
-    if (isOpen) {
-      setQuery('');
-      setSelectedIndex(0);
-      setTimeout(() => inputRef.current?.focus(), 10);
-    }
-  }, [isOpen]);
-
-  useEffect(() => {
-    setSelectedIndex(0);
-  }, [query]);
+    // Focus on mount
+    const timer = setTimeout(() => inputRef.current?.focus(), 10);
+    return () => clearTimeout(timer);
+  }, []);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'ArrowDown') {
       e.preventDefault();
-      setSelectedIndex(prev => (prev + 1) % filteredItems.length);
+      setSelectedIndex((prev) => (prev + 1) % filteredItems.length);
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
-      setSelectedIndex(prev => (prev - 1 + filteredItems.length) % filteredItems.length);
+      setSelectedIndex((prev) => (prev - 1 + filteredItems.length) % filteredItems.length);
     } else if (e.key === 'Enter') {
       const item = filteredItems[selectedIndex];
       if (item) {
@@ -58,22 +51,33 @@ const QuickSwitcher: React.FC<QuickSwitcherProps> = ({
     }
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="modal-overlay" onClick={onClose} style={{ alignItems: 'flex-start', paddingTop: '10vh' }}>
-      <div 
-        className="modal-container" 
-        onClick={e => e.stopPropagation()} 
-        style={{ width: '600px', maxHeight: '400px', background: '#252526', border: '1px solid #454545', boxShadow: '0 8px 16px rgba(0,0,0,0.4)' }}
+    <div
+      className="modal-overlay"
+      onClick={onClose}
+      style={{ alignItems: 'flex-start', paddingTop: '10vh' }}
+    >
+      <div
+        className="modal-container"
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          width: '600px',
+          maxHeight: '400px',
+          background: '#252526',
+          border: '1px solid #454545',
+          boxShadow: '0 8px 16px rgba(0,0,0,0.4)',
+        }}
       >
         <div style={{ padding: '10px' }}>
-          <input 
+          <input
             ref={inputRef}
-            type="text" 
+            type="text"
             placeholder="Search tabs and projects..."
             value={query}
-            onChange={e => setQuery(e.target.value)}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setSelectedIndex(0);
+            }}
             onKeyDown={handleKeyDown}
             style={{
               width: '100%',
@@ -83,13 +87,13 @@ const QuickSwitcher: React.FC<QuickSwitcherProps> = ({
               padding: '8px 12px',
               fontSize: '14px',
               outline: 'none',
-              borderRadius: '2px'
+              borderRadius: '2px',
             }}
           />
         </div>
         <div style={{ overflowY: 'auto', maxHeight: '330px' }}>
           {filteredItems.map((item, index) => (
-            <div 
+            <div
               key={`${item.type}-${item.id}`}
               onClick={() => {
                 if (item.type === 'tab') onSelectTab(item.id);
@@ -101,14 +105,20 @@ const QuickSwitcher: React.FC<QuickSwitcherProps> = ({
                 cursor: 'pointer',
                 background: index === selectedIndex ? '#094771' : 'transparent',
                 display: 'flex',
-                flexDirection: 'column'
+                flexDirection: 'column',
               }}
             >
               <div style={{ fontSize: '14px', color: index === selectedIndex ? 'white' : '#ccc' }}>
                 <span style={{ marginRight: '8px' }}>{item.type === 'tab' ? '💻' : '📂'}</span>
                 {item.name}
               </div>
-              <div style={{ fontSize: '11px', color: index === selectedIndex ? '#add6ff' : '#888', marginLeft: '24px' }}>
+              <div
+                style={{
+                  fontSize: '11px',
+                  color: index === selectedIndex ? '#add6ff' : '#888',
+                  marginLeft: '24px',
+                }}
+              >
                 {item.sub}
               </div>
             </div>

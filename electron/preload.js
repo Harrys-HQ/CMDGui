@@ -2,25 +2,25 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('electron', {
   createTerminal: (options) => ipcRenderer.invoke('terminal-create', options),
-  
+
   onTerminalData: (pid, callback) => {
-      const channel = `terminal-incoming-${pid}`;
-      const subscription = (event, data) => callback(data);
-      ipcRenderer.on(channel, subscription);
-      // Return a cleanup function
-      return () => ipcRenderer.removeListener(channel, subscription);
+    const channel = `terminal-incoming-${pid}`;
+    const subscription = (event, data) => callback(data);
+    ipcRenderer.on(channel, subscription);
+    // Return a cleanup function
+    return () => ipcRenderer.removeListener(channel, subscription);
   },
-  
+
   onTerminalExit: (pid, callback) => {
-      const channel = `terminal-exit-${pid}`;
-      const subscription = () => callback();
-      ipcRenderer.once(channel, subscription);
+    const channel = `terminal-exit-${pid}`;
+    const subscription = () => callback();
+    ipcRenderer.once(channel, subscription);
   },
-  
+
   writeTerminal: (pid, data) => ipcRenderer.send('terminal-write', { pid, data }),
-  
+
   resizeTerminal: (pid, cols, rows) => ipcRenderer.send('terminal-resize', { pid, cols, rows }),
-  
+
   killTerminal: (pid) => ipcRenderer.send('terminal-kill', pid),
   selectFolder: () => ipcRenderer.invoke('dialog-select-folder'),
   getProjectInfo: (path) => ipcRenderer.invoke('project-get-info', path),
@@ -28,8 +28,15 @@ contextBridge.exposeInMainWorld('electron', {
   relaunchAdmin: () => ipcRenderer.send('app-relaunch-admin'),
   openExternal: (url) => ipcRenderer.invoke('shell-open-external', url),
   checkForUpdates: () => ipcRenderer.invoke('app-check-for-updates'),
+  downloadUpdate: () => ipcRenderer.invoke('app-download-update'),
+  quitAndInstall: () => ipcRenderer.invoke('app-quit-and-install'),
+  onUpdateStatus: (callback) => {
+    const subscription = (event, data) => callback(data);
+    ipcRenderer.on('update-status', subscription);
+    return () => ipcRenderer.removeListener('update-status', subscription);
+  },
   getVersion: () => ipcRenderer.invoke('app-get-version'),
-  
+
   // Context Menus
   showContextMenu: (type, data) => ipcRenderer.invoke('context-menu-show', type, data),
   onTerminalContextAction: (callback) => {
@@ -41,5 +48,5 @@ contextBridge.exposeInMainWorld('electron', {
     const subscription = (event, data) => callback(data);
     ipcRenderer.on('sidebar-context-action', subscription);
     return () => ipcRenderer.removeListener('sidebar-context-action', subscription);
-  }
+  },
 });

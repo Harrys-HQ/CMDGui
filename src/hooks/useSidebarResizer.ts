@@ -15,7 +15,7 @@ export const useSidebarResizer = () => {
       if (isResizing) {
         const newWidth = mouseMoveEvent.clientX;
         if (newWidth > 150 && newWidth < 600) {
-            setSidebarWidth(newWidth);
+          setSidebarWidth(newWidth);
         }
       }
     },
@@ -23,17 +23,17 @@ export const useSidebarResizer = () => {
   );
 
   useEffect(() => {
-    window.addEventListener("mousemove", resize);
-    window.addEventListener("mouseup", stopResizing);
+    window.addEventListener('mousemove', resize);
+    window.addEventListener('mouseup', stopResizing);
     return () => {
-      window.removeEventListener("mousemove", resize);
-      window.removeEventListener("mouseup", stopResizing);
+      window.removeEventListener('mousemove', resize);
+      window.removeEventListener('mouseup', stopResizing);
     };
   }, [resize, stopResizing]);
 
   return {
     sidebarWidth,
     isResizing,
-    startResizing
+    startResizing,
   };
 };

@@ -29,15 +29,23 @@ const CollapsibleSection: React.FC<{
   return (
     <div className="sidebar-section">
       <div className="sidebar-section-header" onClick={onToggle}>
-        <span style={{ 
-          marginRight: '5px', 
-          transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
-          transition: 'transform 0.1s',
-          display: 'inline-block',
-          fontSize: '10px'
-        }}>▶</span>
+        <span
+          style={{
+            marginRight: '5px',
+            transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
+            transition: 'transform 0.1s',
+            display: 'inline-block',
+            fontSize: '10px',
+          }}
+        >
+          ▶
+        </span>
         <span style={{ fontWeight: 'bold' }}>{title}</span>
-        {action && <div onClick={e => e.stopPropagation()} style={{ marginLeft: 'auto' }}>{action}</div>}
+        {action && (
+          <div onClick={(e) => e.stopPropagation()} style={{ marginLeft: 'auto' }}>
+            {action}
+          </div>
+        )}
       </div>
       {isExpanded && <div className="sidebar-section-content">{children}</div>}
     </div>
@@ -57,25 +65,26 @@ const Sidebar: React.FC<SidebarProps> = ({
   onCloseTab,
   onRenameTab,
   onOpenSettings,
-  onAddTabWithCwd
+  onAddTabWithCwd,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isAddMenuOpen, setIsAddMenuOpen] = useState(false);
   const [expandedSections, setExpandedSections] = useState({
     projects: true,
-    tasks: true
+    tasks: true,
   });
 
   const toggleSection = (section: 'projects' | 'tasks') => {
-    setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }));
+    setExpandedSections((prev) => ({ ...prev, [section]: !prev[section] }));
   };
 
-  const filteredProjects = projects.filter(p => 
-      p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+  const filteredProjects = projects.filter(
+    (p) =>
+      p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       p.path.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const filteredTabs = tabs.filter(t => 
+  const filteredTabs = tabs.filter((t) =>
     t.title.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
@@ -91,82 +100,85 @@ const Sidebar: React.FC<SidebarProps> = ({
 
   return (
     <div className="sidebar" style={{ width }}>
-      <CollapsibleSection 
-        title="PROJECT MANAGER" 
-        isExpanded={expandedSections.projects} 
+      <CollapsibleSection
+        title="PROJECT MANAGER"
+        isExpanded={expandedSections.projects}
         onToggle={() => toggleSection('projects')}
         action={
-          <div 
-              className="sidebar-action-btn" 
-              onClick={(e) => { e.stopPropagation(); onAddProject(); }}
-              title="Add Project Folder"
+          <div
+            className="sidebar-action-btn"
+            onClick={(e) => {
+              e.stopPropagation();
+              onAddProject();
+            }}
+            title="Add Project Folder"
           >
-              +
+            +
           </div>
         }
       >
         <div className="sidebar-search-container">
-            <input 
-                type="text" 
-                className="sidebar-search-input" 
-                placeholder="Search projects..." 
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-            />
+          <input
+            type="text"
+            className="sidebar-search-input"
+            placeholder="Search projects..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
         </div>
-        
+
         <div className="project-list">
-            {filteredProjects.map(p => (
-                <ProjectItem 
-                  key={p.path}
-                  project={p}
-                  searchQuery={searchQuery}
-                  onSelect={() => onAddTabWithCwd(p.path)}
-                  onRemove={(e) => { e.stopPropagation(); onRemoveProject(p.path); }}
-                  onContextMenu={(e) => handleProjectContextMenu(e, p)}
-                />
-            ))}
-            {filteredProjects.length === 0 && (
-                <div style={{ padding: '15px', color: '#666', fontSize: '12px', fontStyle: 'italic' }}>
-                    No projects found.
-                </div>
-            )}
+          {filteredProjects.map((p) => (
+            <ProjectItem
+              key={p.path}
+              project={p}
+              searchQuery={searchQuery}
+              onSelect={() => onAddTabWithCwd(p.path)}
+              onRemove={(e) => {
+                e.stopPropagation();
+                onRemoveProject(p.path);
+              }}
+              onContextMenu={(e) => handleProjectContextMenu(e, p)}
+            />
+          ))}
+          {filteredProjects.length === 0 && (
+            <div style={{ padding: '15px', color: '#666', fontSize: '12px', fontStyle: 'italic' }}>
+              No projects found.
+            </div>
+          )}
         </div>
       </CollapsibleSection>
 
-      <CollapsibleSection 
-        title="ACTIVE TASKS" 
-        isExpanded={expandedSections.tasks} 
+      <CollapsibleSection
+        title="ACTIVE TASKS"
+        isExpanded={expandedSections.tasks}
         onToggle={() => toggleSection('tasks')}
         action={
           <div style={{ position: 'relative' }}>
-            <div 
-                className="sidebar-action-btn" 
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setIsAddMenuOpen(!isAddMenuOpen);
-                }}
-                title="New Terminal..."
+            <div
+              className="sidebar-action-btn"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsAddMenuOpen(!isAddMenuOpen);
+              }}
+              title="New Terminal..."
             >
-                +
+              +
             </div>
             {isAddMenuOpen && (
-              <div 
-                className="dropdown-menu"
-                onMouseLeave={() => setIsAddMenuOpen(false)}
-              >
-                <div 
-                  className="project-item" 
-                  onClick={() => { 
-                    onAddTerminal(false); 
+              <div className="dropdown-menu" onMouseLeave={() => setIsAddMenuOpen(false)}>
+                <div
+                  className="project-item"
+                  onClick={() => {
+                    onAddTerminal(false);
                     setIsAddMenuOpen(false);
                   }}
                 >
                   <span>New Terminal</span>
                 </div>
-                <div 
-                  className="project-item" 
-                  onClick={() => { 
+                <div
+                  className="project-item"
+                  onClick={() => {
                     onAddTerminal(true);
                     setIsAddMenuOpen(false);
                   }}
@@ -180,32 +192,29 @@ const Sidebar: React.FC<SidebarProps> = ({
         }
       >
         <div className="task-list">
-          {filteredTabs.map(tab => (
-              <TaskItem 
-                key={tab.id}
-                tab={tab}
-                isActive={activeTabId === tab.id}
-                searchQuery={searchQuery}
-                onSelect={() => onSelectTab(tab.id)}
-                onClose={(e) => onCloseTab(tab.id, e)}
-                onRename={(e) => {
-                  e.stopPropagation();
-                  e.preventDefault();
-                  onRenameTab(tab.id, tab.title);
-                }}
-                onContextMenu={(e) => handleTabContextMenu(e, tab)}
-              />
+          {filteredTabs.map((tab) => (
+            <TaskItem
+              key={tab.id}
+              tab={tab}
+              isActive={activeTabId === tab.id}
+              searchQuery={searchQuery}
+              onSelect={() => onSelectTab(tab.id)}
+              onClose={(e) => onCloseTab(tab.id, e)}
+              onRename={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                onRenameTab(tab.id, tab.title);
+              }}
+              onContextMenu={(e) => handleTabContextMenu(e, tab)}
+            />
           ))}
         </div>
       </CollapsibleSection>
-      
+
       <div style={{ flex: 1 }}></div>
 
-      <div 
-          onClick={onOpenSettings}
-          className="sidebar-footer-btn"
-      >
-          <span style={{ marginRight: '8px', fontSize: '16px' }}>⚙️</span> Settings & Docs
+      <div onClick={onOpenSettings} className="sidebar-footer-btn">
+        <span style={{ marginRight: '8px', fontSize: '16px' }}>⚙️</span> Settings & Docs
       </div>
     </div>
   );
