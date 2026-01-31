@@ -2,6 +2,12 @@
 
 **CmdGUI** is a developer-focused workspace manager designed to streamline your command-line workflow. Built with **Electron**, **React**, and **TypeScript**, it serves as a central hub for all your active projects, allowing you to manage multiple terminal sessions (PowerShell/Bash) with a persistent state that remembers your setup between launches.
 
+## 📸 Gallery
+
+| Main Interface | Settings & Appearance |
+| :---: | :---: |
+| ![Main UI](docs/screenshots/main-ui.png) | ![Settings](docs/screenshots/settings.png) |
+
 ## Key Features
 
 - **🖥️ Integrated Terminal Environment:** Full-featured terminal emulation using `xterm.js` and `node-pty`.
