@@ -17,6 +17,27 @@
 - **💾 Persistent State:** Your open tabs, sidebar width, and added projects are saved automatically.
 - **🛡️ Admin Mode:** Built-in support for relaunching with elevated privileges for administrative tasks.
 
+<details>
+<summary><strong>FAQ: How is this different from Windows Terminal?</strong></summary>
+
+### Core Philosophy
+*   **CmdGUI (Project-Centric):** Acts as a **Workspace Manager**. It organizes your workflow around specific *projects* (e.g., "Client App", "Backend API") rather than just shells. It's like the "Terminal" panel of VS Code, but detached and persistent.
+*   **Windows Terminal (Shell-Centric):** A host for running command-line shells. It organizes workflow around *environments* (PowerShell, Ubuntu) rather than folder contexts.
+
+### User Interface
+*   **CmdGUI:** Features a persistent **Sidebar** with a "Project Manager". You actively "add" folders, and the app uses **Smart Detection** to assign icons based on the tech stack (React, Python, etc.).
+*   **Windows Terminal:** Relies on tabs and profiles. To open a project, you typically navigate manually or configure a static profile.
+
+### Workflow & Persistence
+*   **CmdGUI:** **State Persistence** is key. It remembers exactly which project tabs were open and your sidebar state between launches. Terminals are spawned *from* projects.
+*   **Windows Terminal:** Sessions are generally ephemeral. While it can restore tabs, it's primarily designed for fresh sessions or static startup configurations.
+
+### Summary
+**CmdGUI** is an **"IDE without the Code Editor"**—perfect for developers juggling multiple repositories who want a preserved "Command Center."
+**Windows Terminal** is the **"Standard Bearer"**—the raw, high-performance engine for running shells, regardless of context.
+
+</details>
+
 ## Tech Stack
 
 - **Frontend:** React 19, Vite, TypeScript
