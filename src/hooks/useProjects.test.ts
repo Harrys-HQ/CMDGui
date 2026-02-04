@@ -1,16 +1,19 @@
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { useProjects } from './useProjects';
+import { ElectronAPI } from '../types';
 
 // Mock persistence
 vi.mock('./usePersistence', () => ({
-  loadState: vi.fn((key, defaultVal) => defaultVal),
+  loadState: vi.fn((key, defaultVal) => Promise.resolve(defaultVal)),
   saveState: vi.fn(),
 }));
 
 describe('useProjects Hook', () => {
   const mockGetProjectInfo = vi.fn();
   const mockSelectFolder = vi.fn();
+  const mockSettingsGet = vi.fn();
+  const mockSettingsSet = vi.fn();
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -19,12 +22,15 @@ describe('useProjects Hook', () => {
     window.electron = {
       getProjectInfo: mockGetProjectInfo,
       selectFolder: mockSelectFolder,
-    } as any;
+      settingsGet: mockSettingsGet,
+      settingsSet: mockSettingsSet,
+    } as unknown as ElectronAPI;
   });
 
-  it('should initialize with empty projects', () => {
+  it('should initialize with empty projects', async () => {
     const { result } = renderHook(() => useProjects());
-    expect(result.current.projects).toEqual([]);
+    // Initial state is empty, but it stays empty if no persistence
+    await waitFor(() => expect(result.current.projects).toEqual([]));
   });
 
   it('should add a project', async () => {
@@ -33,12 +39,13 @@ describe('useProjects Hook', () => {
     mockGetProjectInfo.mockResolvedValue('react');
 
     const { result } = renderHook(() => useProjects());
+    await waitFor(() => expect(result.current.projects).toEqual([]));
 
     await act(async () => {
       await result.current.addProject();
     });
 
-    expect(result.current.projects).toHaveLength(1);
+    await waitFor(() => expect(result.current.projects).toHaveLength(1));
     expect(result.current.projects[0].path).toBe(folderPath);
     expect(result.current.projects[0].name).toBe('MyApp');
   });
@@ -49,18 +56,19 @@ describe('useProjects Hook', () => {
       mockGetProjectInfo.mockResolvedValue('react');
 
       const { result } = renderHook(() => useProjects());
+      await waitFor(() => expect(result.current.projects).toEqual([]));
 
       await act(async () => {
           await result.current.addProject();
       });
 
-      expect(result.current.projects).toHaveLength(1);
+      await waitFor(() => expect(result.current.projects).toHaveLength(1));
 
       act(() => {
           result.current.removeProject(folderPath);
       });
 
-      expect(result.current.projects).toHaveLength(0);
+      await waitFor(() => expect(result.current.projects).toHaveLength(0));
   });
   
   it('should detect project type automatically', async () => {
@@ -69,6 +77,7 @@ describe('useProjects Hook', () => {
      mockGetProjectInfo.mockResolvedValue('node');
      
      const { result } = renderHook(() => useProjects());
+     await waitFor(() => expect(result.current.projects).toEqual([]));
      
      await act(async () => {
        await result.current.addProject();

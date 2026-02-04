@@ -63,6 +63,8 @@ export interface ElectronAPI {
   quitAndInstall: () => Promise<void>;
   onUpdateStatus: (callback: (data: UpdateStatus) => void) => () => void;
   getVersion: () => Promise<string>;
+  settingsGet: <T>(key: string) => Promise<T | null>;
+  settingsSet: (key: string, value: any) => Promise<void>;
   showContextMenu: (type: string, data?: ContextMenuData) => Promise<void>;
   onTerminalContextAction: (callback: (action: string) => void) => () => void;
   onSidebarContextAction: (callback: (data: SidebarAction) => void) => () => void;

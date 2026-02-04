@@ -2,19 +2,20 @@ const { app, BrowserWindow, ipcMain, dialog, shell, session, Menu } = require('e
 const { autoUpdater } = require('electron-updater');
 const path = require('path');
 const os = require('os');
-const fs = require('fs');
-const pty = require('node-pty');
-
-// Use powershell.exe on Windows, bash on others
-const shellCommand = os.platform() === 'win32' ? 'powershell.exe' : 'bash';
+const projectService = require('./services/projectService');
+const terminalService = require('./services/terminalService');
+const settingsService = require('./services/settingsService');
 
 let mainWindow;
-const terminals = {};
 
 function createWindow() {
+  const windowState = settingsService.getWindowState();
+
   mainWindow = new BrowserWindow({
-    width: 1200,
-    height: 800,
+    x: windowState.x,
+    y: windowState.y,
+    width: windowState.width,
+    height: windowState.height,
     backgroundColor: '#1e1e1e',
     icon: path.join(__dirname, '../build/icon.png'),
     webPreferences: {
@@ -23,6 +24,16 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js'),
     },
   });
+
+  if (windowState.isMaximized) {
+    mainWindow.maximize();
+  }
+
+  // Save window state on change
+  const saveState = () => settingsService.saveWindowState(mainWindow);
+  mainWindow.on('resize', saveState);
+  mainWindow.on('move', saveState);
+  mainWindow.on('close', saveState);
 
   // Check if running in dev mode via npm script
   const isDev = process.env.npm_lifecycle_event === 'dev:electron';
@@ -60,7 +71,8 @@ function createWindow() {
 app.whenReady().then(() => {
   createWindow();
 
-  if (!process.env.npm_lifecycle_event) {
+  // Initial check for updates in production
+  if (process.env.NODE_ENV !== 'development' && !process.env.npm_lifecycle_event) {
     autoUpdater.checkForUpdatesAndNotify();
   }
 
@@ -104,13 +116,7 @@ app.on('window-all-closed', () => {
 });
 
 app.on('before-quit', () => {
-  Object.keys(terminals).forEach((pid) => {
-    try {
-      terminals[pid].kill();
-    } catch (e) {
-      console.error(`Failed to kill terminal process ${pid}:`, e);
-    }
-  });
+  terminalService.killAll();
 });
 
 // --- IPC Handlers for System Dialogs & App Mgmt ---
@@ -196,75 +202,7 @@ ipcMain.handle('dialog-select-folder', async () => {
 });
 
 ipcMain.handle('project-get-info', async (event, projectPath) => {
-  try {
-    const files = await fs.promises.readdir(projectPath);
-    const filesLower = files.map((f) => f.toLowerCase());
-
-    if (filesLower.includes('package.json')) {
-      try {
-        const pkgContent = await fs.promises.readFile(
-          path.join(projectPath, 'package.json'),
-          'utf8'
-        );
-        const pkg = JSON.parse(pkgContent);
-        const deps = { ...pkg.dependencies, ...pkg.devDependencies };
-        if (deps['react']) return 'react';
-        if (deps['vue']) return 'vue';
-        if (deps['@angular/core']) return 'angular';
-        if (deps['svelte']) return 'svelte';
-        if (deps['next']) return 'react';
-        if (deps['nuxt']) return 'vue';
-        if (
-          deps['@vitejs/plugin-react'] ||
-          filesLower.includes('vite.config.ts') ||
-          filesLower.includes('vite.config.js')
-        )
-          return 'react';
-        return 'node';
-      } catch (e) {
-        return 'node';
-      }
-    }
-
-    if (filesLower.includes('deno.json') || filesLower.includes('deno.jsonc')) return 'deno';
-    if (
-      filesLower.includes('requirements.txt') ||
-      filesLower.some((f) => f.endsWith('.py')) ||
-      filesLower.includes('pyproject.toml')
-    )
-      return 'python';
-    if (filesLower.includes('cargo.toml')) return 'rust';
-    if (filesLower.includes('go.mod')) return 'go';
-    if (filesLower.includes('composer.json')) {
-      try {
-        const compContent = await fs.promises.readFile(
-          path.join(projectPath, 'composer.json'),
-          'utf8'
-        );
-        if (compContent.includes('laravel/framework')) return 'laravel';
-        return 'php';
-      } catch (e) {
-        return 'php';
-      }
-    }
-    if (filesLower.includes('gemfile') || filesLower.some((f) => f.endsWith('.rb'))) return 'ruby';
-    if (
-      filesLower.includes('pom.xml') ||
-      filesLower.includes('build.gradle') ||
-      filesLower.some((f) => f.endsWith('.java'))
-    )
-      return 'java';
-    if (filesLower.includes('dockerfile') || filesLower.includes('docker-compose.yml'))
-      return 'docker';
-    if (files.some((f) => f.endsWith('.sln') || f.endsWith('.csproj'))) return 'dotnet';
-    if (files.some((f) => f.endsWith('.cpp') || f.endsWith('.hpp') || f.endsWith('.cc')))
-      return 'cpp';
-    if (filesLower.includes('.git')) return 'git';
-
-    return 'folder';
-  } catch (err) {
-    return 'folder';
-  }
+  return projectService.getProjectInfo(projectPath);
 });
 
 ipcMain.handle('app-check-admin', () => {
@@ -299,41 +237,7 @@ ipcMain.on('app-relaunch-admin', () => {
 // --- IPC Handlers for Terminal ---
 
 ipcMain.handle('terminal-create', (event, options) => {
-  const { cols, rows, cwd } = options || {};
-
-  // Default to user home if no cwd provided
-  const targetCwd = cwd || os.homedir();
-
-  try {
-    const ptyProcess = pty.spawn(shellCommand, [], {
-      name: 'xterm-color',
-      cols: cols || 80,
-      rows: rows || 30,
-      cwd: targetCwd,
-      env: process.env,
-    });
-
-    const pid = ptyProcess.pid;
-    terminals[pid] = ptyProcess;
-
-    ptyProcess.onData((data) => {
-      if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send(`terminal-incoming-${pid}`, data);
-      }
-    });
-
-    ptyProcess.onExit(() => {
-      if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send(`terminal-exit-${pid}`);
-      }
-      delete terminals[pid];
-    });
-
-    return pid;
-  } catch (err) {
-    console.error('Failed to spawn terminal:', err);
-    throw new Error(`Failed to create terminal: ${err.message}`);
-  }
+  return terminalService.createTerminal(mainWindow, options);
 });
 
 // --- IPC Handlers for Updates ---
@@ -364,25 +268,25 @@ ipcMain.handle('app-get-version', () => {
   return app.getVersion();
 });
 
+ipcMain.handle('settings-get', (event, key) => {
+  const settings = settingsService.loadSettings();
+  return key ? settings[key] : settings;
+});
+
+ipcMain.handle('settings-set', (event, key, value) => {
+  const settings = settingsService.loadSettings();
+  settings[key] = value;
+  settingsService.saveSettings(settings);
+});
+
 ipcMain.on('terminal-write', (event, { pid, data }) => {
-  if (terminals[pid]) {
-    terminals[pid].write(data);
-  }
+  terminalService.writeTerminal(pid, data);
 });
 
 ipcMain.on('terminal-resize', (event, { pid, cols, rows }) => {
-  if (terminals[pid]) {
-    try {
-      terminals[pid].resize(cols, rows);
-    } catch (err) {
-      console.error('Error resizing terminal:', err);
-    }
-  }
+  terminalService.resizeTerminal(pid, cols, rows);
 });
 
 ipcMain.on('terminal-kill', (event, pid) => {
-  if (terminals[pid]) {
-    terminals[pid].kill();
-    delete terminals[pid];
-  }
+  terminalService.killTerminal(pid);
 });

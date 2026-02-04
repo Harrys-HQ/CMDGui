@@ -19,7 +19,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   onFontSizeChange,
 }) => {
   const [activeTab, setActiveTab] = useState<'project' | 'appearance' | 'cli' | 'about'>('project');
-  const [appVersion, setAppVersion] = useState<string>('1.1.1');
+  const [appVersion, setAppVersion] = useState<string>('1.2.0');
 
   // Update State
   const [updateState, setUpdateState] = useState<

@@ -1,14 +1,29 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Project } from '../types';
 import { loadState, saveState } from './usePersistence';
 
 export const useProjects = () => {
-  const [projects, setProjects] = useState<Project[]>(() => loadState('projects', []));
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [isLoaded, setIsLoaded] = useState(false);
 
-  useEffect(() => saveState('projects', projects), [projects]);
+  useEffect(() => {
+    const init = async () => {
+      const savedProjects = await loadState<Project[]>('projects', []);
+      setProjects(savedProjects);
+      setIsLoaded(true);
+    };
+    init();
+  }, []);
+
+  useEffect(() => {
+    if (isLoaded) {
+      saveState('projects', projects);
+    }
+  }, [projects, isLoaded]);
 
   // Detect Project Types
   useEffect(() => {
+    if (!isLoaded) return;
     const detectTypes = async () => {
       let changed = false;
       const updatedProjects = await Promise.all(
@@ -27,22 +42,22 @@ export const useProjects = () => {
       }
     };
     detectTypes();
-  }, [projects.length]);
+  }, [projects]); // Corrected: use projects as dependency
 
-  const addProject = async () => {
+  const addProject = useCallback(async () => {
     const folderPath = await window.electron.selectFolder();
     if (folderPath) {
       const name = folderPath.split('\\').pop() || folderPath;
-      if (projects.some((p) => p.path === folderPath)) return;
-
-      const newProjects = [...projects, { name, path: folderPath }];
-      setProjects(newProjects);
+      setProjects((prev) => {
+        if (prev.some((p) => p.path === folderPath)) return prev;
+        return [...prev, { name, path: folderPath }];
+      });
     }
-  };
+  }, []);
 
-  const removeProject = (path: string) => {
+  const removeProject = useCallback((path: string) => {
     setProjects((prev) => prev.filter((p) => p.path !== path));
-  };
+  }, []);
 
   return {
     projects,

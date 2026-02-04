@@ -4,9 +4,17 @@ interface StatusBarProps {
   status: string;
   activeTabTitle?: string;
   tabCount: number;
+  isUpdateAvailable?: boolean;
+  onShowUpdates?: () => void;
 }
 
-const StatusBar: React.FC<StatusBarProps> = ({ status, activeTabTitle, tabCount }) => {
+const StatusBar: React.FC<StatusBarProps> = ({
+  status,
+  activeTabTitle,
+  tabCount,
+  isUpdateAvailable,
+  onShowUpdates,
+}) => {
   return (
     <div className="status-bar">
       <div className="status-item">
@@ -26,6 +34,17 @@ const StatusBar: React.FC<StatusBarProps> = ({ status, activeTabTitle, tabCount 
       <div className="status-item">
         <span style={{ opacity: 0.8 }}>{status}</span>
       </div>
+
+      {isUpdateAvailable && (
+        <div
+          className="status-item update-available"
+          onClick={onShowUpdates}
+          style={{ color: '#4caf50', cursor: 'pointer', fontWeight: 'bold' }}
+          title="A new version of CmdGUI is available!"
+        >
+          <span>✨ Update Available</span>
+        </div>
+      )}
 
       <div style={{ flex: 1 }} />
 

@@ -1,21 +1,22 @@
-import { renderHook, act } from '@testing-library/react';
+import { renderHook, act, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { useSidebarResizer } from './useSidebarResizer';
 
 // Mock persistence
 vi.mock('./usePersistence', () => ({
-  loadState: vi.fn((key, defaultVal) => defaultVal),
+  loadState: vi.fn((key, defaultVal) => Promise.resolve(defaultVal)),
   saveState: vi.fn(),
 }));
 
 describe('useSidebarResizer Hook', () => {
-  it('should initialize with default width', () => {
+  it('should initialize with default width', async () => {
     const { result } = renderHook(() => useSidebarResizer());
-    expect(result.current.sidebarWidth).toBe(250);
+    await waitFor(() => expect(result.current.sidebarWidth).toBe(250));
   });
 
-  it('should start resizing', () => {
+  it('should start resizing', async () => {
     const { result } = renderHook(() => useSidebarResizer());
+    await waitFor(() => expect(result.current.sidebarWidth).toBe(250));
     
     act(() => {
       result.current.startResizing();
@@ -24,8 +25,9 @@ describe('useSidebarResizer Hook', () => {
     expect(result.current.isResizing).toBe(true);
   });
 
-  it('should resize when mouse moves while resizing', () => {
+  it('should resize when mouse moves while resizing', async () => {
     const { result } = renderHook(() => useSidebarResizer());
+    await waitFor(() => expect(result.current.sidebarWidth).toBe(250));
     
     act(() => {
       result.current.startResizing();
@@ -40,8 +42,9 @@ describe('useSidebarResizer Hook', () => {
     expect(result.current.sidebarWidth).toBe(300);
   });
 
-  it('should NOT resize when mouse moves if NOT resizing', () => {
+  it('should NOT resize when mouse moves if NOT resizing', async () => {
     const { result } = renderHook(() => useSidebarResizer());
+    await waitFor(() => expect(result.current.sidebarWidth).toBe(250));
     
     // No startResizing call
 
@@ -53,8 +56,9 @@ describe('useSidebarResizer Hook', () => {
     expect(result.current.sidebarWidth).toBe(250); // Stays default
   });
 
-  it('should stop resizing on mouseup', () => {
+  it('should stop resizing on mouseup', async () => {
      const { result } = renderHook(() => useSidebarResizer());
+     await waitFor(() => expect(result.current.sidebarWidth).toBe(250));
     
     act(() => {
       result.current.startResizing();

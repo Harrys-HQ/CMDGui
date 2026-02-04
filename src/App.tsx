@@ -35,6 +35,20 @@ const App: React.FC = () => {
 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isQuickSwitcherOpen, setIsQuickSwitcherOpen] = useState(false);
+  const [isUpdateAvailable, setIsUpdateAvailable] = useState(false);
+
+  useEffect(() => {
+    const cleanup = window.electron.onUpdateStatus((data) => {
+      if (data.status === 'available') {
+        setIsUpdateAvailable(true);
+      } else if (data.status === 'downloaded') {
+        setIsUpdateAvailable(true);
+      } else if (data.status === 'not-available') {
+        setIsUpdateAvailable(false);
+      }
+    });
+    return cleanup;
+  }, []);
 
   const handleAddTerminal = async (asAdmin: boolean) => {
     if (asAdmin && !isAdmin) {
@@ -127,7 +141,7 @@ const App: React.FC = () => {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [tabs, activeTabId]);
+  }, [tabs, activeTabId, addTab, closeTab, setActiveTabId]);
 
   const activeTab = tabs.find((t) => t.id === activeTabId);
 
@@ -135,14 +149,13 @@ const App: React.FC = () => {
     if (activeTabId) {
       clearTabNotifications(activeTabId);
     }
-  }, [activeTabId]);
+  }, [activeTabId, clearTabNotifications]);
 
   return (
     <div className="app-root-layout">
       <div className="workspace-layout">
         <Sidebar
           width={sidebarWidth}
-          onResizeStart={startResizing}
           projects={projects}
           tabs={tabs}
           activeTabId={activeTabId}
@@ -198,7 +211,13 @@ const App: React.FC = () => {
         </div>
       </div>
 
-      <StatusBar status="Ready" activeTabTitle={activeTab?.title} tabCount={tabs.length} />
+      <StatusBar
+        status="Ready"
+        activeTabTitle={activeTab?.title}
+        tabCount={tabs.length}
+        isUpdateAvailable={isUpdateAvailable}
+        onShowUpdates={() => setIsSettingsOpen(true)}
+      />
 
       <SettingsModal
         isOpen={isSettingsOpen}

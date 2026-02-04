@@ -5,7 +5,6 @@ import TaskItem from './TaskItem';
 
 interface SidebarProps {
   width: number;
-  onResizeStart: () => void;
   projects: Project[];
   tabs: Tab[];
   activeTabId: string;
@@ -54,7 +53,6 @@ const CollapsibleSection: React.FC<{
 
 const Sidebar: React.FC<SidebarProps> = ({
   width,
-  onResizeStart,
   projects,
   tabs,
   activeTabId,

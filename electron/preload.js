@@ -37,6 +37,10 @@ contextBridge.exposeInMainWorld('electron', {
   },
   getVersion: () => ipcRenderer.invoke('app-get-version'),
 
+  // Settings Persistence
+  settingsGet: (key) => ipcRenderer.invoke('settings-get', key),
+  settingsSet: (key, value) => ipcRenderer.invoke('settings-set', key, value),
+
   // Context Menus
   showContextMenu: (type, data) => ipcRenderer.invoke('context-menu-show', type, data),
   onTerminalContextAction: (callback) => {

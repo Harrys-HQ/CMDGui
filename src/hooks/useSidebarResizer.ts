@@ -2,10 +2,24 @@ import { useState, useEffect, useCallback } from 'react';
 import { loadState, saveState } from './usePersistence';
 
 export const useSidebarResizer = () => {
-  const [sidebarWidth, setSidebarWidth] = useState(() => loadState('sidebarWidth', 250));
+  const [sidebarWidth, setSidebarWidth] = useState(250);
   const [isResizing, setIsResizing] = useState(false);
+  const [isLoaded, setIsLoaded] = useState(false);
 
-  useEffect(() => saveState('sidebarWidth', sidebarWidth), [sidebarWidth]);
+  useEffect(() => {
+    const init = async () => {
+      const savedWidth = await loadState<number>('sidebarWidth', 250);
+      setSidebarWidth(savedWidth);
+      setIsLoaded(true);
+    };
+    init();
+  }, []);
+
+  useEffect(() => {
+    if (isLoaded) {
+      saveState('sidebarWidth', sidebarWidth);
+    }
+  }, [sidebarWidth, isLoaded]);
 
   const startResizing = useCallback(() => setIsResizing(true), []);
   const stopResizing = useCallback(() => setIsResizing(false), []);

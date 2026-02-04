@@ -1,3 +1,34 @@
+## 🚀 Release: CmdGUI v1.2.0
+
+### 🏗️ Architectural Refactor (Main Process)
+
+- **Service-Oriented Architecture:** Refactored `main.js` by extracting core responsibilities into dedicated service modules:
+  - `terminalService.js`: Centralized management for `node-pty` terminal processes (creation, resizing, cleanup).
+  - `projectService.js`: Extracted complex project type detection logic.
+  - `settingsService.js`: A new, robust service for handling application settings and persistence.
+- **Improved Maintainability:** Reduced `main.js` complexity, making the Electron entry point cleaner and easier to debug.
+
+### 💾 Persistence & Window Management
+
+- **Enhanced Persistence Layer:** Migrated from `localStorage` to a more robust, file-based JSON store managed by the main process (`settings.json`).
+- **Asynchronous Data Flow:** All application state (projects, tabs, settings) is now handled asynchronously via Electron IPC, ensuring better performance and data integrity.
+- **Window State Persistence:** The application now remembers its window size, position, and maximization state between launches.
+
+### ✨ UI/UX & Update Enhancements
+
+- **Proactive Update Notifications:** Added a new "✨ Update Available" indicator in the `StatusBar` that appears automatically when a new version is detected.
+- **Startup Update Check:** The app now performs a silent check for updates on startup in production environments.
+- **Settings Modal Integration:** Users can now trigger the update process directly from the StatusBar notification or the About tab.
+
+### 🛠️ Stability & Code Quality
+
+- **Zero Linting Warnings:** Resolved all remaining ESLint warnings across the codebase, including React Hook dependency issues and terminal cleanup logic.
+- **Performance Optimization:** Implemented `useCallback` for core hook functions (`useTabs`, `useProjects`) to prevent unnecessary re-renders.
+- **Robust Terminal Cleanup:** Improved the terminal disposal logic to ensure the DOM element and associated PTY process are always correctly synchronized and freed.
+- **Improved Test Suite:** Updated the testing infrastructure to handle the new asynchronous persistence model, ensuring 100% pass rate for core logic tests.
+
+---
+
 ## 🚀 Release: CmdGUI v1.1.1
 
 ### ✨ UX & Customization

@@ -111,6 +111,8 @@ const Terminal: React.FC<TerminalProps> = ({
   const onExitRef = useRef(onExit);
   const onNotificationRef = useRef(onNotification);
   const isActiveRef = useRef(isActive);
+  const initialFontSize = useRef(fontSize);
+  const initialTheme = useRef(theme);
 
   useEffect(() => {
     onTitleChangeRef.current = onTitleChange;
@@ -124,9 +126,9 @@ const Terminal: React.FC<TerminalProps> = ({
 
     const term = new Xterm({
       cursorBlink: true,
-      fontSize: fontSize,
+      fontSize: initialFontSize.current,
       fontFamily: 'Consolas, "Courier New", monospace',
-      theme: getTheme(theme),
+      theme: getTheme(initialTheme.current),
       allowProposedApi: true,
     });
 
@@ -290,7 +292,9 @@ const Terminal: React.FC<TerminalProps> = ({
       e.preventDefault();
       window.electron.showContextMenu('terminal');
     };
-    terminalRef.current?.addEventListener('contextmenu', handleContextMenu);
+
+    const container = terminalRef.current;
+    container?.addEventListener('contextmenu', handleContextMenu);
 
     const cleanupContext = window.electron.onTerminalContextAction((action) => {
       if (!isActiveRef.current) return;
@@ -322,7 +326,7 @@ const Terminal: React.FC<TerminalProps> = ({
     return () => {
       isUnmounted = true;
       window.removeEventListener('resize', handleResize);
-      terminalRef.current?.removeEventListener('contextmenu', handleContextMenu);
+      container?.removeEventListener('contextmenu', handleContextMenu);
       cleanupContext();
       if (cleanupData) cleanupData();
       if (pidRef.current !== null) {
@@ -331,7 +335,7 @@ const Terminal: React.FC<TerminalProps> = ({
       }
       term.dispose();
     };
-  }, []);
+  }, [cwd]); // Only re-run if cwd changes, theme and fontSize are handled in separate effects
 
   useEffect(() => {
     if (xtermRef.current) {
