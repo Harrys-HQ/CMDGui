@@ -12,6 +12,7 @@ interface TerminalProps {
   onTitleChange?: (title: string) => void;
   onExit?: () => void;
   onNotification?: (type: 'alert' | 'confirmation') => void;
+  onClear?: (clearFn: () => void) => void;
 }
 
 const getTheme = (themeName: string = 'vscode') => {
@@ -97,6 +98,7 @@ const Terminal: React.FC<TerminalProps> = ({
   onTitleChange,
   onExit,
   onNotification,
+  onClear,
 }) => {
   const terminalRef = useRef<HTMLDivElement>(null);
   const xtermRef = useRef<Xterm | null>(null);
@@ -219,6 +221,14 @@ const Terminal: React.FC<TerminalProps> = ({
     });
 
     fitAddon.fit();
+
+    if (onClear) {
+      onClear(() => {
+        if (pidRef.current !== null) {
+          window.electron.writeTerminal(pidRef.current, '\x0c');
+        }
+      });
+    }
 
     let cleanupData: (() => void) | null = null;
     let isUnmounted = false;

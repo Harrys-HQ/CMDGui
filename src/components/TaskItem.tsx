@@ -9,6 +9,8 @@ interface TaskItemProps {
   onClose: (e: React.MouseEvent) => void;
   onRename: (e: React.MouseEvent) => void;
   onContextMenu: (e: React.MouseEvent) => void;
+  onDragStart: () => void;
+  onDragEnd: () => void;
 }
 
 const getHighlightedText = (text: string, highlight: string) => {
@@ -39,12 +41,17 @@ const TaskItem: React.FC<TaskItemProps> = ({
   onClose,
   onRename,
   onContextMenu,
+  onDragStart,
+  onDragEnd,
 }) => {
   return (
     <div
       onClick={onSelect}
       onDoubleClick={onRename}
       onContextMenu={onContextMenu}
+      draggable
+      onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
       className={`project-item ${isActive ? 'active-task' : ''} ${tab.hasAlert ? 'alert-task' : ''} ${tab.hasConfirmation ? 'confirmation-task' : ''}`}
       title={tab.cwd || 'Terminal'}
     >

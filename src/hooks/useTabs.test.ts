@@ -134,4 +134,25 @@ describe('useTabs Hook', () => {
 
     await waitFor(() => expect(result.current.tabs[0].hasAlert).toBe(false));
   });
+
+  it('should reorder tabs', async () => {
+    const { result } = renderHook(() => useTabs());
+    await waitFor(() => expect(result.current.tabs).toHaveLength(1));
+    const tab1Id = result.current.tabs[0].id;
+
+    act(() => {
+      result.current.addTab(); // tab2
+    });
+    await waitFor(() => expect(result.current.tabs).toHaveLength(2));
+    const tab2Id = result.current.tabs[1].id;
+
+    act(() => {
+      result.current.reorderTabs(0, 1); // Move tab1 to position 1
+    });
+
+    await waitFor(() => {
+      expect(result.current.tabs[0].id).toBe(tab2Id);
+      expect(result.current.tabs[1].id).toBe(tab1Id);
+    });
+  });
 });

@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Tab, Project } from '../types';
+import { Command } from '../hooks/useCommands';
 
 interface QuickSwitcherProps {
   isOpen: boolean;
   onClose: () => void;
   tabs: Tab[];
   projects: Project[];
+  commands: Command[];
   onSelectTab: (id: string) => void;
   onSelectProject: (path: string) => void;
 }
@@ -14,6 +16,7 @@ const QuickSwitcher: React.FC<QuickSwitcherProps> = ({
   onClose,
   tabs,
   projects,
+  commands,
   onSelectTab,
   onSelectProject,
 }) => {
@@ -21,10 +24,39 @@ const QuickSwitcher: React.FC<QuickSwitcherProps> = ({
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const filteredItems = [
-    ...tabs.map((t) => ({ id: t.id, name: t.title, type: 'tab', sub: 'Active Task' })),
-    ...projects.map((p) => ({ id: p.path, name: p.name, type: 'project', sub: p.path })),
-  ].filter((item) => item.name.toLowerCase().includes(query.toLowerCase()));
+  const isCommandMode = query.startsWith('>');
+  const searchText = isCommandMode ? query.slice(1).trim() : query;
+
+  const filteredItems = isCommandMode
+    ? commands
+        .filter((c) => c.name.toLowerCase().includes(searchText.toLowerCase()))
+        .map((c) => ({
+          id: c.id,
+          name: c.name,
+          type: 'command',
+          sub: c.category,
+          icon: c.icon,
+          shortcut: c.shortcut,
+          action: c.action,
+        }))
+    : [
+        ...tabs.map((t) => ({
+          id: t.id,
+          name: t.title,
+          type: 'tab',
+          sub: 'Active Task',
+          icon: '💻',
+          action: () => onSelectTab(t.id),
+        })),
+        ...projects.map((p) => ({
+          id: p.path,
+          name: p.name,
+          type: 'project',
+          sub: p.path,
+          icon: '📂',
+          action: () => onSelectProject(p.path),
+        })),
+      ].filter((item) => item.name.toLowerCase().includes(searchText.toLowerCase()));
 
   useEffect(() => {
     // Focus on mount
@@ -42,8 +74,7 @@ const QuickSwitcher: React.FC<QuickSwitcherProps> = ({
     } else if (e.key === 'Enter') {
       const item = filteredItems[selectedIndex];
       if (item) {
-        if (item.type === 'tab') onSelectTab(item.id);
-        else onSelectProject(item.id);
+        item.action();
         onClose();
       }
     } else if (e.key === 'Escape') {
@@ -72,7 +103,9 @@ const QuickSwitcher: React.FC<QuickSwitcherProps> = ({
           <input
             ref={inputRef}
             type="text"
-            placeholder="Search tabs and projects..."
+            placeholder={
+              isCommandMode ? 'Type a command to run...' : "Search tabs... (type '>' for commands)"
+            }
             value={query}
             onChange={(e) => {
               setQuery(e.target.value);
@@ -96,8 +129,7 @@ const QuickSwitcher: React.FC<QuickSwitcherProps> = ({
             <div
               key={`${item.type}-${item.id}`}
               onClick={() => {
-                if (item.type === 'tab') onSelectTab(item.id);
-                else onSelectProject(item.id);
+                item.action();
                 onClose();
               }}
               style={{
@@ -105,22 +137,38 @@ const QuickSwitcher: React.FC<QuickSwitcherProps> = ({
                 cursor: 'pointer',
                 background: index === selectedIndex ? '#094771' : 'transparent',
                 display: 'flex',
-                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'space-between',
               }}
             >
-              <div style={{ fontSize: '14px', color: index === selectedIndex ? 'white' : '#ccc' }}>
-                <span style={{ marginRight: '8px' }}>{item.type === 'tab' ? '💻' : '📂'}</span>
-                {item.name}
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                <div style={{ fontSize: '14px', color: index === selectedIndex ? 'white' : '#ccc' }}>
+                  <span style={{ marginRight: '8px' }}>{(item as any).icon}</span>
+                  {item.name}
+                </div>
+                <div
+                  style={{
+                    fontSize: '11px',
+                    color: index === selectedIndex ? '#add6ff' : '#888',
+                    marginLeft: '24px',
+                  }}
+                >
+                  {item.sub}
+                </div>
               </div>
-              <div
-                style={{
-                  fontSize: '11px',
-                  color: index === selectedIndex ? '#add6ff' : '#888',
-                  marginLeft: '24px',
-                }}
-              >
-                {item.sub}
-              </div>
+              {(item as any).shortcut && (
+                <div
+                  style={{
+                    fontSize: '11px',
+                    color: index === selectedIndex ? '#ccc' : '#666',
+                    background: index === selectedIndex ? '#1a5c8a' : '#333',
+                    padding: '2px 6px',
+                    borderRadius: '3px',
+                  }}
+                >
+                  {(item as any).shortcut}
+                </div>
+              )}
             </div>
           ))}
           {filteredItems.length === 0 && (

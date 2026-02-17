@@ -79,6 +79,15 @@ export const useTabs = () => {
     );
   }, []);
 
+  const reorderTabs = useCallback((startIndex: number, endIndex: number) => {
+    setTabs((prev) => {
+      const result = Array.from(prev);
+      const [removed] = result.splice(startIndex, 1);
+      result.splice(endIndex, 0, removed);
+      return result;
+    });
+  }, []);
+
   return {
     tabs,
     setTabs,
@@ -89,5 +98,6 @@ export const useTabs = () => {
     renameTab,
     updateTabStatus,
     clearTabNotifications,
+    reorderTabs,
   };
 };

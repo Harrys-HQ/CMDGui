@@ -350,6 +350,10 @@ body {
   border-radius: 1px;
 }
 
+.drag-over-indicator {
+  border-top: 2px solid var(--accent-primary);
+}
+
 .dropdown-menu {
   position: absolute;
   right: 0;
