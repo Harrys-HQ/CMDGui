@@ -8,6 +8,8 @@ import { useTabs } from './hooks/useTabs';
 import { useProjects } from './hooks/useProjects';
 import { useSidebarResizer } from './hooks/useSidebarResizer';
 import { useSettings } from './hooks/useSettings';
+import { useCommands } from './hooks/useCommands';
+import { useKeybindings, isKeyMatch } from './hooks/useKeybindings';
 import { cleanTerminalTitle } from './utils/terminalUtils';
 
 const App: React.FC = () => {
@@ -20,9 +22,10 @@ const App: React.FC = () => {
     renameTab,
     updateTabStatus,
     clearTabNotifications,
+    reorderTabs,
   } = useTabs();
 
-  const { projects, addProject, removeProject } = useProjects();
+  const { projects, addProject, removeProject, reorderProjects } = useProjects();
   const { sidebarWidth, startResizing } = useSidebarResizer();
   const {
     terminalTheme,
@@ -33,9 +36,48 @@ const App: React.FC = () => {
     relaunchAdmin,
   } = useSettings();
 
+  const { keymap, updateKeybinding, resetKeybindings } = useKeybindings();
+
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isQuickSwitcherOpen, setIsQuickSwitcherOpen] = useState(false);
   const [isUpdateAvailable, setIsUpdateAvailable] = useState(false);
+
+  const terminalRefs = React.useRef<{ [key: string]: { clear: () => void } | null }>({});
+
+  const handleCheckUpdates = async () => {
+    const result = await window.electron.checkForUpdates();
+    if (result.success) {
+      if (!result.updateInfo) {
+        alert('You are on the latest version!');
+      }
+    } else {
+      alert('Error checking for updates: ' + result.error);
+    }
+  };
+
+  const { commands } = useCommands({
+    onAddTerminal: (admin) => handleAddTerminal(admin),
+    onCloseTab: (id) => closeTab(id),
+    onRenameTab: (id) => {
+      const tab = tabs.find((t) => t.id === id);
+      if (tab) handleRenameTab(id, tab.title);
+    },
+    onClearTerminal: () => {
+      if (activeTabId && terminalRefs.current[activeTabId]) {
+        terminalRefs.current[activeTabId]?.clear();
+      }
+    },
+    onOpenSettings: () => setIsSettingsOpen(true),
+    onCheckUpdates: handleCheckUpdates,
+    onToggleTheme: () => {
+      const themes = ['vscode', 'monokai', 'solarized-dark', 'one-dark'];
+      const currentIndex = themes.indexOf(terminalTheme);
+      const nextIndex = (currentIndex + 1) % themes.length;
+      setTerminalTheme(themes[nextIndex]);
+    },
+    activeTabId,
+    keymap,
+  });
 
   useEffect(() => {
     const cleanup = window.electron.onUpdateStatus((data) => {
@@ -69,12 +111,14 @@ const App: React.FC = () => {
   const closeTabRef = React.useRef(closeTab);
   const renameTabRef = React.useRef(renameTab);
   const removeProjectRef = React.useRef(removeProject);
+  const keymapRef = React.useRef(keymap);
 
   useEffect(() => {
     tabsRef.current = tabs;
     closeTabRef.current = closeTab;
     renameTabRef.current = renameTab;
     removeProjectRef.current = removeProject;
+    keymapRef.current = keymap;
   });
 
   useEffect(() => {
@@ -106,32 +150,34 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Quick Switcher: Ctrl + Shift + P (VS Code style) to avoid conflict with Ctrl + P (Previous Line)
-      if (e.ctrlKey && e.shiftKey && e.key === 'P') {
+      // Command Palette
+      if (isKeyMatch(e, keymapRef.current.commandPalette)) {
         e.preventDefault();
         setIsQuickSwitcherOpen(true);
       }
       
-      // New Tab: Ctrl + Shift + N (Avoids Ctrl + N - Next Line)
-      if (e.ctrlKey && e.shiftKey && e.key === 'N') {
+      // New Tab
+      if (isKeyMatch(e, keymapRef.current.newTab)) {
         e.preventDefault();
         addTab();
       }
 
-      // Close Tab: Ctrl + Shift + W (Avoids Ctrl + W - Delete Word)
-      if (e.ctrlKey && e.shiftKey && e.key === 'W') {
+      // Close Tab
+      if (isKeyMatch(e, keymapRef.current.closeTab)) {
         e.preventDefault();
         if (activeTabId) closeTab(activeTabId);
       }
 
-      // Tab Switching: Ctrl + Tab / Ctrl + Shift + Tab
-      if (e.ctrlKey && !e.shiftKey && e.key === 'Tab') {
+      // Next Tab
+      if (isKeyMatch(e, keymapRef.current.nextTab)) {
         e.preventDefault();
         const index = tabs.findIndex((t) => t.id === activeTabId);
         const nextIndex = (index + 1) % tabs.length;
         setActiveTabId(tabs[nextIndex].id);
       }
-      if (e.ctrlKey && e.shiftKey && e.key === 'Tab') {
+
+      // Prev Tab
+      if (isKeyMatch(e, keymapRef.current.prevTab)) {
         e.preventDefault();
         const index = tabs.findIndex((t) => t.id === activeTabId);
         const prevIndex = (index - 1 + tabs.length) % tabs.length;
@@ -170,6 +216,8 @@ const App: React.FC = () => {
           onRenameTab={handleRenameTab}
           onOpenSettings={() => setIsSettingsOpen(true)}
           onAddTabWithCwd={(cwd) => addTab(cwd)}
+          onReorderTabs={reorderTabs}
+          onReorderProjects={reorderProjects}
         />
 
         <div className="resizer" onMouseDown={startResizing} />
@@ -204,6 +252,9 @@ const App: React.FC = () => {
                     const newTitle = cleanTerminalTitle(t, tab.title, tab.isManualTitle);
                     if (newTitle) updateTabStatus(tab.id, { title: newTitle });
                   }}
+                  onClear={(clearFn) => {
+                    terminalRefs.current[tab.id] = { clear: clearFn };
+                  }}
                 />
               </div>
             ))}
@@ -226,6 +277,9 @@ const App: React.FC = () => {
         onThemeChange={setTerminalTheme}
         terminalFontSize={terminalFontSize}
         onFontSizeChange={setTerminalFontSize}
+        keymap={keymap}
+        onUpdateKeybinding={updateKeybinding}
+        onResetKeybindings={resetKeybindings}
       />
 
       {isQuickSwitcherOpen && (
@@ -234,6 +288,7 @@ const App: React.FC = () => {
           onClose={() => setIsQuickSwitcherOpen(false)}
           tabs={tabs}
           projects={projects}
+          commands={commands}
           onSelectTab={setActiveTabId}
           onSelectProject={(path) => addTab(path)}
         />

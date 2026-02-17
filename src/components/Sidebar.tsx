@@ -16,6 +16,8 @@ interface SidebarProps {
   onRenameTab: (id: string, currentTitle: string) => void;
   onOpenSettings: () => void;
   onAddTabWithCwd: (cwd: string) => void;
+  onReorderTabs: (startIndex: number, endIndex: number) => void;
+  onReorderProjects: (startIndex: number, endIndex: number) => void;
 }
 
 const CollapsibleSection: React.FC<{
@@ -64,9 +66,15 @@ const Sidebar: React.FC<SidebarProps> = ({
   onRenameTab,
   onOpenSettings,
   onAddTabWithCwd,
+  onReorderTabs,
+  onReorderProjects,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isAddMenuOpen, setIsAddMenuOpen] = useState(false);
+  const [draggedTabIndex, setDraggedTabIndex] = useState<number | null>(null);
+  const [dragOverTabIndex, setDragOverTabIndex] = useState<number | null>(null);
+  const [draggedProjectIndex, setDraggedProjectIndex] = useState<number | null>(null);
+  const [dragOverProjectIndex, setDragOverProjectIndex] = useState<number | null>(null);
   const [expandedSections, setExpandedSections] = useState({
     projects: true,
     tasks: true,
@@ -74,6 +82,54 @@ const Sidebar: React.FC<SidebarProps> = ({
 
   const toggleSection = (section: 'projects' | 'tasks') => {
     setExpandedSections((prev) => ({ ...prev, [section]: !prev[section] }));
+  };
+
+  const handleDragStart = (index: number) => {
+    setDraggedTabIndex(index);
+  };
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    if (draggedTabIndex === null || draggedTabIndex === index) return;
+    setDragOverTabIndex(index);
+  };
+
+  const handleDrop = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    if (draggedTabIndex !== null && draggedTabIndex !== index) {
+      onReorderTabs(draggedTabIndex, index);
+    }
+    setDraggedTabIndex(null);
+    setDragOverTabIndex(null);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedTabIndex(null);
+    setDragOverTabIndex(null);
+  };
+
+  const handleProjectDragStart = (index: number) => {
+    setDraggedProjectIndex(index);
+  };
+
+  const handleProjectDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    if (draggedProjectIndex === null || draggedProjectIndex === index) return;
+    setDragOverProjectIndex(index);
+  };
+
+  const handleProjectDrop = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    if (draggedProjectIndex !== null && draggedProjectIndex !== index) {
+      onReorderProjects(draggedProjectIndex, index);
+    }
+    setDraggedProjectIndex(null);
+    setDragOverProjectIndex(null);
+  };
+
+  const handleProjectDragEnd = () => {
+    setDraggedProjectIndex(null);
+    setDragOverProjectIndex(null);
   };
 
   const filteredProjects = projects.filter(
@@ -126,19 +182,34 @@ const Sidebar: React.FC<SidebarProps> = ({
         </div>
 
         <div className="project-list">
-          {filteredProjects.map((p) => (
-            <ProjectItem
-              key={p.path}
-              project={p}
-              searchQuery={searchQuery}
-              onSelect={() => onAddTabWithCwd(p.path)}
-              onRemove={(e) => {
-                e.stopPropagation();
-                onRemoveProject(p.path);
-              }}
-              onContextMenu={(e) => handleProjectContextMenu(e, p)}
-            />
-          ))}
+          {projects.map((p, index) => {
+            // Only show filtered projects if searching, otherwise show all for reordering
+            if (searchQuery && !p.name.toLowerCase().includes(searchQuery.toLowerCase()) && !p.path.toLowerCase().includes(searchQuery.toLowerCase())) {
+              return null;
+            }
+
+            return (
+              <div
+                key={p.path}
+                onDragOver={(e) => handleProjectDragOver(e, index)}
+                onDrop={(e) => handleProjectDrop(e, index)}
+                className={dragOverProjectIndex === index ? 'drag-over-indicator' : ''}
+              >
+                <ProjectItem
+                  project={p}
+                  searchQuery={searchQuery}
+                  onSelect={() => onAddTabWithCwd(p.path)}
+                  onRemove={(e) => {
+                    e.stopPropagation();
+                    onRemoveProject(p.path);
+                  }}
+                  onContextMenu={(e) => handleProjectContextMenu(e, p)}
+                  onDragStart={() => handleProjectDragStart(index)}
+                  onDragEnd={handleProjectDragEnd}
+                />
+              </div>
+            );
+          })}
           {filteredProjects.length === 0 && (
             <div style={{ padding: '15px', color: '#666', fontSize: '12px', fontStyle: 'italic' }}>
               No projects found.
@@ -190,22 +261,37 @@ const Sidebar: React.FC<SidebarProps> = ({
         }
       >
         <div className="task-list">
-          {filteredTabs.map((tab) => (
-            <TaskItem
-              key={tab.id}
-              tab={tab}
-              isActive={activeTabId === tab.id}
-              searchQuery={searchQuery}
-              onSelect={() => onSelectTab(tab.id)}
-              onClose={(e) => onCloseTab(tab.id, e)}
-              onRename={(e) => {
-                e.stopPropagation();
-                e.preventDefault();
-                onRenameTab(tab.id, tab.title);
-              }}
-              onContextMenu={(e) => handleTabContextMenu(e, tab)}
-            />
-          ))}
+          {tabs.map((tab, index) => {
+            // Only show filtered tabs if searching, otherwise show all for reordering
+            if (searchQuery && !tab.title.toLowerCase().includes(searchQuery.toLowerCase())) {
+              return null;
+            }
+
+            return (
+              <div
+                key={tab.id}
+                onDragOver={(e) => handleDragOver(e, index)}
+                onDrop={(e) => handleDrop(e, index)}
+                className={dragOverTabIndex === index ? 'drag-over-indicator' : ''}
+              >
+                <TaskItem
+                  tab={tab}
+                  isActive={activeTabId === tab.id}
+                  searchQuery={searchQuery}
+                  onSelect={() => onSelectTab(tab.id)}
+                  onClose={(e) => onCloseTab(tab.id, e)}
+                  onRename={(e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    onRenameTab(tab.id, tab.title);
+                  }}
+                  onContextMenu={(e) => handleTabContextMenu(e, tab)}
+                  onDragStart={() => handleDragStart(index)}
+                  onDragEnd={handleDragEnd}
+                />
+              </div>
+            );
+          })}
         </div>
       </CollapsibleSection>
 

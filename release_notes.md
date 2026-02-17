@@ -1,3 +1,19 @@
+## 🚀 Release: CmdGUI v1.3.0
+
+### ✨ New Features
+
+- **Project Reordering:** You can now reorganize your Project Manager list by simply dragging and dropping items.
+- **Custom Keybindings:** Full control over your keyboard shortcuts! You can now customize keybindings for common actions like opening the Command Palette, creating tabs, and more via the Settings modal.
+- **Keybinding Recorder:** An intuitive UI to record your preferred shortcuts.
+- **Improved Workspace Organization:** Keep your most important projects at the top for faster access.
+
+### 🛠️ Fixes & Polish
+
+- **Settings Modal Fixes:** Resolved syntax errors and restored missing documentation content in the Settings modal (Shortcuts & Keybindings).
+- **Drag-and-Drop Consistency:** Standardized drag-and-drop behavior across both Active Tasks and Project Manager sections.
+
+---
+
 ## 🚀 Release: CmdGUI v1.2.0
 
 ### 🏗️ Architectural Refactor (Main Process)

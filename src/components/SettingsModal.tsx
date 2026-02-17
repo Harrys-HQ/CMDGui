@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { UpdateInfo } from '../types';
+import { Keymap, KeybindingAction, Keybinding, formatKeybinding } from '../hooks/useKeybindings';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -8,7 +9,77 @@ interface SettingsModalProps {
   onThemeChange: (theme: string) => void;
   terminalFontSize: number;
   onFontSizeChange: (size: number) => void;
+  keymap?: Keymap;
+  onUpdateKeybinding?: (action: KeybindingAction, binding: Keybinding) => void;
+  onResetKeybindings?: () => void;
 }
+
+const ACTION_LABELS: Record<KeybindingAction, string> = {
+  commandPalette: 'Open Command Palette',
+  newTab: 'New Terminal Tab',
+  closeTab: 'Close Active Tab',
+  nextTab: 'Switch to Next Tab',
+  prevTab: 'Switch to Previous Tab',
+  clearTerminal: 'Clear Terminal',
+  copy: 'Copy Selection',
+  paste: 'Paste',
+  find: 'Find in Terminal',
+};
+
+const KeybindingRecorder: React.FC<{
+  action: KeybindingAction;
+  currentBinding: Keybinding;
+  onSave: (binding: Keybinding) => void;
+  onCancel: () => void;
+}> = ({ action, currentBinding, onSave, onCancel }) => {
+  const [recording, setRecording] = useState<Keybinding | null>(null);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      // Ignore modifier-only presses
+      if (['Control', 'Shift', 'Alt', 'Meta'].includes(e.key)) return;
+
+      const newBinding: Keybinding = {
+        key: e.key,
+        ctrlKey: e.ctrlKey,
+        shiftKey: e.shiftKey,
+        altKey: e.altKey,
+        metaKey: e.metaKey,
+      };
+
+      setRecording(newBinding);
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  return (
+    <div className="keybinding-recorder-overlay">
+      <div className="keybinding-recorder-modal">
+        <h3>Record Keybinding for "{ACTION_LABELS[action]}"</h3>
+        <div className="recording-display">
+          {recording ? formatKeybinding(recording) : 'Press desired key combination...'}
+        </div>
+        <div className="recorder-actions">
+          <button
+            onClick={() => recording && onSave(recording)}
+            disabled={!recording}
+            className="primary-btn"
+          >
+            Save
+          </button>
+          <button onClick={onCancel} className="secondary-btn">
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const SettingsModal: React.FC<SettingsModalProps> = ({
   isOpen,
@@ -17,9 +88,13 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   onThemeChange,
   terminalFontSize,
   onFontSizeChange,
+  keymap,
+  onUpdateKeybinding,
+  onResetKeybindings,
 }) => {
-  const [activeTab, setActiveTab] = useState<'project' | 'appearance' | 'cli' | 'about'>('project');
-  const [appVersion, setAppVersion] = useState<string>('1.2.0');
+  const [activeTab, setActiveTab] = useState<'project' | 'appearance' | 'keybindings' | 'cli' | 'about'>('project');
+  const [appVersion, setAppVersion] = useState<string>('1.3.0');
+  const [recordingAction, setRecordingAction] = useState<KeybindingAction | null>(null);
 
   // Update State
   const [updateState, setUpdateState] = useState<
@@ -90,7 +165,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-container" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <h2 className="modal-title">CmdGUI Documentation</h2>
+          <h2 className="modal-title">CmdGUI Settings</h2>
           <button onClick={onClose} className="modal-close-btn">
             ×
           </button>
@@ -101,7 +176,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
             className={`modal-tab ${activeTab === 'project' ? 'active' : ''}`}
             onClick={() => setActiveTab('project')}
           >
-            GEMINI - PROJECT
+            DOCS
           </div>
           <div
             className={`modal-tab ${activeTab === 'appearance' ? 'active' : ''}`}
@@ -110,10 +185,16 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
             APPEARANCE
           </div>
           <div
+            className={`modal-tab ${activeTab === 'keybindings' ? 'active' : ''}`}
+            onClick={() => setActiveTab('keybindings')}
+          >
+            KEYBINDINGS
+          </div>
+          <div
             className={`modal-tab ${activeTab === 'cli' ? 'active' : ''}`}
             onClick={() => setActiveTab('cli')}
           >
-            GEMINI - CLI
+            CLI
           </div>
           <div
             className={`modal-tab ${activeTab === 'about' ? 'active' : ''}`}
@@ -127,13 +208,18 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
           {activeTab === 'project' && (
             <>
               <section className="modal-section">
-                <h3 className="modal-section-title">Active Interface Shortcuts</h3>
+                <h3 className="modal-section-title">Terminal & Keyboard Shortcuts</h3>
+                <h4 style={{ fontSize: '14px', marginBottom: '10px', color: '#888' }}>
+                  Workspace Navigation
+                </h4>
                 <div className="command-grid">
-                  <div className="command-row">
+                  <div className="command-item">
                     <div className="command-name-col">
                       <span className="command-pill">Ctrl + Shift + N</span>
                     </div>
-                    <div className="command-desc-col">New Tab</div>
+                    <div className="command-desc-col">
+                      <div>New Tab</div>
+                    </div>
                   </div>
                   <div className="command-item">
                     <div className="command-name-col">
@@ -167,27 +253,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                       <div>Quick Switcher</div>
                     </div>
                   </div>
-                  <div className="command-item">
-                    <div className="command-name-col">
-                      <span className="command-pill">Ctrl + F</span>
-                    </div>
-                    <div className="command-desc-col">
-                      <div>Find in Terminal</div>
-                    </div>
-                  </div>
-                  <div className="command-item">
-                    <div className="command-name-col">
-                      <span className="command-pill">Ctrl + L</span>
-                    </div>
-                    <div className="command-desc-col">
-                      <div>Clear the screen.</div>
-                    </div>
-                  </div>
                 </div>
               </section>
 
               <section className="modal-section">
-                <h3 className="modal-section-title">Terminal & Keyboard Shortcuts</h3>
                 <h4 style={{ fontSize: '14px', marginBottom: '10px', color: '#888' }}>
                   Terminal Interaction
                 </h4>
@@ -210,6 +279,22 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                   </div>
                   <div className="command-item">
                     <div className="command-name-col">
+                      <span className="command-pill">Ctrl + L</span>
+                    </div>
+                    <div className="command-desc-col">
+                      <div>Clear the screen.</div>
+                    </div>
+                  </div>
+                  <div className="command-item">
+                    <div className="command-name-col">
+                      <span className="command-pill">Ctrl + F</span>
+                    </div>
+                    <div className="command-desc-col">
+                      <div>Find in Terminal</div>
+                    </div>
+                  </div>
+                  <div className="command-item">
+                    <div className="command-name-col">
                       <span className="command-pill">Ctrl + R</span>
                     </div>
                     <div className="command-desc-col">
@@ -218,6 +303,56 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                   </div>
                 </div>
               </section>
+            </>
+          )}
+
+          {activeTab === 'keybindings' && keymap && onUpdateKeybinding && (
+            <>
+              <section className="modal-section">
+                <div
+                  style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                >
+                  <h3 className="modal-section-title">Customize Keybindings</h3>
+                  <button
+                    onClick={onResetKeybindings}
+                    className="secondary-btn"
+                    style={{ fontSize: '12px', padding: '4px 8px' }}
+                  >
+                    Reset to Default
+                  </button>
+                </div>
+
+                <div className="command-grid">
+                  {Object.entries(keymap).map(([action, binding]) => (
+                    <div
+                      key={action}
+                      className="command-item"
+                      onClick={() => setRecordingAction(action as KeybindingAction)}
+                      style={{ cursor: 'pointer' }}
+                      title="Click to record new keybinding"
+                    >
+                      <div className="command-name-col">
+                        <span className="command-pill">{formatKeybinding(binding)}</span>
+                      </div>
+                      <div className="command-desc-col">
+                        <div>{ACTION_LABELS[action as KeybindingAction]}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+
+              {recordingAction && (
+                <KeybindingRecorder
+                  action={recordingAction}
+                  currentBinding={keymap[recordingAction]}
+                  onSave={(newBinding) => {
+                    onUpdateKeybinding(recordingAction, newBinding);
+                    setRecordingAction(null);
+                  }}
+                  onCancel={() => setRecordingAction(null)}
+                />
+              )}
             </>
           )}
 

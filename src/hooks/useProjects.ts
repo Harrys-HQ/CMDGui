@@ -59,9 +59,19 @@ export const useProjects = () => {
     setProjects((prev) => prev.filter((p) => p.path !== path));
   }, []);
 
+  const reorderProjects = useCallback((startIndex: number, endIndex: number) => {
+    setProjects((prev) => {
+      const result = Array.from(prev);
+      const [removed] = result.splice(startIndex, 1);
+      result.splice(endIndex, 0, removed);
+      return result;
+    });
+  }, []);
+
   return {
     projects,
     addProject,
     removeProject,
+    reorderProjects,
   };
 };

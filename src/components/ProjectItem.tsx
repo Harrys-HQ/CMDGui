@@ -7,6 +7,8 @@ interface ProjectItemProps {
   onSelect: () => void;
   onRemove: (e: React.MouseEvent) => void;
   onContextMenu: (e: React.MouseEvent) => void;
+  onDragStart: () => void;
+  onDragEnd: () => void;
 }
 
 const ProjectIcon: React.FC<{ type?: string }> = ({ type }) => {
@@ -144,11 +146,16 @@ const ProjectItem: React.FC<ProjectItemProps> = ({
   onSelect,
   onRemove,
   onContextMenu,
+  onDragStart,
+  onDragEnd,
 }) => {
   return (
     <div
       onClick={onSelect}
       onContextMenu={onContextMenu}
+      draggable
+      onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
       className="project-item"
       title={project.path}
     >
