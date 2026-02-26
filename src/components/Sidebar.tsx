@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Project, Tab } from '../types';
 import ProjectItem from './ProjectItem';
 import TaskItem from './TaskItem';
+import FileExplorer from './FileExplorer';
 
 interface SidebarProps {
   width: number;
@@ -16,6 +17,7 @@ interface SidebarProps {
   onRenameTab: (id: string, currentTitle: string) => void;
   onOpenSettings: () => void;
   onAddTabWithCwd: (cwd: string) => void;
+  onRunProjectScript: (cwd: string, scriptName: string) => void;
   onReorderTabs: (startIndex: number, endIndex: number) => void;
   onReorderProjects: (startIndex: number, endIndex: number) => void;
 }
@@ -66,6 +68,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   onRenameTab,
   onOpenSettings,
   onAddTabWithCwd,
+  onRunProjectScript,
   onReorderTabs,
   onReorderProjects,
 }) => {
@@ -79,6 +82,7 @@ const Sidebar: React.FC<SidebarProps> = ({
     projects: true,
     tasks: true,
   });
+  const [openExplorerPath, setOpenExplorerPath] = useState<string | null>(null);
 
   const toggleSection = (section: 'projects' | 'tasks') => {
     setExpandedSections((prev) => ({ ...prev, [section]: !prev[section] }));
@@ -138,10 +142,6 @@ const Sidebar: React.FC<SidebarProps> = ({
       p.path.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const filteredTabs = tabs.filter((t) =>
-    t.title.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
   const handleProjectContextMenu = (e: React.MouseEvent, project: Project) => {
     e.preventDefault();
     window.electron.showContextMenu('project', { path: project.path });
@@ -199,6 +199,9 @@ const Sidebar: React.FC<SidebarProps> = ({
                   project={p}
                   searchQuery={searchQuery}
                   onSelect={() => onAddTabWithCwd(p.path)}
+                  onRunScript={(scriptName) => onRunProjectScript(p.path, scriptName)}
+                  onToggleExplorer={() => setOpenExplorerPath(openExplorerPath === p.path ? null : p.path)}
+                  isExplorerOpen={openExplorerPath === p.path}
                   onRemove={(e) => {
                     e.stopPropagation();
                     onRemoveProject(p.path);
@@ -207,6 +210,12 @@ const Sidebar: React.FC<SidebarProps> = ({
                   onDragStart={() => handleProjectDragStart(index)}
                   onDragEnd={handleProjectDragEnd}
                 />
+                {openExplorerPath === p.path && (
+                  <FileExplorer 
+                    rootPath={p.path} 
+                    onSelectFolder={(path) => onAddTabWithCwd(path)}
+                  />
+                )}
               </div>
             );
           })}

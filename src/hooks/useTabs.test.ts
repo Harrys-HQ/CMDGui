@@ -52,7 +52,8 @@ describe('useTabs Hook', () => {
 
     await waitFor(() => expect(result.current.tabs).toHaveLength(2));
     const newTab = result.current.tabs[1];
-    expect(newTab.cwd).toBe(cwd);
+    const firstPane = Object.values(newTab.panes)[0];
+    expect(firstPane.cwd).toBe(cwd);
     expect(newTab.title).toBe('MyApp');
   });
 

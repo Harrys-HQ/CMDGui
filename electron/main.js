@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, shell, session, Menu } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell, session, Menu, globalShortcut, screen } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const path = require('path');
 const os = require('os');
@@ -18,6 +18,12 @@ function createWindow() {
     height: windowState.height,
     backgroundColor: '#1e1e1e',
     icon: path.join(__dirname, '../build/icon.png'),
+    titleBarStyle: 'hidden',
+    titleBarOverlay: {
+      color: '#1e1e1e',
+      symbolColor: '#d4d4d4',
+      height: 32,
+    },
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -119,11 +125,58 @@ app.on('before-quit', () => {
   terminalService.killAll();
 });
 
+// --- Quake Mode Management ---
+
+let isQuakeEnabled = false;
+
+function toggleQuakeMode() {
+  if (!mainWindow) return;
+
+  if (mainWindow.isVisible()) {
+    mainWindow.hide();
+  } else {
+    const primaryDisplay = screen.getPrimaryDisplay();
+    const { width: screenWidth } = primaryDisplay.workAreaSize;
+    const windowWidth = Math.floor(screenWidth * 0.8);
+    const windowHeight = 600;
+
+    mainWindow.setBounds({
+      x: Math.floor((screenWidth - windowWidth) / 2),
+      y: 0,
+      width: windowWidth,
+      height: windowHeight,
+    });
+
+    mainWindow.show();
+    mainWindow.focus();
+  }
+}
+
+ipcMain.on('app-set-quake-mode', (event, enabled) => {
+  isQuakeEnabled = enabled;
+  if (enabled) {
+    globalShortcut.register('Alt+Space', toggleQuakeMode);
+  } else {
+    globalShortcut.unregister('Alt+Space');
+  }
+});
+
 // --- IPC Handlers for System Dialogs & App Mgmt ---
 
 ipcMain.handle('shell-open-external', (event, url) => {
   if (url.startsWith('http:') || url.startsWith('https:')) {
     shell.openExternal(url);
+  }
+});
+
+ipcMain.handle('shell-open-path', async (event, filePath) => {
+  try {
+    const absolutePath = path.resolve(filePath);
+    await shell.openPath(absolutePath);
+    return true;
+  } catch (error) {
+    console.error('Failed to open path:', error);
+    return false;
   }
 });
 
@@ -156,7 +209,9 @@ ipcMain.handle('context-menu-show', (event, type, data) => {
       {
         label: 'Open in VS Code',
         click: () => {
-          require('child_process').exec(`code "${data.path}"`);
+          require('child_process').spawn('code', [data.path], {
+            shell: true, // Use shell to find 'code' command on Windows
+          });
         },
       },
       { type: 'separator' },
@@ -203,6 +258,24 @@ ipcMain.handle('dialog-select-folder', async () => {
 
 ipcMain.handle('project-get-info', async (event, projectPath) => {
   return projectService.getProjectInfo(projectPath);
+});
+
+ipcMain.handle('project-get-details', async (event, projectPath) => {
+  return projectService.getProjectDetails(projectPath);
+});
+
+ipcMain.handle('fs-list-directory', async (event, dirPath) => {
+  try {
+    const files = await fs.promises.readdir(dirPath, { withFileTypes: true });
+    return files.map((f) => ({
+      name: f.name,
+      isDirectory: f.isDirectory(),
+      path: path.join(dirPath, f.name),
+    }));
+  } catch (error) {
+    console.error('Failed to list directory:', error);
+    return [];
+  }
 });
 
 ipcMain.handle('app-check-admin', () => {

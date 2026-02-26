@@ -19,3 +19,10 @@
 - [x] Verify persistence works.
 - [x] Verify new bindings trigger correct actions.
 - [x] Verify conflicts/overlaps are handled gracefully (last one wins or simple overwrite).
+
+## Phase 5: Advanced Tools
+- [x] Implement **Workspace Management** (Save/Load/Delete layout states).
+- [x] Implement **Command History** with bookmarking and re-run capability.
+- [x] Implement **Inline File Explorer** for projects in the sidebar.
+- [x] Implement **Pane Splitting** (Horizontal/Vertical) for multi-shell workflows.
+- [x] Add dedicated tabs in Settings for History and Workspaces.

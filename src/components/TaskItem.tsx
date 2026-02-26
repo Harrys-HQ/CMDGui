@@ -44,6 +44,10 @@ const TaskItem: React.FC<TaskItemProps> = ({
   onDragStart,
   onDragEnd,
 }) => {
+  const firstPane = Object.values(tab.panes)[0];
+  const isAdmin = firstPane?.isAdmin;
+  const cwd = firstPane?.cwd;
+
   return (
     <div
       onClick={onSelect}
@@ -53,10 +57,10 @@ const TaskItem: React.FC<TaskItemProps> = ({
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
       className={`project-item ${isActive ? 'active-task' : ''} ${tab.hasAlert ? 'alert-task' : ''} ${tab.hasConfirmation ? 'confirmation-task' : ''}`}
-      title={tab.cwd || 'Terminal'}
+      title={cwd || 'Terminal'}
     >
       <span className="project-icon">
-        {tab.isAdmin && (
+        {isAdmin && (
           <span title="Running as Admin" style={{ marginRight: '4px', fontSize: '10px' }}>
             🛡️
           </span>

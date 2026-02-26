@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { UpdateInfo } from '../types';
+import { UpdateInfo, Workspace, TerminalTheme } from '../types';
+import { HistoryItem } from '../hooks/useCommandHistory';
 import { Keymap, KeybindingAction, Keybinding, formatKeybinding } from '../hooks/useKeybindings';
 
 interface SettingsModalProps {
@@ -7,8 +8,22 @@ interface SettingsModalProps {
   onClose: () => void;
   terminalTheme: string;
   onThemeChange: (theme: string) => void;
+  customTheme?: TerminalTheme;
+  onCustomThemeChange?: (theme: TerminalTheme) => void;
   terminalFontSize: number;
   onFontSizeChange: (size: number) => void;
+  terminalScrollback?: number;
+  onScrollbackChange?: (size: number) => void;
+  isQuakeModeEnabled?: boolean;
+  onQuakeModeChange?: (enabled: boolean) => void;
+  workspaces?: Workspace[];
+  onDeleteWorkspace?: (id: string) => void;
+  history?: HistoryItem[];
+  onToggleBookmark?: (id: string) => void;
+  onClearHistory?: () => void;
+  onRunCommand?: (command: string) => void;
+  defaultShell?: string;
+  onShellChange?: (shell: string) => void;
   keymap?: Keymap;
   onUpdateKeybinding?: (action: KeybindingAction, binding: Keybinding) => void;
   onResetKeybindings?: () => void;
@@ -28,10 +43,9 @@ const ACTION_LABELS: Record<KeybindingAction, string> = {
 
 const KeybindingRecorder: React.FC<{
   action: KeybindingAction;
-  currentBinding: Keybinding;
   onSave: (binding: Keybinding) => void;
   onCancel: () => void;
-}> = ({ action, currentBinding, onSave, onCancel }) => {
+}> = ({ action, onSave, onCancel }) => {
   const [recording, setRecording] = useState<Keybinding | null>(null);
 
   useEffect(() => {
@@ -60,7 +74,7 @@ const KeybindingRecorder: React.FC<{
   return (
     <div className="keybinding-recorder-overlay">
       <div className="keybinding-recorder-modal">
-        <h3>Record Keybinding for "{ACTION_LABELS[action]}"</h3>
+        <h3>Record Keybinding for &quot;{ACTION_LABELS[action]}&quot;</h3>
         <div className="recording-display">
           {recording ? formatKeybinding(recording) : 'Press desired key combination...'}
         </div>
@@ -86,14 +100,28 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   onClose,
   terminalTheme,
   onThemeChange,
+  customTheme,
+  onCustomThemeChange,
   terminalFontSize,
   onFontSizeChange,
+  terminalScrollback,
+  onScrollbackChange,
+  isQuakeModeEnabled,
+  onQuakeModeChange,
+  workspaces,
+  onDeleteWorkspace,
+  history,
+  onToggleBookmark,
+  onClearHistory,
+  onRunCommand,
+  defaultShell,
+  onShellChange,
   keymap,
   onUpdateKeybinding,
   onResetKeybindings,
 }) => {
-  const [activeTab, setActiveTab] = useState<'project' | 'appearance' | 'keybindings' | 'cli' | 'about'>('project');
-  const [appVersion, setAppVersion] = useState<string>('1.3.0');
+  const [activeTab, setActiveTab] = useState<'project' | 'appearance' | 'keybindings' | 'cli' | 'workspaces' | 'history' | 'about'>('project');
+  const [appVersion, setAppVersion] = useState<string>('1.5.0');
   const [recordingAction, setRecordingAction] = useState<KeybindingAction | null>(null);
 
   // Update State
@@ -195,6 +223,18 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
             onClick={() => setActiveTab('cli')}
           >
             CLI
+          </div>
+          <div
+            className={`modal-tab ${activeTab === 'workspaces' ? 'active' : ''}`}
+            onClick={() => setActiveTab('workspaces')}
+          >
+            WORKSPACES
+          </div>
+          <div
+            className={`modal-tab ${activeTab === 'history' ? 'active' : ''}`}
+            onClick={() => setActiveTab('history')}
+          >
+            HISTORY
           </div>
           <div
             className={`modal-tab ${activeTab === 'about' ? 'active' : ''}`}
@@ -345,7 +385,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
               {recordingAction && (
                 <KeybindingRecorder
                   action={recordingAction}
-                  currentBinding={keymap[recordingAction]}
                   onSave={(newBinding) => {
                     onUpdateKeybinding(recordingAction, newBinding);
                     setRecordingAction(null);
@@ -368,6 +407,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                     { id: 'monokai', name: 'Monokai' },
                     { id: 'solarized-dark', name: 'Solarized Dark' },
                     { id: 'one-dark', name: 'One Dark' },
+                    { id: 'custom', name: 'Custom' },
                   ].map((theme) => (
                     <div
                       key={theme.id}
@@ -378,6 +418,27 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                     </div>
                   ))}
                 </div>
+
+                {terminalTheme === 'custom' && customTheme && onCustomThemeChange && (
+                  <div style={{ marginTop: '20px', padding: '15px', background: '#2d2d2d', borderRadius: '4px' }}>
+                    <h4 style={{ fontSize: '12px', marginBottom: '15px', color: '#aaa', textTransform: 'uppercase' }}>
+                      Custom Theme Editor
+                    </h4>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '10px' }}>
+                      {Object.entries(customTheme).map(([key, value]) => (
+                        <div key={key} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <input 
+                            type="color" 
+                            value={value} 
+                            onChange={(e) => onCustomThemeChange({ ...customTheme, [key]: e.target.value })}
+                            style={{ width: '24px', height: '24px', padding: '0', border: 'none', background: 'transparent', cursor: 'pointer' }}
+                          />
+                          <span style={{ fontSize: '11px', color: '#ccc' }}>{key}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 <div style={{ marginTop: '20px' }}>
                   <h4 style={{ fontSize: '14px', marginBottom: '10px', color: '#888' }}>
@@ -393,6 +454,75 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                     style={{ width: '100%', cursor: 'pointer' }}
                   />
                 </div>
+
+                {onScrollbackChange && (
+                  <div style={{ marginTop: '20px' }}>
+                    <h4 style={{ fontSize: '14px', marginBottom: '10px', color: '#888' }}>
+                      Scrollback Limit ({terminalScrollback} lines)
+                    </h4>
+                    <input
+                      type="number"
+                      min="100"
+                      max="50000"
+                      step="100"
+                      value={terminalScrollback}
+                      onChange={(e) => onScrollbackChange(Number(e.target.value))}
+                      style={{
+                        width: '100%',
+                        padding: '8px',
+                        background: '#3c3c3c',
+                        color: '#fff',
+                        border: '1px solid #555',
+                        borderRadius: '4px',
+                        outline: 'none',
+                        boxSizing: 'border-box',
+                      }}
+                    />
+                  </div>
+                )}
+
+                {onQuakeModeChange && (
+                  <div style={{ marginTop: '20px', display: 'flex', alignItems: 'center' }}>
+                    <input
+                      type="checkbox"
+                      id="quake-mode-toggle"
+                      checked={isQuakeModeEnabled}
+                      onChange={(e) => onQuakeModeChange(e.target.checked)}
+                      style={{ cursor: 'pointer' }}
+                    />
+                    <label htmlFor="quake-mode-toggle" style={{ cursor: 'pointer', fontSize: '14px', color: '#ccc', marginLeft: '10px' }}>
+                      Enable Quake Mode (Alt + Space)
+                    </label>
+                  </div>
+                )}
+
+                {onShellChange && (
+                  <div style={{ marginTop: '20px' }}>
+                    <h4 style={{ fontSize: '14px', marginBottom: '10px', color: '#888' }}>
+                      Default Shell
+                    </h4>
+                    <select
+                      value={defaultShell || ''}
+                      onChange={(e) => onShellChange(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '8px',
+                        background: '#3c3c3c',
+                        color: '#fff',
+                        border: '1px solid #555',
+                        borderRadius: '4px',
+                        outline: 'none',
+                      }}
+                    >
+                      <option value="">System Default</option>
+                      <option value="powershell.exe">PowerShell (Windows)</option>
+                      <option value="cmd.exe">Command Prompt (Windows)</option>
+                      <option value="bash">Bash</option>
+                      <option value="zsh">Zsh</option>
+                      <option value="wsl.exe">WSL (Windows)</option>
+                    </select>
+                  </div>
+                )}
               </section>
             </>
           )}
@@ -426,6 +556,95 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                       <div>Manage persistent memories.</div>
                     </div>
                   </div>
+                </div>
+              </section>
+            </>
+          )}
+
+          {activeTab === 'workspaces' && (
+            <>
+              <section className="modal-section">
+                <h3 className="modal-section-title">Saved Workspaces</h3>
+                <p style={{ fontSize: '12px', color: '#888', marginBottom: '15px' }}>
+                  Manage your saved tab layouts and project configurations.
+                </p>
+                <div className="command-grid">
+                  {workspaces && workspaces.length > 0 ? (
+                    workspaces.map((w) => (
+                      <div key={w.id} className="command-item" style={{ cursor: 'default' }}>
+                        <div className="command-name-col">
+                          <span className="command-pill">{w.name}</span>
+                        </div>
+                        <div className="command-desc-col" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                          <div style={{ fontSize: '11px', color: '#888' }}>
+                            {w.tabs.length} Tab(s)
+                          </div>
+                          <button
+                            onClick={() => onDeleteWorkspace && onDeleteWorkspace(w.id)}
+                            className="secondary-btn"
+                            style={{ padding: '2px 8px', fontSize: '10px', color: '#ff5252' }}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div style={{ padding: '20px', textAlign: 'center', color: '#666', fontSize: '13px' }}>
+                      No saved workspaces found.
+                    </div>
+                  )}
+                </div>
+              </section>
+            </>
+          )}
+
+          {activeTab === 'history' && (
+            <>
+              <section className="modal-section">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+                  <h3 className="modal-section-title" style={{ marginBottom: 0 }}>Command History</h3>
+                  <button 
+                    onClick={onClearHistory}
+                    className="secondary-btn"
+                    style={{ fontSize: '11px', padding: '4px 10px', color: '#ff5252' }}
+                  >
+                    Clear History
+                  </button>
+                </div>
+                <div style={{ maxHeight: '400px', overflowY: 'auto', border: '1px solid #333', borderRadius: '4px' }}>
+                  {history && history.length > 0 ? (
+                    history.map((h) => (
+                      <div key={h.id} className="command-item" style={{ cursor: 'default', borderBottom: '1px solid #2d2d2d' }}>
+                        <div className="command-name-col" style={{ flex: 1 }}>
+                          <div style={{ fontSize: '13px', color: '#d4d4d4', fontFamily: 'var(--font-family-mono)' }}>{h.command}</div>
+                          <div style={{ fontSize: '10px', color: '#666', marginTop: '4px' }}>
+                            {new Date(h.timestamp).toLocaleString()}
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <button
+                            onClick={() => onRunCommand && onRunCommand(h.command)}
+                            className="primary-btn"
+                            style={{ padding: '4px 12px', fontSize: '11px', height: '28px' }}
+                          >
+                            Run
+                          </button>
+                          <button
+                            onClick={() => onToggleBookmark && onToggleBookmark(h.id)}
+                            className="secondary-btn"
+                            style={{ padding: '4px 12px', fontSize: '11px', height: '28px', color: h.isBookmarked ? '#e5e510' : '#888' }}
+                          >
+                            {h.isBookmarked ? '★' : '☆'}
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div style={{ padding: '40px', textAlign: 'center', color: '#666' }}>
+                      No command history yet.
+                    </div>
+                  )}
                 </div>
               </section>
             </>

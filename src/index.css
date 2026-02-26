@@ -350,6 +350,11 @@ body {
   border-radius: 1px;
 }
 
+.file-explorer-item:hover {
+  background-color: var(--bg-hover);
+  color: var(--fg-active) !important;
+}
+
 .drag-over-indicator {
   border-top: 2px solid var(--accent-primary);
 }

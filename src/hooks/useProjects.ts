@@ -24,14 +24,26 @@ export const useProjects = () => {
   // Detect Project Types
   useEffect(() => {
     if (!isLoaded) return;
+    
+    // Check if any project needs type detection to avoid redundant processing
+    const needsDetection = projects.some(p => !p.type);
+    if (!needsDetection) return;
+
     const detectTypes = async () => {
       let changed = false;
       const updatedProjects = await Promise.all(
         projects.map(async (p) => {
           if (!p.type) {
-            const type = await window.electron.getProjectInfo(p.path);
+            const details = await window.electron.getProjectDetails(p.path);
             changed = true;
-            return { ...p, type };
+            return {
+              ...p,
+              type: details.type,
+              scripts: details.scripts,
+              envVars: details.envVars,
+              gitBranch: details.gitBranch || undefined,
+              gitDirty: details.gitDirty,
+            };
           }
           return p;
         })
@@ -42,7 +54,7 @@ export const useProjects = () => {
       }
     };
     detectTypes();
-  }, [projects]); // Corrected: use projects as dependency
+  }, [projects, isLoaded]);
 
   const addProject = useCallback(async () => {
     const folderPath = await window.electron.selectFolder();

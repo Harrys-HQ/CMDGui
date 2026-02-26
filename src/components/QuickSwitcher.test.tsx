@@ -9,7 +9,13 @@ describe('QuickSwitcher Component', () => {
     isOpen: true,
     onClose: vi.fn(),
     tabs: [
-      { id: 'tab-1', title: 'Frontend Task', cwd: '/', isManualTitle: false },
+      { 
+        id: 'tab-1', 
+        title: 'Frontend Task', 
+        isManualTitle: false,
+        layout: { type: 'terminal' as const, paneId: 'pane-1' },
+        panes: { 'pane-1': { id: 'pane-1', cwd: '/' } }
+      },
     ],
     projects: [
       { name: 'My Project', path: '/path/to/project', icon: '📂' },

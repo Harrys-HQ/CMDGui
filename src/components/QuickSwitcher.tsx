@@ -12,6 +12,16 @@ interface QuickSwitcherProps {
   onSelectProject: (path: string) => void;
 }
 
+interface QuickSwitcherItem {
+  id: string;
+  name: string;
+  type: 'tab' | 'project' | 'command';
+  sub: string;
+  icon: string;
+  shortcut?: string;
+  action: () => void;
+}
+
 const QuickSwitcher: React.FC<QuickSwitcherProps> = ({
   onClose,
   tabs,
@@ -27,7 +37,7 @@ const QuickSwitcher: React.FC<QuickSwitcherProps> = ({
   const isCommandMode = query.startsWith('>');
   const searchText = isCommandMode ? query.slice(1).trim() : query;
 
-  const filteredItems = isCommandMode
+  const filteredItems: QuickSwitcherItem[] = isCommandMode
     ? commands
         .filter((c) => c.name.toLowerCase().includes(searchText.toLowerCase()))
         .map((c) => ({
@@ -43,7 +53,7 @@ const QuickSwitcher: React.FC<QuickSwitcherProps> = ({
         ...tabs.map((t) => ({
           id: t.id,
           name: t.title,
-          type: 'tab',
+          type: 'tab' as const,
           sub: 'Active Task',
           icon: '💻',
           action: () => onSelectTab(t.id),
@@ -51,7 +61,7 @@ const QuickSwitcher: React.FC<QuickSwitcherProps> = ({
         ...projects.map((p) => ({
           id: p.path,
           name: p.name,
-          type: 'project',
+          type: 'project' as const,
           sub: p.path,
           icon: '📂',
           action: () => onSelectProject(p.path),
@@ -143,7 +153,7 @@ const QuickSwitcher: React.FC<QuickSwitcherProps> = ({
             >
               <div style={{ display: 'flex', flexDirection: 'column' }}>
                 <div style={{ fontSize: '14px', color: index === selectedIndex ? 'white' : '#ccc' }}>
-                  <span style={{ marginRight: '8px' }}>{(item as any).icon}</span>
+                  <span style={{ marginRight: '8px' }}>{item.icon}</span>
                   {item.name}
                 </div>
                 <div
@@ -156,7 +166,7 @@ const QuickSwitcher: React.FC<QuickSwitcherProps> = ({
                   {item.sub}
                 </div>
               </div>
-              {(item as any).shortcut && (
+              {item.shortcut && (
                 <div
                   style={{
                     fontSize: '11px',
@@ -166,7 +176,7 @@ const QuickSwitcher: React.FC<QuickSwitcherProps> = ({
                     borderRadius: '3px',
                   }}
                 >
-                  {(item as any).shortcut}
+                  {item.shortcut}
                 </div>
               )}
             </div>

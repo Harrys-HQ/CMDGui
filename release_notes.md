@@ -1,3 +1,31 @@
+## 🚀 Release: CmdGUI v1.5.0
+
+### ✨ Advanced Tools & Keybindings
+
+- **Customizable Keybindings:** Full keyboard control! Rebind shortcuts for terminal actions, tab navigation, and the Command Palette via the new **Keybindings** tab in Settings.
+- **Workspace Management:** Capture your entire layout (tabs, panes, and directories) as a named "Workspace" to instantly resume your workflow later.
+- **Command History:** A persistent, searchable log of every command you run, featuring one-click execution and star-based bookmarking.
+- **Project File Explorer:** Browse project files directly from the sidebar. Double-click a folder to spawn a new terminal in that directory.
+- **Horizontal & Vertical Panes:** Split any tab into multiple terminal windows for complex multi-process monitoring.
+- **Quake Mode:** Toggle the application visibility with a global shortcut (`Alt + Space`) for rapid access.
+
+### 🛠️ Polish
+
+- **Enhanced UI Persistence:** Keybindings and custom themes now persist reliably in the main process `settings.json`.
+- **Theme Editor:** Fine-grained control over terminal colors with a new Custom Theme color picker.
+
+---
+
+## 🚀 Release: CmdGUI v1.4.0
+
+### ✨ UI & Organization
+
+- **Draggable Tabs:** Reorder your active terminal tasks with simple drag-and-drop handles in the sidebar.
+- **Adjustable Sidebar:** Refined sidebar resizing logic with better constraints and smooth interactions.
+- **Improved Settings Layout:** Reorganized the settings modal into clearer tabs (Appearance, Docs, CLI, Workspaces, etc.) to handle the growing feature set.
+
+---
+
 ## 🚀 Release: CmdGUI v1.3.0
 
 ### ✨ New Features

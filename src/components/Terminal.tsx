@@ -3,19 +3,30 @@ import { Terminal as Xterm } from 'xterm';
 import { FitAddon } from 'xterm-addon-fit';
 import { WebLinksAddon } from 'xterm-addon-web-links';
 import { SearchAddon } from 'xterm-addon-search';
+import { TerminalTheme } from '../types';
 
 interface TerminalProps {
   cwd?: string;
+  shell?: string;
+  initialCommand?: string;
+  envVars?: Record<string, string>;
   isActive: boolean;
   theme?: string;
+  customTheme?: TerminalTheme;
   fontSize?: number;
+  scrollback?: number;
   onTitleChange?: (title: string) => void;
   onExit?: () => void;
+  onCommand?: (command: string) => void;
   onNotification?: (type: 'alert' | 'confirmation') => void;
   onClear?: (clearFn: () => void) => void;
+  onSplitHorizontal?: () => void;
+  onSplitVertical?: () => void;
+  onClosePane?: () => void;
+  showPaneControls?: boolean;
 }
 
-const getTheme = (themeName: string = 'vscode') => {
+const getTheme = (themeName: string = 'vscode', customTheme?: TerminalTheme) => {
   const baseTheme = {
     background: '#1e1e1e',
     foreground: '#d4d4d4',
@@ -38,6 +49,10 @@ const getTheme = (themeName: string = 'vscode') => {
     brightCyan: '#29b8db',
     brightWhite: '#e5e5e5',
   };
+
+  if (themeName === 'custom' && customTheme) {
+    return customTheme;
+  }
 
   switch (themeName) {
     case 'monokai':
@@ -92,13 +107,23 @@ const getTheme = (themeName: string = 'vscode') => {
 
 const Terminal: React.FC<TerminalProps> = ({
   cwd,
+  shell,
+  initialCommand,
+  envVars,
   isActive,
   theme,
+  customTheme,
   fontSize = 14,
+  scrollback = 1000,
   onTitleChange,
   onExit,
+  onCommand,
   onNotification,
   onClear,
+  onSplitHorizontal,
+  onSplitVertical,
+  onClosePane,
+  showPaneControls,
 }) => {
   const terminalRef = useRef<HTMLDivElement>(null);
   const xtermRef = useRef<Xterm | null>(null);
@@ -111,17 +136,21 @@ const Terminal: React.FC<TerminalProps> = ({
 
   const onTitleChangeRef = useRef(onTitleChange);
   const onExitRef = useRef(onExit);
+  const onCommandRef = useRef(onCommand);
   const onNotificationRef = useRef(onNotification);
   const isActiveRef = useRef(isActive);
   const initialFontSize = useRef(fontSize);
   const initialTheme = useRef(theme);
+  const initialCustomTheme = useRef(customTheme);
+  const initialScrollback = useRef(scrollback);
 
   useEffect(() => {
     onTitleChangeRef.current = onTitleChange;
     onExitRef.current = onExit;
+    onCommandRef.current = onCommand;
     onNotificationRef.current = onNotification;
     isActiveRef.current = isActive;
-  }, [onTitleChange, onExit, onNotification, isActive]);
+  }, [onTitleChange, onExit, onCommand, onNotification, isActive]);
 
   useEffect(() => {
     if (!terminalRef.current) return;
@@ -129,8 +158,9 @@ const Terminal: React.FC<TerminalProps> = ({
     const term = new Xterm({
       cursorBlink: true,
       fontSize: initialFontSize.current,
+      scrollback: initialScrollback.current,
       fontFamily: 'Consolas, "Courier New", monospace',
-      theme: getTheme(initialTheme.current),
+      theme: getTheme(initialTheme.current, initialCustomTheme.current),
       allowProposedApi: true,
     });
 
@@ -144,7 +174,49 @@ const Terminal: React.FC<TerminalProps> = ({
     term.loadAddon(webLinksAddon);
     term.loadAddon(searchAddon);
 
-    term.open(terminalRef.current);
+    // Custom Link Provider for local file paths
+    term.registerLinkProvider({
+      provideLinks: (bufferLineNumber, callback) => {
+        const line = term.buffer.active.getLine(bufferLineNumber - 1);
+        if (!line) {
+          callback(undefined);
+          return;
+        }
+
+        const text = line.translateToString(true);
+        const links: { range: { start: { x: number, y: number }, end: { x: number, y: number } }, text: string, activate: (event: MouseEvent, text: string) => void }[] = [];
+        
+        // Match common absolute and relative paths, with optional line/col numbers
+        // Matches C:\..., /home/..., ./src/..., src/...
+        const pathRegex = /(?:[a-zA-Z]:[\\/]|(?:\.\/|\.\.\/|\/)+)[\w./\\:]+/g;
+        
+        let match;
+        while ((match = pathRegex.exec(text)) !== null) {
+          const pathString = match[0];
+          
+          links.push({
+            range: {
+              start: { x: match.index + 1, y: bufferLineNumber },
+              end: { x: match.index + pathString.length, y: bufferLineNumber }
+            },
+            text: pathString,
+            activate: (event: MouseEvent, text: string) => {
+              // Extract just the path part, ignoring :line:col
+              const match = text.match(/^(.+?)(:\d+)?(:\d+)?$/);
+              const cleanPath = match ? match[1] : text;
+              window.electron.openLocalPath(cleanPath);
+            }
+          });
+        }
+        
+        callback(links.length > 0 ? links : undefined);
+      }
+    });
+
+    // Only open if currently active to save DOM resources
+    if (isActiveRef.current && terminalRef.current) {
+      term.open(terminalRef.current);
+    }
 
     xtermRef.current = term;
     fitAddonRef.current = fitAddon;
@@ -172,7 +244,10 @@ const Terminal: React.FC<TerminalProps> = ({
 
       if (e.ctrlKey && e.shiftKey && e.code === 'KeyV') {
         navigator.clipboard.readText().then((text) => {
-          term.paste(text);
+          // Sanitize: Strip non-printable/dangerous control characters while preserving Tab and Newline
+          // eslint-disable-next-line no-control-regex
+          const sanitized = text.replace(/[\u0000-\u0008\u000e-\u001f\u007f]/g, '');
+          term.paste(sanitized);
         });
         return false;
       }
@@ -231,6 +306,7 @@ const Terminal: React.FC<TerminalProps> = ({
     }
 
     let cleanupData: (() => void) | null = null;
+    let cleanupExit: (() => void) | null = null;
     let isUnmounted = false;
 
     window.electron
@@ -238,6 +314,8 @@ const Terminal: React.FC<TerminalProps> = ({
         cols: term.cols,
         rows: term.rows,
         cwd,
+        shell,
+        envVars,
       })
       .then((pid) => {
         if (isUnmounted) {
@@ -247,6 +325,13 @@ const Terminal: React.FC<TerminalProps> = ({
 
         pidRef.current = pid;
         setIsReady(true);
+        
+        if (initialCommand) {
+          // Add a tiny delay to ensure the shell is fully ready to receive input
+          setTimeout(() => {
+            window.electron.writeTerminal(pid, initialCommand + '\n');
+          }, 500);
+        }
 
         cleanupData = window.electron.onTerminalData(pid, (data) => {
           term.write(data);
@@ -271,8 +356,26 @@ const Terminal: React.FC<TerminalProps> = ({
           }
         });
 
+        let commandBuffer = '';
         term.onData((data) => {
           window.electron.writeTerminal(pid, data);
+          
+          // Basic command history tracking:
+          // Detect Enter key and send buffer
+          if (data === '\r' || data === '\n') {
+            if (commandBuffer.trim().length > 1) {
+              if (onCommandRef.current) onCommandRef.current(commandBuffer.trim());
+            }
+            commandBuffer = '';
+          } else if (data === '\x7f' || data === '\b') {
+            // Backspace
+            commandBuffer = commandBuffer.slice(0, -1);
+          } else {
+            // Only add printable characters to buffer
+            if (data.length === 1 && data >= ' ') {
+              commandBuffer += data;
+            }
+          }
         });
 
         term.onResize((size) => {
@@ -283,13 +386,14 @@ const Terminal: React.FC<TerminalProps> = ({
           if (onTitleChangeRef.current) onTitleChangeRef.current(title);
         });
 
-        window.electron.onTerminalExit(pid, () => {
+        cleanupExit = window.electron.onTerminalExit(pid, () => {
           term.write('\r\n\x1b[31mTerminal exited.\x1b[0m\r\n');
           if (onExitRef.current) onExitRef.current();
         });
       });
 
     const handleResize = () => {
+      if (!isActiveRef.current) return;
       fitAddon.fit();
       if (pidRef.current !== null) {
         window.electron.resizeTerminal(pidRef.current, term.cols, term.rows);
@@ -322,7 +426,10 @@ const Terminal: React.FC<TerminalProps> = ({
         }
         case 'paste':
           navigator.clipboard.readText().then((text) => {
-            term.paste(text);
+            // Sanitize: Strip non-printable/dangerous control characters while preserving Tab and Newline
+            // eslint-disable-next-line no-control-regex
+            const sanitized = text.replace(/[\u0000-\u0008\u000e-\u001f\u007f]/g, '');
+            term.paste(sanitized);
           });
           break;
         case 'clear':
@@ -339,19 +446,20 @@ const Terminal: React.FC<TerminalProps> = ({
       container?.removeEventListener('contextmenu', handleContextMenu);
       cleanupContext();
       if (cleanupData) cleanupData();
+      if (cleanupExit) cleanupExit();
       if (pidRef.current !== null) {
         window.electron.killTerminal(pidRef.current);
         pidRef.current = null;
       }
       term.dispose();
     };
-  }, [cwd]); // Only re-run if cwd changes, theme and fontSize are handled in separate effects
+  }, [cwd, shell, initialCommand, envVars, onClear]); // Only re-run if cwd changes, theme and fontSize are handled in separate effects
 
   useEffect(() => {
     if (xtermRef.current) {
-      xtermRef.current.options.theme = getTheme(theme);
+      xtermRef.current.options.theme = getTheme(theme, customTheme);
     }
-  }, [theme]);
+  }, [theme, customTheme]);
 
   useEffect(() => {
     if (xtermRef.current) {
@@ -361,7 +469,19 @@ const Terminal: React.FC<TerminalProps> = ({
   }, [fontSize]);
 
   useEffect(() => {
-    if (isActive && fitAddonRef.current && xtermRef.current) {
+    if (xtermRef.current) {
+      xtermRef.current.options.scrollback = scrollback;
+    }
+  }, [scrollback]);
+
+  useEffect(() => {
+    if (isActive && terminalRef.current && xtermRef.current) {
+      // Ensure terminal is opened in the container if it's not already
+      // This is safe to call multiple times if we're not disposing the whole term
+      if (!terminalRef.current.hasChildNodes()) {
+        xtermRef.current.open(terminalRef.current);
+      }
+      
       requestAnimationFrame(() => {
         fitAddonRef.current?.fit();
         if (pidRef.current !== null && xtermRef.current) {
@@ -389,6 +509,45 @@ const Terminal: React.FC<TerminalProps> = ({
 
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative' }}>
+      {showPaneControls && (
+        <div 
+          className="pane-controls"
+          style={{
+            position: 'absolute',
+            top: '5px',
+            right: '10px',
+            zIndex: 100,
+            display: 'flex',
+            gap: '4px',
+            opacity: 0.3,
+            transition: 'opacity 0.2s',
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
+          onMouseLeave={(e) => (e.currentTarget.style.opacity = '0.3')}
+        >
+          <button 
+            onClick={onSplitHorizontal} 
+            title="Split Horizontal"
+            style={{ background: '#333', color: '#ccc', border: '1px solid #444', cursor: 'pointer', padding: '2px 6px', fontSize: '10px' }}
+          >
+            ━
+          </button>
+          <button 
+            onClick={onSplitVertical} 
+            title="Split Vertical"
+            style={{ background: '#333', color: '#ccc', border: '1px solid #444', cursor: 'pointer', padding: '2px 6px', fontSize: '10px' }}
+          >
+            ┃
+          </button>
+          <button 
+            onClick={onClosePane} 
+            title="Close Pane"
+            style={{ background: '#333', color: '#ccc', border: '1px solid #444', cursor: 'pointer', padding: '2px 6px', fontSize: '10px' }}
+          >
+            ×
+          </button>
+        </div>
+      )}
       {isSearchOpen && (
         <div className="terminal-search-bar">
           <input

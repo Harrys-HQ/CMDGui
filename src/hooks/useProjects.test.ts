@@ -11,6 +11,7 @@ vi.mock('./usePersistence', () => ({
 
 describe('useProjects Hook', () => {
   const mockGetProjectInfo = vi.fn();
+  const mockGetProjectDetails = vi.fn();
   const mockSelectFolder = vi.fn();
   const mockSettingsGet = vi.fn();
   const mockSettingsSet = vi.fn();
@@ -19,8 +20,17 @@ describe('useProjects Hook', () => {
     vi.clearAllMocks();
     
     // Mock Electron API
+    mockGetProjectDetails.mockResolvedValue({
+      type: 'generic',
+      scripts: {},
+      envVars: {},
+      gitBranch: null,
+      gitDirty: false
+    });
+
     window.electron = {
       getProjectInfo: mockGetProjectInfo,
+      getProjectDetails: mockGetProjectDetails,
       selectFolder: mockSelectFolder,
       settingsGet: mockSettingsGet,
       settingsSet: mockSettingsSet,
@@ -74,7 +84,13 @@ describe('useProjects Hook', () => {
   it('should detect project type automatically', async () => {
      const folderPath = 'C:\\Projects\\Api';
      mockSelectFolder.mockResolvedValue(folderPath);
-     mockGetProjectInfo.mockResolvedValue('node');
+     mockGetProjectDetails.mockResolvedValue({
+       type: 'node',
+       scripts: { start: 'node index.js' },
+       envVars: {},
+       gitBranch: 'main',
+       gitDirty: false
+     });
      
      const { result } = renderHook(() => useProjects());
      await waitFor(() => expect(result.current.projects).toEqual([]));

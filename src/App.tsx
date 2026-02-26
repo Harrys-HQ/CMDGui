@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import TitleBar from './components/TitleBar';
 import Terminal from './components/Terminal';
 import SettingsModal from './components/SettingsModal';
 import StatusBar from './components/StatusBar';
@@ -10,7 +11,9 @@ import { useSidebarResizer } from './hooks/useSidebarResizer';
 import { useSettings } from './hooks/useSettings';
 import { useCommands } from './hooks/useCommands';
 import { useKeybindings, isKeyMatch } from './hooks/useKeybindings';
+import { useCommandHistory } from './hooks/useCommandHistory';
 import { cleanTerminalTitle } from './utils/terminalUtils';
+import { Tab, PaneLayout } from './types';
 
 const App: React.FC = () => {
   const {
@@ -19,19 +22,34 @@ const App: React.FC = () => {
     setActiveTabId,
     addTab,
     closeTab,
+    splitPane,
+    closePane,
+    saveWorkspace,
+    loadWorkspace,
+    deleteWorkspace,
+    workspaces,
     renameTab,
     updateTabStatus,
     clearTabNotifications,
     reorderTabs,
   } = useTabs();
 
+  const { history, addHistory, toggleBookmark, clearHistory } = useCommandHistory();
   const { projects, addProject, removeProject, reorderProjects } = useProjects();
   const { sidebarWidth, startResizing } = useSidebarResizer();
   const {
     terminalTheme,
     setTerminalTheme,
+    customTheme,
+    setCustomTheme,
     terminalFontSize,
     setTerminalFontSize,
+    terminalScrollback,
+    setTerminalScrollback,
+    isQuakeModeEnabled,
+    setIsQuakeModeEnabled,
+    defaultShell,
+    setDefaultShell,
     isAdmin,
     relaunchAdmin,
   } = useSettings();
@@ -55,9 +73,16 @@ const App: React.FC = () => {
     }
   };
 
+  const handleCloseTab = useCallback((id: string) => {
+    closeTab(id);
+    if (terminalRefs.current[id]) {
+      delete terminalRefs.current[id];
+    }
+  }, [closeTab]);
+
   const { commands } = useCommands({
     onAddTerminal: (admin) => handleAddTerminal(admin),
-    onCloseTab: (id) => closeTab(id),
+    onCloseTab: (id) => handleCloseTab(id),
     onRenameTab: (id) => {
       const tab = tabs.find((t) => t.id === id);
       if (tab) handleRenameTab(id, tab.title);
@@ -75,6 +100,9 @@ const App: React.FC = () => {
       const nextIndex = (currentIndex + 1) % themes.length;
       setTerminalTheme(themes[nextIndex]);
     },
+    onSaveWorkspace: saveWorkspace,
+    onLoadWorkspace: loadWorkspace,
+    workspaces,
     activeTabId,
     keymap,
   });
@@ -108,14 +136,20 @@ const App: React.FC = () => {
 
   // Refs for stable access in event listener
   const tabsRef = React.useRef(tabs);
-  const closeTabRef = React.useRef(closeTab);
+  const activeTabIdRef = React.useRef(activeTabId);
+  const addTabRef = React.useRef(addTab);
+  const closeTabRef = React.useRef(handleCloseTab);
+  const setActiveTabIdRef = React.useRef(setActiveTabId);
   const renameTabRef = React.useRef(renameTab);
   const removeProjectRef = React.useRef(removeProject);
   const keymapRef = React.useRef(keymap);
 
   useEffect(() => {
     tabsRef.current = tabs;
-    closeTabRef.current = closeTab;
+    activeTabIdRef.current = activeTabId;
+    addTabRef.current = addTab;
+    closeTabRef.current = handleCloseTab;
+    setActiveTabIdRef.current = setActiveTabId;
     renameTabRef.current = renameTab;
     removeProjectRef.current = removeProject;
     keymapRef.current = keymap;
@@ -159,35 +193,39 @@ const App: React.FC = () => {
       // New Tab
       if (isKeyMatch(e, keymapRef.current.newTab)) {
         e.preventDefault();
-        addTab();
+        addTabRef.current();
       }
 
       // Close Tab
       if (isKeyMatch(e, keymapRef.current.closeTab)) {
         e.preventDefault();
-        if (activeTabId) closeTab(activeTabId);
+        if (activeTabIdRef.current) closeTabRef.current(activeTabIdRef.current);
       }
 
       // Next Tab
       if (isKeyMatch(e, keymapRef.current.nextTab)) {
         e.preventDefault();
+        const tabs = tabsRef.current;
+        const activeTabId = activeTabIdRef.current;
         const index = tabs.findIndex((t) => t.id === activeTabId);
         const nextIndex = (index + 1) % tabs.length;
-        setActiveTabId(tabs[nextIndex].id);
+        setActiveTabIdRef.current(tabs[nextIndex].id);
       }
 
       // Prev Tab
       if (isKeyMatch(e, keymapRef.current.prevTab)) {
         e.preventDefault();
+        const tabs = tabsRef.current;
+        const activeTabId = activeTabIdRef.current;
         const index = tabs.findIndex((t) => t.id === activeTabId);
         const prevIndex = (index - 1 + tabs.length) % tabs.length;
-        setActiveTabId(tabs[prevIndex].id);
+        setActiveTabIdRef.current(tabs[prevIndex].id);
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [tabs, activeTabId, addTab, closeTab, setActiveTabId]);
+  }, []); // Run once
 
   const activeTab = tabs.find((t) => t.id === activeTabId);
 
@@ -197,8 +235,75 @@ const App: React.FC = () => {
     }
   }, [activeTabId, clearTabNotifications]);
 
+  const renderLayout = (tab: Tab, layout: PaneLayout): React.ReactNode => {
+    if (layout.type === 'terminal') {
+      const pane = tab.panes[layout.paneId!];
+      if (!pane) return null;
+
+      return (
+        <Terminal
+          key={pane.id}
+          cwd={pane.cwd}
+          shell={defaultShell}
+          initialCommand={pane.initialCommand}
+          envVars={pane.envVars}
+          isActive={activeTabId === tab.id}
+          theme={terminalTheme}
+          customTheme={customTheme}
+          fontSize={terminalFontSize}
+          scrollback={terminalScrollback}
+          onCommand={addHistory}
+          onNotification={(type) =>
+            updateTabStatus(
+              tab.id,
+              type === 'alert' ? { hasAlert: true } : { hasConfirmation: true }
+            )
+          }
+          onTitleChange={(t) => {
+            const newTitle = cleanTerminalTitle(t, tab.title, tab.isManualTitle);
+            if (newTitle) updateTabStatus(tab.id, { title: newTitle });
+          }}
+          onClear={(clearFn) => {
+            terminalRefs.current[pane.id] = { clear: clearFn };
+          }}
+          onSplitHorizontal={() => splitPane(tab.id, pane.id, 'horizontal')}
+          onSplitVertical={() => splitPane(tab.id, pane.id, 'vertical')}
+          onClosePane={() => closePane(tab.id, pane.id)}
+          showPaneControls={true}
+        />
+      );
+    }
+
+    if (layout.type === 'split') {
+      const isHorizontal = layout.splitDirection === 'horizontal';
+      if (!layout.children) return null;
+      
+      return (
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: isHorizontal ? 'column' : 'row',
+            width: '100%',
+            height: '100%',
+            gap: '2px',
+            background: '#333',
+          }}
+        >
+          <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
+            {renderLayout(tab, layout.children[0])}
+          </div>
+          <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
+            {renderLayout(tab, layout.children[1])}
+          </div>
+        </div>
+      );
+    }
+    return null;
+  };
+
   return (
     <div className="app-root-layout">
+      <TitleBar />
       <div className="workspace-layout">
         <Sidebar
           width={sidebarWidth}
@@ -211,11 +316,18 @@ const App: React.FC = () => {
           onSelectTab={setActiveTabId}
           onCloseTab={(id, e) => {
             e.stopPropagation();
-            closeTab(id);
+            handleCloseTab(id);
           }}
           onRenameTab={handleRenameTab}
           onOpenSettings={() => setIsSettingsOpen(true)}
-          onAddTabWithCwd={(cwd) => addTab(cwd)}
+          onAddTabWithCwd={(cwd) => {
+            const project = projects.find(p => p.path === cwd);
+            addTab(cwd, false, project?.startupCommand, project?.envVars);
+          }}
+          onRunProjectScript={(cwd, scriptName) => {
+            const project = projects.find(p => p.path === cwd);
+            addTab(cwd, false, `npm run ${scriptName}`, project?.envVars);
+          }}
           onReorderTabs={reorderTabs}
           onReorderProjects={reorderProjects}
         />
@@ -237,25 +349,7 @@ const App: React.FC = () => {
                   bottom: 0,
                 }}
               >
-                <Terminal
-                  cwd={tab.cwd}
-                  isActive={activeTabId === tab.id}
-                  theme={terminalTheme}
-                  fontSize={terminalFontSize}
-                  onNotification={(type) =>
-                    updateTabStatus(
-                      tab.id,
-                      type === 'alert' ? { hasAlert: true } : { hasConfirmation: true }
-                    )
-                  }
-                  onTitleChange={(t) => {
-                    const newTitle = cleanTerminalTitle(t, tab.title, tab.isManualTitle);
-                    if (newTitle) updateTabStatus(tab.id, { title: newTitle });
-                  }}
-                  onClear={(clearFn) => {
-                    terminalRefs.current[tab.id] = { clear: clearFn };
-                  }}
-                />
+                {renderLayout(tab, tab.layout)}
               </div>
             ))}
           </div>
@@ -275,8 +369,25 @@ const App: React.FC = () => {
         onClose={() => setIsSettingsOpen(false)}
         terminalTheme={terminalTheme}
         onThemeChange={setTerminalTheme}
+        customTheme={customTheme}
+        onCustomThemeChange={setCustomTheme}
         terminalFontSize={terminalFontSize}
         onFontSizeChange={setTerminalFontSize}
+        terminalScrollback={terminalScrollback}
+        onScrollbackChange={setTerminalScrollback}
+        isQuakeModeEnabled={isQuakeModeEnabled}
+        onQuakeModeChange={setIsQuakeModeEnabled}
+        workspaces={workspaces}
+        onDeleteWorkspace={deleteWorkspace}
+        history={history}
+        onToggleBookmark={toggleBookmark}
+        onClearHistory={clearHistory}
+        onRunCommand={(cmd) => {
+          addTab(undefined, false, cmd);
+          setIsSettingsOpen(false);
+        }}
+        defaultShell={defaultShell}
+        onShellChange={setDefaultShell}
         keymap={keymap}
         onUpdateKeybinding={updateKeybinding}
         onResetKeybindings={resetKeybindings}
@@ -290,7 +401,10 @@ const App: React.FC = () => {
           projects={projects}
           commands={commands}
           onSelectTab={setActiveTabId}
-          onSelectProject={(path) => addTab(path)}
+          onSelectProject={(path) => {
+            const project = projects.find(p => p.path === path);
+            addTab(path, false, project?.startupCommand, project?.envVars);
+          }}
         />
       )}
     </div>

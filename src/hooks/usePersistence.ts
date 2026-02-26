@@ -31,10 +31,42 @@ export const loadState = async <T>(key: string, defaultVal: T): Promise<T> => {
   return defaultVal;
 };
 
+// Debounce timer for saveState
+let saveTimer: ReturnType<typeof setTimeout> | null = null;
+const saveQueue: Record<string, unknown> = {};
+const pendingResolves: (() => void)[] = [];
+
 export const saveState = async <T>(key: string, value: T): Promise<void> => {
-  try {
-    await window.electron.settingsSet(key, value);
-  } catch (e) {
-    console.error('Failed to save Electron state for ' + key, e);
+  // Update the queue with the latest value for this key
+  saveQueue[key] = value;
+
+  // Clear existing timer
+  if (saveTimer) {
+    clearTimeout(saveTimer);
   }
+
+  // Set a new timer to save after 500ms of inactivity
+  return new Promise((resolve) => {
+    pendingResolves.push(resolve);
+
+    saveTimer = setTimeout(async () => {
+      saveTimer = null;
+      const keysToSave = Object.keys(saveQueue);
+      
+      for (const k of keysToSave) {
+        const val = saveQueue[k];
+        try {
+          await window.electron.settingsSet(k, val);
+          delete saveQueue[k];
+        } catch (e) {
+          console.error('Failed to save Electron state for ' + k, e);
+        }
+      }
+      
+      // Resolve all pending promises
+      const resolves = [...pendingResolves];
+      pendingResolves.length = 0;
+      resolves.forEach(res => res());
+    }, 500);
+  });
 };

@@ -6,16 +6,18 @@ const terminals = {};
 const shellCommand = os.platform() === 'win32' ? 'powershell.exe' : 'bash';
 
 function createTerminal(mainWindow, options = {}) {
-  const { cols, rows, cwd } = options;
+  const { cols, rows, cwd, shell, envVars } = options;
   const targetCwd = cwd || os.homedir();
+  const targetShell = shell || shellCommand;
+  const targetEnv = { ...process.env, ...envVars };
 
   try {
-    const ptyProcess = pty.spawn(shellCommand, [], {
+    const ptyProcess = pty.spawn(targetShell, [], {
       name: 'xterm-color',
       cols: cols || 80,
       rows: rows || 30,
       cwd: targetCwd,
-      env: process.env,
+      env: targetEnv,
     });
 
     const pid = ptyProcess.pid;
