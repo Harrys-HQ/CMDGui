@@ -50,7 +50,7 @@ const QuickSwitcher: React.FC<QuickSwitcherProps> = ({
           action: c.action,
         }))
     : [
-        ...tabs.map((t) => ({
+        ...(tabs || []).filter(t => t && t.id && t.title).map((t) => ({
           id: t.id,
           name: t.title,
           type: 'tab' as const,
@@ -58,7 +58,7 @@ const QuickSwitcher: React.FC<QuickSwitcherProps> = ({
           icon: '💻',
           action: () => onSelectTab(t.id),
         })),
-        ...projects.map((p) => ({
+        ...(projects || []).filter(p => p && p.path && p.name).map((p) => ({
           id: p.path,
           name: p.name,
           type: 'project' as const,

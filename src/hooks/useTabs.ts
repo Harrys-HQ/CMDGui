@@ -29,13 +29,32 @@ export const useTabs = () => {
       };
       
       const savedTabs = await loadState<Tab[]>('tabs', [initialTab]);
-      const savedActiveId = await loadState<string>('activeTabId', savedTabs[0].id);
+      const savedActiveId = await loadState<string>('activeTabId', savedTabs.length > 0 ? savedTabs[0].id : initialTab.id);
       const savedWorkspaces = await loadState<Workspace[]>('workspaces', []);
       const savedActiveWorkspaceId = await loadState<string | null>('activeWorkspaceId', null);
 
-      setTabs(savedTabs);
-      setActiveTabId(savedActiveId);
-      setWorkspaces(savedWorkspaces);
+      // Validate and filter saved tabs
+      const validatedTabs = (savedTabs || [])
+        .filter(tab => tab && typeof tab === 'object')
+        .map(tab => {
+          if (!tab.layout || !tab.panes) {
+            return { ...tab, layout: tab.layout || initialTab.layout, panes: tab.panes || initialTab.panes };
+          }
+          return tab;
+        });
+
+      // Validate and filter workspaces
+      const validatedWorkspaces = (savedWorkspaces || [])
+        .filter(w => w && typeof w === 'object' && Array.isArray(w.tabs));
+
+      if (validatedTabs.length === 0) {
+        setTabs([initialTab]);
+        setActiveTabId(initialTab.id);
+      } else {
+        setTabs(validatedTabs);
+        setActiveTabId(savedActiveId);
+      }
+      setWorkspaces(validatedWorkspaces);
       setActiveWorkspaceId(savedActiveWorkspaceId);
       setIsLoaded(true);
     };

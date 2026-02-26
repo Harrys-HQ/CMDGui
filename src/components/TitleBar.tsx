@@ -3,6 +3,7 @@ import React from 'react';
 const TitleBar: React.FC = () => {
   return (
     <div
+      className="draggable-area"
       style={{
         height: '32px',
         width: '100%',
@@ -10,7 +11,6 @@ const TitleBar: React.FC = () => {
         display: 'flex',
         alignItems: 'center',
         paddingLeft: '16px',
-        WebkitAppRegion: 'drag', // Make it draggable
         userSelect: 'none',
         borderBottom: '1px solid #333',
         flexShrink: 0,

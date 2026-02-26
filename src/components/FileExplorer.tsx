@@ -87,7 +87,7 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ rootPath, onSelectFolder })
   }, [rootPath]);
 
   return (
-    <div style={{ maxHeight: '300px', overflowY: 'auto', background: '#1e1e1e', borderTop: '1px solid #333' }}>
+    <div style={{ background: '#1e1e1e', borderTop: '1px solid #333', paddingBottom: '4px' }}>
       {files.map(file => (
         <FileItem 
           key={file.path} 

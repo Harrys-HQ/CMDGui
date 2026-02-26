@@ -9,7 +9,8 @@ export const useProjects = () => {
   useEffect(() => {
     const init = async () => {
       const savedProjects = await loadState<Project[]>('projects', []);
-      setProjects(savedProjects);
+      const validated = (savedProjects || []).filter(p => p && typeof p === 'object');
+      setProjects(validated);
       setIsLoaded(true);
     };
     init();
@@ -23,13 +24,14 @@ export const useProjects = () => {
 
   // Detect Project Types
   useEffect(() => {
-    if (!isLoaded) return;
+    if (!isLoaded || !window.electron) return;
     
     // Check if any project needs type detection to avoid redundant processing
     const needsDetection = projects.some(p => !p.type);
     if (!needsDetection) return;
 
     const detectTypes = async () => {
+      if (!window.electron) return;
       let changed = false;
       const updatedProjects = await Promise.all(
         projects.map(async (p) => {
@@ -57,6 +59,7 @@ export const useProjects = () => {
   }, [projects, isLoaded]);
 
   const addProject = useCallback(async () => {
+    if (!window.electron) return;
     const folderPath = await window.electron.selectFolder();
     if (folderPath) {
       const name = folderPath.split('\\').pop() || folderPath;

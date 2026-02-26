@@ -386,6 +386,14 @@ body {
   background: var(--accent-primary);
 }
 
+.draggable-area {
+  -webkit-app-region: drag;
+}
+
+.non-draggable {
+  -webkit-app-region: no-drag;
+}
+
 /* Update App Container to allow column direction for Footer */
 .app-root-layout {
   display: flex;

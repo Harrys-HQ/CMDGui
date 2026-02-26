@@ -2,6 +2,7 @@ const { app, BrowserWindow, ipcMain, dialog, shell, session, Menu, globalShortcu
 const { autoUpdater } = require('electron-updater');
 const path = require('path');
 const os = require('os');
+const fs = require('fs');
 const projectService = require('./services/projectService');
 const terminalService = require('./services/terminalService');
 const settingsService = require('./services/settingsService');
@@ -41,18 +42,47 @@ function createWindow() {
   mainWindow.on('move', saveState);
   mainWindow.on('close', saveState);
 
-  // Check if running in dev mode via npm script
-  const isDev = process.env.npm_lifecycle_event === 'dev:electron';
+  // Check if running in dev mode
+  const isDev = !app.isPackaged || process.env.NODE_ENV === 'development';
 
   if (isDev) {
     console.log('Running in dev mode, loading localhost:5173');
-    mainWindow.loadURL('http://localhost:5173');
-    // mainWindow.webContents.openDevTools();
+    mainWindow.loadURL('http://localhost:5173').catch((err) => {
+      console.error('Failed to load dev URL:', err);
+    });
+    mainWindow.webContents.openDevTools();
   } else {
-    console.log('Running in prod mode, loading dist/index.html');
-    mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
-    mainWindow.webContents.closeDevTools();
+    const indexPath = path.join(__dirname, '../dist/index.html');
+    console.log('Running in prod mode, loading:', indexPath);
+    
+    if (!fs.existsSync(indexPath)) {
+      console.error('CRITICAL: index.html not found at:', indexPath);
+    }
+
+    mainWindow.loadFile(indexPath).catch((err) => {
+      console.error('Failed to load index.html:', err);
+      mainWindow.webContents.openDevTools();
+    });
   }
+
+  // Auto-open DevTools only on critical renderer errors
+  mainWindow.webContents.on('render-process-gone', (event, details) => {
+    console.error('Renderer process gone:', details);
+    mainWindow.webContents.openDevTools();
+  });
+
+  mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription, validatedURL) => {
+    console.error('Failed to load:', validatedURL, errorCode, errorDescription);
+    mainWindow.webContents.openDevTools();
+  });
+
+  // Optional: Open DevTools if an "error" level message is logged to console
+  mainWindow.webContents.on('console-message', (event, level, message, line, sourceId) => {
+    if (level >= 3) { // 3 is Error level
+      console.log('Renderer Error detected, opening DevTools');
+      mainWindow.webContents.openDevTools();
+    }
+  });
 
   // Security: Handle external links
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
@@ -76,6 +106,27 @@ function createWindow() {
 
 app.whenReady().then(() => {
   createWindow();
+
+  // Register developer tools shortcuts
+  globalShortcut.register('CommandOrControl+Shift+I', () => {
+    if (mainWindow) {
+      if (mainWindow.webContents.isDevToolsOpened()) {
+        mainWindow.webContents.closeDevTools();
+      } else {
+        mainWindow.webContents.openDevTools();
+      }
+    }
+  });
+
+  globalShortcut.register('F12', () => {
+    if (mainWindow) {
+      if (mainWindow.webContents.isDevToolsOpened()) {
+        mainWindow.webContents.closeDevTools();
+      } else {
+        mainWindow.webContents.openDevTools();
+      }
+    }
+  });
 
   // Initial check for updates in production
   if (process.env.NODE_ENV !== 'development' && !process.env.npm_lifecycle_event) {

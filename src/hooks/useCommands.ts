@@ -52,13 +52,15 @@ export const useCommands = ({
           if (name) onSaveWorkspace(name);
         },
       },
-      ...workspaces.map(w => ({
-        id: `load-workspace-${w.id}`,
-        name: `Load Workspace: ${w.name}`,
-        category: 'Workspace',
-        icon: '📂',
-        action: () => onLoadWorkspace(w.id),
-      })),
+      ...(workspaces || [])
+        .filter(w => w && typeof w === 'object' && w.id && w.name)
+        .map(w => ({
+          id: `load-workspace-${w.id}`,
+          name: `Load Workspace: ${w.name}`,
+          category: 'Workspace',
+          icon: '📂',
+          action: () => onLoadWorkspace(w.id),
+        })),
       {
         id: 'new-terminal',
         name: 'New Terminal',

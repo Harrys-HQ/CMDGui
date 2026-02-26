@@ -81,7 +81,7 @@ export const useSettings = () => {
   }, [terminalScrollback, isLoaded]);
 
   useEffect(() => {
-    if (isLoaded) {
+    if (isLoaded && window.electron) {
       saveState('isQuakeModeEnabled', isQuakeModeEnabled);
       window.electron.setQuakeMode(isQuakeModeEnabled);
     }
@@ -94,12 +94,16 @@ export const useSettings = () => {
   }, [defaultShell, isLoaded]);
 
   useEffect(() => {
-    window.electron.checkAdmin().then(setIsAdmin);
+    if (window.electron) {
+      window.electron.checkAdmin().then(setIsAdmin);
+    }
     
     // Sync quake mode initial state with main process
     const syncQuake = async () => {
       const savedQuakeMode = await loadState('isQuakeModeEnabled', false);
-      window.electron.setQuakeMode(savedQuakeMode);
+      if (window.electron) {
+        window.electron.setQuakeMode(savedQuakeMode);
+      }
     };
     syncQuake();
   }, []);

@@ -21,6 +21,10 @@ export const saveLocalState = <T>(key: string, value: T): void => {
 // Async Electron-based persistence
 export const loadState = async <T>(key: string, defaultVal: T): Promise<T> => {
   try {
+    if (!window.electron) {
+      console.warn('window.electron not available for loadState');
+      return defaultVal;
+    }
     const saved = await window.electron.settingsGet<T>(key);
     if (saved !== null && saved !== undefined) {
       return saved;
@@ -37,6 +41,10 @@ const saveQueue: Record<string, unknown> = {};
 const pendingResolves: (() => void)[] = [];
 
 export const saveState = async <T>(key: string, value: T): Promise<void> => {
+  if (!window.electron) {
+    console.warn('window.electron not available for saveState');
+    return Promise.resolve();
+  }
   // Update the queue with the latest value for this key
   saveQueue[key] = value;
 
