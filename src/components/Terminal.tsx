@@ -4,6 +4,7 @@ import { FitAddon } from 'xterm-addon-fit';
 import { WebLinksAddon } from 'xterm-addon-web-links';
 import { SearchAddon } from 'xterm-addon-search';
 import { TerminalTheme } from '../types';
+import { Keymap, isKeyMatch } from '../hooks/useKeybindings';
 
 interface TerminalProps {
   paneId: string;
@@ -25,6 +26,7 @@ interface TerminalProps {
   onSplitVertical?: () => void;
   onClosePane?: () => void;
   showPaneControls?: boolean;
+  keymap: Keymap;
 }
 
 const getTheme = (name: string = 'vscode', custom?: TerminalTheme) => {
@@ -41,7 +43,7 @@ const getTheme = (name: string = 'vscode', custom?: TerminalTheme) => {
 // Global PTY registry to persist processes during layout shifts (splits)
 const globalPtyRegistry: Record<string, { pid: number, cleanupData?: () => void, cleanupExit?: () => void }> = {};
 
-const Terminal: React.FC<TerminalProps> = ({ paneId, cwd, shell, initialCommand, envVars, isActive, theme, customTheme, fontSize = 14, scrollback = 1000, onTitleChange, onExit, onCommand, onNotification, onClear, onSplitHorizontal, onSplitVertical, onClosePane, showPaneControls }) => {
+const Terminal: React.FC<TerminalProps> = ({ paneId, cwd, shell, initialCommand, envVars, isActive, theme, customTheme, fontSize = 14, scrollback = 1000, onTitleChange, onExit, onCommand, onNotification, onClear, onSplitHorizontal, onSplitVertical, onClosePane, showPaneControls, keymap }) => {
   const terminalRef = useRef<HTMLDivElement>(null);
   const xtermRef = useRef<Xterm | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
@@ -58,6 +60,23 @@ const Terminal: React.FC<TerminalProps> = ({ paneId, cwd, shell, initialCommand,
   const onClearRef = useRef(onClear);
   const isActiveRef = useRef(isActive);
 
+  const fitTerminal = () => {
+    if (!xtermRef.current || !fitAddonRef.current || !terminalRef.current) return;
+    if (!xtermRef.current.element || !xtermRef.current.textarea) return;
+    
+    const el = terminalRef.current;
+    if (el.offsetWidth === 0 || el.offsetHeight === 0 || !document.body.contains(el)) return;
+
+    try {
+      fitAddonRef.current.fit();
+      if (pidRef.current !== null) {
+        window.electron.resizeTerminal(pidRef.current, xtermRef.current.cols, xtermRef.current.rows);
+      }
+    } catch (e) {
+      console.warn('Terminal fit skipped:', e);
+    }
+  };
+
   useEffect(() => {
     onTitleChangeRef.current = onTitleChange;
     onExitRef.current = onExit;
@@ -65,6 +84,14 @@ const Terminal: React.FC<TerminalProps> = ({ paneId, cwd, shell, initialCommand,
     onNotificationRef.current = onNotification;
     onClearRef.current = onClear;
     isActiveRef.current = isActive;
+
+    // If terminal becomes active, flush buffer
+    if (isActive && xtermRef.current && dataBuffer.current.length > 0) {
+      xtermRef.current.write(dataBuffer.current.join(''));
+      dataBuffer.current = [];
+      // Also trigger a fit after a short delay to ensure layout is ready
+      setTimeout(fitTerminal, 50);
+    }
   }, [onTitleChange, onExit, onCommand, onNotification, onClear, isActive]);
 
   useEffect(() => {
@@ -83,7 +110,7 @@ const Terminal: React.FC<TerminalProps> = ({ paneId, cwd, shell, initialCommand,
           term.write(dataBuffer.current.join(''));
           dataBuffer.current = [];
         }
-        fitAddon.fit();
+        fitTerminal();
       } catch (e) {
         console.error('Failed to open terminal:', e);
       }
@@ -91,8 +118,50 @@ const Terminal: React.FC<TerminalProps> = ({ paneId, cwd, shell, initialCommand,
 
     term.attachCustomKeyEventHandler((e) => {
       if (e.type !== 'keydown') return true;
-      if (e.ctrlKey && e.code === 'KeyF') { setIsSearchOpen(true); return false; }
-      if (e.ctrlKey && e.key === 'Tab') return false;
+      
+      if (isKeyMatch(e, keymap.find)) { setIsSearchOpen(true); return false; }
+      if (isKeyMatch(e, keymap.copy)) {
+        const selection = term.getSelection();
+        if (selection) {
+          navigator.clipboard.writeText(selection);
+          term.clearSelection();
+        }
+        return false;
+      }
+      if (isKeyMatch(e, keymap.paste)) {
+        navigator.clipboard.readText().then((text) => {
+          const sanitized = text.replace(/[\u0000-\u0008\u000e-\u001f\u007f]/g, '');
+          term.paste(sanitized);
+        });
+        return false;
+      }
+      if (isKeyMatch(e, keymap.newLine)) {
+        if (pidRef.current !== null) {
+          window.electron.writeTerminal(pidRef.current, '\n');
+        }
+        return false;
+      }
+      if (isKeyMatch(e, keymap.clearTerminal)) {
+        if (pidRef.current !== null) {
+          window.electron.writeTerminal(pidRef.current, '\x0c');
+        }
+        return false;
+      }
+
+      // Allow navigation and global keybindings to bubble up to App.tsx
+      if (
+        isKeyMatch(e, keymap.newTab) ||
+        isKeyMatch(e, keymap.closeTab) ||
+        isKeyMatch(e, keymap.nextTab) ||
+        isKeyMatch(e, keymap.prevTab) ||
+        isKeyMatch(e, keymap.commandPalette)
+      ) {
+        return false;
+      }
+
+      // Prevent Tab from being swallowed if it's part of a navigation shortcut
+      if (e.key === 'Tab' && e.ctrlKey) return false;
+
       return true;
     });
 
@@ -116,7 +185,7 @@ const Terminal: React.FC<TerminalProps> = ({ paneId, cwd, shell, initialCommand,
 
       const cleanupData = window.electron.onTerminalData(pid, (data) => {
         if (isUnmounted) return;
-        if (term.element) {
+        if (term.element && isActiveRef.current) {
           try {
             term.write(data);
           } catch (e) {
@@ -153,49 +222,47 @@ const Terminal: React.FC<TerminalProps> = ({ paneId, cwd, shell, initialCommand,
 
     setupPty();
 
+    const resizeObserver = new ResizeObserver(() => {
+      if (isActiveRef.current) {
+        fitTerminal();
+      }
+    });
+    if (terminalRef.current) resizeObserver.observe(terminalRef.current);
+
     const handleResize = () => {
       if (!isActiveRef.current || !terminalRef.current || !term.element) return;
-      if (terminalRef.current.offsetWidth === 0) return;
-      try {
-        fitAddon.fit();
-        if (pidRef.current !== null) window.electron.resizeTerminal(pidRef.current, term.cols, term.rows);
-      } catch (e) {
-        console.error('Resize failed:', e);
-      }
+      fitTerminal();
     };
     window.addEventListener('resize', handleResize);
     return () => {
       isUnmounted = true;
       window.removeEventListener('resize', handleResize);
+      resizeObserver.disconnect();
       try {
         term.dispose();
       } catch (e) {
         console.error('Disposal failed:', e);
       }
     };
-  }, [cwd, shell, envVars, paneId, customTheme, fontSize, initialCommand, scrollback, theme]);
+  }, [cwd, shell, envVars, paneId, initialCommand]);
 
   useEffect(() => { if (xtermRef.current) xtermRef.current.options.theme = getTheme(theme, customTheme); }, [theme, customTheme]);
   useEffect(() => {
     if (xtermRef.current) {
       xtermRef.current.options.fontSize = fontSize;
-      const el = terminalRef.current;
-      if (isActive && el && el.offsetWidth > 0 && xtermRef.current.element) {
-        try {
-          fitAddonRef.current?.fit();
-        } catch (e) {
-          console.error('Fit failed after font size change:', e);
-        }
+      if (isActive) {
+        fitTerminal();
       }
     }
   }, [fontSize, isActive]);
   useEffect(() => { if (xtermRef.current) xtermRef.current.options.scrollback = scrollback; }, [scrollback]);
 
     useEffect(() => {
+      let rafId: number;
       if (isActive && terminalRef.current && xtermRef.current) {
-        requestAnimationFrame(() => {
+        rafId = requestAnimationFrame(() => {
           const el = terminalRef.current;
-          if (!el || el.offsetWidth === 0 || !xtermRef.current) return;
+          if (!el || !xtermRef.current || !isActiveRef.current) return;
           try {
             if (!xtermRef.current.element) {
               xtermRef.current.open(el);
@@ -204,9 +271,10 @@ const Terminal: React.FC<TerminalProps> = ({ paneId, cwd, shell, initialCommand,
                 dataBuffer.current = [];
               }
             }
-            fitAddonRef.current?.fit();
+            requestAnimationFrame(() => {
+              if (isActiveRef.current) fitTerminal();
+            });
             if (pidRef.current !== null) {
-              window.electron.resizeTerminal(pidRef.current, xtermRef.current.cols, xtermRef.current.rows);
               xtermRef.current.focus();
             }
           } catch (e) {
@@ -214,6 +282,9 @@ const Terminal: React.FC<TerminalProps> = ({ paneId, cwd, shell, initialCommand,
           }
         });
       }
+      return () => {
+        if (rafId) cancelAnimationFrame(rafId);
+      };
     }, [isActive, isReady]);
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative' }}>

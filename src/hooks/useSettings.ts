@@ -32,6 +32,7 @@ export const useSettings = () => {
   const [terminalFontSize, setTerminalFontSize] = useState(14);
   const [terminalScrollback, setTerminalScrollback] = useState(1000);
   const [isQuakeModeEnabled, setIsQuakeModeEnabled] = useState(false);
+  const [isStayAwakeEnabled, setIsStayAwakeEnabled] = useState(false);
   const [defaultShell, setDefaultShell] = useState('');
   const [isAdmin, setIsAdmin] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
@@ -43,6 +44,7 @@ export const useSettings = () => {
       const savedFontSize = await loadState('terminalFontSize', 14);
       const savedScrollback = await loadState('terminalScrollback', 1000);
       const savedQuakeMode = await loadState('isQuakeModeEnabled', false);
+      const savedStayAwake = await loadState('isStayAwakeEnabled', false);
       const savedShell = await loadState('defaultShell', '');
       
       setTerminalTheme(savedTheme);
@@ -50,6 +52,7 @@ export const useSettings = () => {
       setTerminalFontSize(savedFontSize);
       setTerminalScrollback(savedScrollback);
       setIsQuakeModeEnabled(savedQuakeMode);
+      setIsStayAwakeEnabled(savedStayAwake);
       setDefaultShell(savedShell);
       setIsLoaded(true);
     };
@@ -88,6 +91,13 @@ export const useSettings = () => {
   }, [isQuakeModeEnabled, isLoaded]);
 
   useEffect(() => {
+    if (isLoaded && window.electron) {
+      saveState('isStayAwakeEnabled', isStayAwakeEnabled);
+      window.electron.setStayAwake(isStayAwakeEnabled);
+    }
+  }, [isStayAwakeEnabled, isLoaded]);
+
+  useEffect(() => {
     if (isLoaded) {
       saveState('defaultShell', defaultShell);
     }
@@ -101,8 +111,10 @@ export const useSettings = () => {
     // Sync quake mode initial state with main process
     const syncQuake = async () => {
       const savedQuakeMode = await loadState('isQuakeModeEnabled', false);
+      const savedStayAwake = await loadState('isStayAwakeEnabled', false);
       if (window.electron) {
         window.electron.setQuakeMode(savedQuakeMode);
+        window.electron.setStayAwake(savedStayAwake);
       }
     };
     syncQuake();
@@ -123,6 +135,8 @@ export const useSettings = () => {
     setTerminalScrollback,
     isQuakeModeEnabled,
     setIsQuakeModeEnabled,
+    isStayAwakeEnabled,
+    setIsStayAwakeEnabled,
     defaultShell,
     setDefaultShell,
     isAdmin,

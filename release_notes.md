@@ -1,3 +1,12 @@
+## 🚀 Release: CmdGUI v1.6.0
+
+### ✨ Stay Awake Mode
+
+- **New "Stay Awake" Feature:** Prevent your computer from locking or sleeping during long tasks or meetings. You can toggle this on/off in the **Appearance** settings.
+- **Stealth Integration:** Uses native Electron `powerSaveBlocker` (same as media players and presentation apps) to reset the system idle timer without simulating detectable keyboard/mouse input.
+
+---
+
 ## 🚀 Release: CmdGUI v1.5.0
 
 ### ✨ Advanced Tools & Keybindings

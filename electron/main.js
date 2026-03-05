@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, shell, session, Menu, globalShortcut, screen } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell, session, Menu, globalShortcut, screen, powerSaveBlocker } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const path = require('path');
 const os = require('os');
@@ -8,6 +8,7 @@ const terminalService = require('./services/terminalService');
 const settingsService = require('./services/settingsService');
 
 let mainWindow;
+let stayAwakeId = null;
 
 function createWindow() {
   const windowState = settingsService.getWindowState();
@@ -209,6 +210,24 @@ ipcMain.on('app-set-quake-mode', (event, enabled) => {
     globalShortcut.register('Alt+Space', toggleQuakeMode);
   } else {
     globalShortcut.unregister('Alt+Space');
+  }
+});
+
+// --- Stay Awake Management ---
+
+ipcMain.on('app-set-stay-awake', (event, enabled) => {
+  if (enabled) {
+    if (stayAwakeId === null) {
+      // 'prevent-app-suspension' prevents the system from entering low-power (sleep) modes.
+      stayAwakeId = powerSaveBlocker.start('prevent-app-suspension');
+      console.log('Stay Awake enabled, blocker ID:', stayAwakeId);
+    }
+  } else {
+    if (stayAwakeId !== null) {
+      powerSaveBlocker.stop(stayAwakeId);
+      console.log('Stay Awake disabled, stopped blocker ID:', stayAwakeId);
+      stayAwakeId = null;
+    }
   }
 });
 

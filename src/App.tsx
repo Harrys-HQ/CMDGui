@@ -48,6 +48,8 @@ const App: React.FC = () => {
     setTerminalScrollback,
     isQuakeModeEnabled,
     setIsQuakeModeEnabled,
+    isStayAwakeEnabled,
+    setIsStayAwakeEnabled,
     defaultShell,
     setDefaultShell,
     isAdmin,
@@ -123,6 +125,7 @@ const App: React.FC = () => {
           onSplitVertical={() => splitPane(tab.id, pane.id, 'vertical')}
           onClosePane={() => closePane(tab.id, pane.id)}
           showPaneControls={true}
+          keymap={keymap}
         />
       );
     }
@@ -255,7 +258,7 @@ const App: React.FC = () => {
         </div>
       </div>
       <StatusBar status="Ready" activeTabTitle={activeTab?.title} tabCount={tabs.length} isUpdateAvailable={isUpdateAvailable} onShowUpdates={() => setIsSettingsOpen(true)} />
-      <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} terminalTheme={terminalTheme} onThemeChange={setTerminalTheme} customTheme={customTheme} onCustomThemeChange={setCustomTheme} terminalFontSize={terminalFontSize} onFontSizeChange={setTerminalFontSize} terminalScrollback={terminalScrollback} onScrollbackChange={setTerminalScrollback} isQuakeModeEnabled={isQuakeModeEnabled} onQuakeModeChange={setIsQuakeModeEnabled} workspaces={workspaces} onDeleteWorkspace={deleteWorkspace} history={history} onToggleBookmark={toggleBookmark} onClearHistory={clearHistory} onRunCommand={(cmd) => { addTab(undefined, false, cmd); setIsSettingsOpen(false); }} defaultShell={defaultShell} onShellChange={setDefaultShell} keymap={keymap} onUpdateKeybinding={updateKeybinding} onResetKeybindings={resetKeybindings} />
+      <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} terminalTheme={terminalTheme} onThemeChange={setTerminalTheme} customTheme={customTheme} onCustomThemeChange={setCustomTheme} terminalFontSize={terminalFontSize} onFontSizeChange={setTerminalFontSize} terminalScrollback={terminalScrollback} onScrollbackChange={setTerminalScrollback} isQuakeModeEnabled={isQuakeModeEnabled} onQuakeModeChange={setIsQuakeModeEnabled} isStayAwakeEnabled={isStayAwakeEnabled} onStayAwakeChange={setIsStayAwakeEnabled} workspaces={workspaces} onDeleteWorkspace={deleteWorkspace} history={history} onToggleBookmark={toggleBookmark} onClearHistory={clearHistory} onRunCommand={(cmd) => { addTab(undefined, false, cmd); setIsSettingsOpen(false); }} defaultShell={defaultShell} onShellChange={setDefaultShell} keymap={keymap} onUpdateKeybinding={updateKeybinding} onResetKeybindings={resetKeybindings} />
       {isQuickSwitcherOpen && <QuickSwitcher isOpen={isQuickSwitcherOpen} onClose={() => setIsQuickSwitcherOpen(false)} tabs={tabs} projects={projects} commands={commands} onSelectTab={setActiveTabId} onSelectProject={(path) => { const p = projects.find(p => p.path === path); addTab(path, false, p?.startupCommand, p?.envVars); }} />}
     </div>
   );

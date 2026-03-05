@@ -10,7 +10,8 @@ export type KeybindingAction =
   | 'clearTerminal'
   | 'copy'
   | 'paste'
-  | 'find';
+  | 'find'
+  | 'newLine';
 
 export interface Keybinding {
   key: string; // e.g., 'p', 'c'
@@ -32,6 +33,7 @@ const DEFAULT_KEYMAP: Keymap = {
   copy: { key: 'c', ctrlKey: true, shiftKey: true },
   paste: { key: 'v', ctrlKey: true, shiftKey: true },
   find: { key: 'f', ctrlKey: true },
+  newLine: { key: 'Enter', ctrlKey: true },
 };
 
 export const formatKeybinding = (binding: Keybinding): string => {

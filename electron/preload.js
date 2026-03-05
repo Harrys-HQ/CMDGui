@@ -41,6 +41,7 @@ contextBridge.exposeInMainWorld('electron', {
   },
   getVersion: () => ipcRenderer.invoke('app-get-version'),
   setQuakeMode: (enabled) => ipcRenderer.send('app-set-quake-mode', enabled),
+  setStayAwake: (enabled) => ipcRenderer.send('app-set-stay-awake', enabled),
 
   // Settings Persistence
   settingsGet: (key) => ipcRenderer.invoke('settings-get', key),

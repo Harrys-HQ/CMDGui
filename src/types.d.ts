@@ -132,6 +132,7 @@ export interface ElectronAPI {
   onUpdateStatus: (callback: (data: UpdateStatus) => void) => () => void;
   getVersion: () => Promise<string>;
   setQuakeMode: (enabled: boolean) => void;
+  setStayAwake: (enabled: boolean) => void;
   settingsGet: <T>(key: string) => Promise<T | null>;
   settingsSet: (key: string, value: unknown) => Promise<void>;
   showContextMenu: (type: string, data?: ContextMenuData) => Promise<void>;

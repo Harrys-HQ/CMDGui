@@ -16,6 +16,8 @@ interface SettingsModalProps {
   onScrollbackChange?: (size: number) => void;
   isQuakeModeEnabled?: boolean;
   onQuakeModeChange?: (enabled: boolean) => void;
+  isStayAwakeEnabled?: boolean;
+  onStayAwakeChange?: (enabled: boolean) => void;
   workspaces?: Workspace[];
   onDeleteWorkspace?: (id: string) => void;
   history?: HistoryItem[];
@@ -39,6 +41,7 @@ const ACTION_LABELS: Record<KeybindingAction, string> = {
   copy: 'Copy Selection',
   paste: 'Paste',
   find: 'Find in Terminal',
+  newLine: 'Insert New Line (Terminal)',
 };
 
 const KeybindingRecorder: React.FC<{
@@ -108,6 +111,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   onScrollbackChange,
   isQuakeModeEnabled,
   onQuakeModeChange,
+  isStayAwakeEnabled,
+  onStayAwakeChange,
   workspaces,
   onDeleteWorkspace,
   history,
@@ -121,7 +126,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   onResetKeybindings,
 }) => {
   const [activeTab, setActiveTab] = useState<'project' | 'appearance' | 'keybindings' | 'cli' | 'workspaces' | 'history' | 'about'>('project');
-  const [appVersion, setAppVersion] = useState<string>('1.5.0');
+  const [appVersion, setAppVersion] = useState<string>('1.6.0');
   const [recordingAction, setRecordingAction] = useState<KeybindingAction | null>(null);
 
   // Update State
@@ -492,6 +497,21 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                     />
                     <label htmlFor="quake-mode-toggle" style={{ cursor: 'pointer', fontSize: '14px', color: '#ccc', marginLeft: '10px' }}>
                       Enable Quake Mode (Alt + Space)
+                    </label>
+                  </div>
+                )}
+
+                {onStayAwakeChange && (
+                  <div style={{ marginTop: '15px', display: 'flex', alignItems: 'center' }}>
+                    <input
+                      type="checkbox"
+                      id="stay-awake-toggle"
+                      checked={isStayAwakeEnabled}
+                      onChange={(e) => onStayAwakeChange(e.target.checked)}
+                      style={{ cursor: 'pointer' }}
+                    />
+                    <label htmlFor="stay-awake-toggle" style={{ cursor: 'pointer', fontSize: '14px', color: '#ccc', marginLeft: '10px' }}>
+                      Stay Awake (Prevent system lock/sleep)
                     </label>
                   </div>
                 )}
