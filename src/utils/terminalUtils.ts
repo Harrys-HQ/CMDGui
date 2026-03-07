@@ -21,11 +21,7 @@ export const cleanTerminalTitle = (
   ];
 
   // If the new title is generic, and we already have a specific title (that isn't generic), keep the old one.
-  if (
-    genericTitles.includes(cleanTitle) &&
-    currentTitle &&
-    !genericTitles.includes(currentTitle)
-  ) {
+  if (genericTitles.includes(cleanTitle) && currentTitle && !genericTitles.includes(currentTitle)) {
     return null;
   }
 
@@ -35,3 +31,27 @@ export const cleanTerminalTitle = (
 
   return cleanTitle !== currentTitle ? cleanTitle : null;
 };
+
+// Global PTY registry to persist processes during layout shifts (splits)
+export const globalPtyRegistry: Record<
+  string,
+  { pid: number; cleanupData?: () => void; cleanupExit?: () => void }
+> = {};
+
+const killedPanes = new Set<string>();
+
+export const killTerminalProcess = (paneId: string) => {
+  killedPanes.add(paneId);
+  const pty = globalPtyRegistry[paneId];
+  if (pty) {
+    if (pty.cleanupData) pty.cleanupData();
+    if (pty.cleanupExit) pty.cleanupExit();
+    if (window.electron && window.electron.killTerminal) {
+      window.electron.killTerminal(pty.pid);
+    }
+    delete globalPtyRegistry[paneId];
+  }
+};
+
+export const isPaneKilled = (paneId: string) => killedPanes.has(paneId);
+export const cleanupKilledPane = (paneId: string) => killedPanes.delete(paneId);

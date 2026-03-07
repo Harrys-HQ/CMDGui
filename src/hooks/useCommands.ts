@@ -53,8 +53,8 @@ export const useCommands = ({
         },
       },
       ...(workspaces || [])
-        .filter(w => w && typeof w === 'object' && w.id && w.name)
-        .map(w => ({
+        .filter((w) => w && typeof w === 'object' && w.id && w.name)
+        .map((w) => ({
           id: `load-workspace-${w.id}`,
           name: `Load Workspace: ${w.name}`,
           category: 'Workspace',

@@ -18,14 +18,14 @@ describe('useProjects Hook', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    
+
     // Mock Electron API
     mockGetProjectDetails.mockResolvedValue({
       type: 'generic',
       scripts: {},
       envVars: {},
       gitBranch: null,
-      gitDirty: false
+      gitDirty: false,
     });
 
     window.electron = {
@@ -61,47 +61,47 @@ describe('useProjects Hook', () => {
   });
 
   it('should remove a project', async () => {
-      const folderPath = 'C:\\Projects\\MyApp';
-      mockSelectFolder.mockResolvedValue(folderPath);
-      mockGetProjectInfo.mockResolvedValue('react');
+    const folderPath = 'C:\\Projects\\MyApp';
+    mockSelectFolder.mockResolvedValue(folderPath);
+    mockGetProjectInfo.mockResolvedValue('react');
 
-      const { result } = renderHook(() => useProjects());
-      await waitFor(() => expect(result.current.projects).toEqual([]));
+    const { result } = renderHook(() => useProjects());
+    await waitFor(() => expect(result.current.projects).toEqual([]));
 
-      await act(async () => {
-          await result.current.addProject();
-      });
+    await act(async () => {
+      await result.current.addProject();
+    });
 
-      await waitFor(() => expect(result.current.projects).toHaveLength(1));
+    await waitFor(() => expect(result.current.projects).toHaveLength(1));
 
-      act(() => {
-          result.current.removeProject(folderPath);
-      });
+    act(() => {
+      result.current.removeProject(folderPath);
+    });
 
-      await waitFor(() => expect(result.current.projects).toHaveLength(0));
+    await waitFor(() => expect(result.current.projects).toHaveLength(0));
   });
-  
+
   it('should detect project type automatically', async () => {
-     const folderPath = 'C:\\Projects\\Api';
-     mockSelectFolder.mockResolvedValue(folderPath);
-     mockGetProjectDetails.mockResolvedValue({
-       type: 'node',
-       scripts: { start: 'node index.js' },
-       envVars: {},
-       gitBranch: 'main',
-       gitDirty: false
-     });
-     
-     const { result } = renderHook(() => useProjects());
-     await waitFor(() => expect(result.current.projects).toEqual([]));
-     
-     await act(async () => {
-       await result.current.addProject();
-     });
-     
-     // Wait for the async detection to update the state
-     await waitFor(() => {
-         expect(result.current.projects[0].type).toBe('node');
-     });
+    const folderPath = 'C:\\Projects\\Api';
+    mockSelectFolder.mockResolvedValue(folderPath);
+    mockGetProjectDetails.mockResolvedValue({
+      type: 'node',
+      scripts: { start: 'node index.js' },
+      envVars: {},
+      gitBranch: 'main',
+      gitDirty: false,
+    });
+
+    const { result } = renderHook(() => useProjects());
+    await waitFor(() => expect(result.current.projects).toEqual([]));
+
+    await act(async () => {
+      await result.current.addProject();
+    });
+
+    // Wait for the async detection to update the state
+    await waitFor(() => {
+      expect(result.current.projects[0].type).toBe('node');
+    });
   });
 });

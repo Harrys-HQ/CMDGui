@@ -46,7 +46,7 @@ export const useSettings = () => {
       const savedQuakeMode = await loadState('isQuakeModeEnabled', false);
       const savedStayAwake = await loadState('isStayAwakeEnabled', false);
       const savedShell = await loadState('defaultShell', '');
-      
+
       setTerminalTheme(savedTheme);
       setCustomTheme({ ...DEFAULT_CUSTOM_THEME, ...savedCustomTheme });
       setTerminalFontSize(savedFontSize);
@@ -107,7 +107,7 @@ export const useSettings = () => {
     if (window.electron) {
       window.electron.checkAdmin().then(setIsAdmin);
     }
-    
+
     // Sync quake mode initial state with main process
     const syncQuake = async () => {
       const savedQuakeMode = await loadState('isQuakeModeEnabled', false);

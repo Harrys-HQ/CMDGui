@@ -4,6 +4,4 @@ import App from './App';
 import 'xterm/css/xterm.css';
 import './index.css';
 
-ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
-  <App />
-);
+ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(<App />);

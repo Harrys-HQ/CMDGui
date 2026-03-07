@@ -9,7 +9,7 @@ export const useProjects = () => {
   useEffect(() => {
     const init = async () => {
       const savedProjects = await loadState<Project[]>('projects', []);
-      const validated = (savedProjects || []).filter(p => p && typeof p === 'object');
+      const validated = (savedProjects || []).filter((p) => p && typeof p === 'object');
       setProjects(validated);
       setIsLoaded(true);
     };
@@ -25,9 +25,9 @@ export const useProjects = () => {
   // Detect Project Types
   useEffect(() => {
     if (!isLoaded || !window.electron) return;
-    
+
     // Check if any project needs type detection to avoid redundant processing
-    const needsDetection = projects.some(p => !p.type);
+    const needsDetection = projects.some((p) => !p.type);
     if (!needsDetection) return;
 
     const detectTypes = async () => {

@@ -1,3 +1,17 @@
+## 🚀 Release: CmdGUI v1.6.1
+
+### ✨ UI & Process Polish
+- **React Modals:** Replaced native browser `window.prompt` and `window.confirm` dialogues with modern, dark-theme compatible React modals for a smoother, integrated UI.
+- **Sidebar State Persistence:** The application now remembers the expanded/collapsed state of the "Projects" and "Tasks" sections across reloads.
+- **Performance Optimizations:** Heavy UI components in the sidebar are now memoized, significantly reducing unnecessary re-renders when typing or navigating.
+
+### 🛠️ Fixes
+- **Process Memory Leaks:** Fixed an issue where closing a terminal tab (like a running dev server) failed to kill the underlying system process. Tab and Pane closures now explicitly terminate their associated shell processes.
+- **Clear Terminal Command:** Fixed the global "Clear Terminal" shortcut to reliably clear all active panes within the focused tab.
+- **Linting:** Fixed `no-control-regex` and `exhaustive-deps` ESLint warnings.
+
+---
+
 ## 🚀 Release: CmdGUI v1.6.0
 
 ### ✨ Stay Awake Mode
@@ -90,7 +104,7 @@
   - **Quick Switcher:** `Ctrl + Shift + P`
   - **New Tab:** `Ctrl + Shift + N`
   - **Close Tab:** `Ctrl + Shift + W`
-  - *Standard shell shortcuts like `Ctrl+P` (Previous), `Ctrl+N` (Next), and `Ctrl+W` (Delete Word) now pass through to the terminal.*
+  - _Standard shell shortcuts like `Ctrl+P` (Previous), `Ctrl+N` (Next), and `Ctrl+W` (Delete Word) now pass through to the terminal._
 - **Adjustable Font Size:** Added a slider in **Settings > Appearance** to customize the terminal font size (default: 14px).
 
 ### 🛠️ Stability & Refactoring

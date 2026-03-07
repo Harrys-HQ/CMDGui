@@ -17,7 +17,7 @@ describe('useSidebarResizer Hook', () => {
   it('should start resizing', async () => {
     const { result } = renderHook(() => useSidebarResizer());
     await waitFor(() => expect(result.current.sidebarWidth).toBe(250));
-    
+
     act(() => {
       result.current.startResizing();
     });
@@ -28,7 +28,7 @@ describe('useSidebarResizer Hook', () => {
   it('should resize when mouse moves while resizing', async () => {
     const { result } = renderHook(() => useSidebarResizer());
     await waitFor(() => expect(result.current.sidebarWidth).toBe(250));
-    
+
     act(() => {
       result.current.startResizing();
     });
@@ -45,7 +45,7 @@ describe('useSidebarResizer Hook', () => {
   it('should NOT resize when mouse moves if NOT resizing', async () => {
     const { result } = renderHook(() => useSidebarResizer());
     await waitFor(() => expect(result.current.sidebarWidth).toBe(250));
-    
+
     // No startResizing call
 
     act(() => {
@@ -57,9 +57,9 @@ describe('useSidebarResizer Hook', () => {
   });
 
   it('should stop resizing on mouseup', async () => {
-     const { result } = renderHook(() => useSidebarResizer());
-     await waitFor(() => expect(result.current.sidebarWidth).toBe(250));
-    
+    const { result } = renderHook(() => useSidebarResizer());
+    await waitFor(() => expect(result.current.sidebarWidth).toBe(250));
+
     act(() => {
       result.current.startResizing();
     });
@@ -69,7 +69,7 @@ describe('useSidebarResizer Hook', () => {
       const event = new MouseEvent('mouseup');
       window.dispatchEvent(event);
     });
-    
+
     expect(result.current.isResizing).toBe(false);
   });
 });

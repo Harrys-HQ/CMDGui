@@ -31,7 +31,7 @@ function getWindowState() {
 
 function saveWindowState(window) {
   if (!window || window.isDestroyed()) return;
-  
+
   const bounds = window.getBounds();
   const settings = loadSettings();
   settings.windowState = {
@@ -39,7 +39,7 @@ function saveWindowState(window) {
     y: bounds.y,
     width: bounds.width,
     height: bounds.height,
-    isMaximized: window.isMaximized()
+    isMaximized: window.isMaximized(),
   };
   saveSettings(settings);
 }
@@ -48,5 +48,5 @@ module.exports = {
   loadSettings,
   saveSettings,
   getWindowState,
-  saveWindowState
+  saveWindowState,
 };

@@ -50,22 +50,26 @@ const QuickSwitcher: React.FC<QuickSwitcherProps> = ({
           action: c.action,
         }))
     : [
-        ...(tabs || []).filter(t => t && t.id && t.title).map((t) => ({
-          id: t.id,
-          name: t.title,
-          type: 'tab' as const,
-          sub: 'Active Task',
-          icon: '💻',
-          action: () => onSelectTab(t.id),
-        })),
-        ...(projects || []).filter(p => p && p.path && p.name).map((p) => ({
-          id: p.path,
-          name: p.name,
-          type: 'project' as const,
-          sub: p.path,
-          icon: '📂',
-          action: () => onSelectProject(p.path),
-        })),
+        ...(tabs || [])
+          .filter((t) => t && t.id && t.title)
+          .map((t) => ({
+            id: t.id,
+            name: t.title,
+            type: 'tab' as const,
+            sub: 'Active Task',
+            icon: '💻',
+            action: () => onSelectTab(t.id),
+          })),
+        ...(projects || [])
+          .filter((p) => p && p.path && p.name)
+          .map((p) => ({
+            id: p.path,
+            name: p.name,
+            type: 'project' as const,
+            sub: p.path,
+            icon: '📂',
+            action: () => onSelectProject(p.path),
+          })),
       ].filter((item) => item.name.toLowerCase().includes(searchText.toLowerCase()));
 
   useEffect(() => {
@@ -152,7 +156,9 @@ const QuickSwitcher: React.FC<QuickSwitcherProps> = ({
               }}
             >
               <div style={{ display: 'flex', flexDirection: 'column' }}>
-                <div style={{ fontSize: '14px', color: index === selectedIndex ? 'white' : '#ccc' }}>
+                <div
+                  style={{ fontSize: '14px', color: index === selectedIndex ? 'white' : '#ccc' }}
+                >
                   <span style={{ marginRight: '8px' }}>{item.icon}</span>
                   {item.name}
                 </div>

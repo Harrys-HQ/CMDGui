@@ -112,7 +112,13 @@ export interface UpdateStatus {
 export type ContextMenuData = { id: string } | { path: string };
 
 export interface ElectronAPI {
-  createTerminal: (options?: { cols?: number; rows?: number; cwd?: string; shell?: string; envVars?: Record<string, string> }) => Promise<number>;
+  createTerminal: (options?: {
+    cols?: number;
+    rows?: number;
+    cwd?: string;
+    shell?: string;
+    envVars?: Record<string, string>;
+  }) => Promise<number>;
   onTerminalData: (pid: number, callback: (data: string) => void) => () => void;
   onTerminalExit: (pid: number, callback: () => void) => () => void;
   writeTerminal: (pid: number, data: string) => void;

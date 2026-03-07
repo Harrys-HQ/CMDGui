@@ -1,12 +1,18 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Tab, Pane, PaneLayout, Workspace } from '../types';
 import { loadState, saveState } from './usePersistence';
+import { killTerminalProcess } from '../utils/terminalUtils';
 
-const createTerminalPane = (cwd?: string, isAdmin?: boolean, initialCommand?: string, envVars?: Record<string, string>): { pane: Pane, layout: PaneLayout } => {
+const createTerminalPane = (
+  cwd?: string,
+  isAdmin?: boolean,
+  initialCommand?: string,
+  envVars?: Record<string, string>
+): { pane: Pane; layout: PaneLayout } => {
   const paneId = Date.now().toString() + Math.random().toString(36).substr(2, 9);
   return {
     pane: { id: paneId, cwd, isAdmin, initialCommand, envVars },
-    layout: { type: 'terminal', paneId }
+    layout: { type: 'terminal', paneId },
   };
 };
 
@@ -25,27 +31,35 @@ export const useTabs = () => {
         id: '1',
         title: 'Terminal',
         layout,
-        panes: { [pane.id]: pane }
+        panes: { [pane.id]: pane },
       };
-      
+
       const savedTabs = await loadState<Tab[]>('tabs', [initialTab]);
-      const savedActiveId = await loadState<string>('activeTabId', savedTabs.length > 0 ? savedTabs[0].id : initialTab.id);
+      const savedActiveId = await loadState<string>(
+        'activeTabId',
+        savedTabs.length > 0 ? savedTabs[0].id : initialTab.id
+      );
       const savedWorkspaces = await loadState<Workspace[]>('workspaces', []);
       const savedActiveWorkspaceId = await loadState<string | null>('activeWorkspaceId', null);
 
       // Validate and filter saved tabs
       const validatedTabs = (savedTabs || [])
-        .filter(tab => tab && typeof tab === 'object')
-        .map(tab => {
+        .filter((tab) => tab && typeof tab === 'object')
+        .map((tab) => {
           if (!tab.layout || !tab.panes) {
-            return { ...tab, layout: tab.layout || initialTab.layout, panes: tab.panes || initialTab.panes };
+            return {
+              ...tab,
+              layout: tab.layout || initialTab.layout,
+              panes: tab.panes || initialTab.panes,
+            };
           }
           return tab;
         });
 
       // Validate and filter workspaces
-      const validatedWorkspaces = (savedWorkspaces || [])
-        .filter(w => w && typeof w === 'object' && Array.isArray(w.tabs));
+      const validatedWorkspaces = (savedWorkspaces || []).filter(
+        (w) => w && typeof w === 'object' && Array.isArray(w.tabs)
+      );
 
       if (validatedTabs.length === 0) {
         setTabs([initialTab]);
@@ -76,61 +90,94 @@ export const useTabs = () => {
     }
   }, [activeTabId, isLoaded]);
 
-  const saveWorkspace = useCallback((name: string) => {
-    const id = Date.now().toString();
-    const newWorkspace: Workspace = {
-      id,
-      name,
-      tabs: JSON.parse(JSON.stringify(tabs)), // Deep copy
-      activeTabId,
-    };
-    setWorkspaces((prev) => [...prev, newWorkspace]);
-    setActiveWorkspaceId(id);
-  }, [tabs, activeTabId]);
-
-  const loadWorkspace = useCallback((id: string) => {
-    const workspace = workspaces.find((w) => w.id === id);
-    if (workspace) {
-      setTabs(JSON.parse(JSON.stringify(workspace.tabs)));
-      setActiveTabId(workspace.activeTabId);
+  const saveWorkspace = useCallback(
+    (name: string) => {
+      const id = Date.now().toString();
+      const newWorkspace: Workspace = {
+        id,
+        name,
+        tabs: JSON.parse(JSON.stringify(tabs)), // Deep copy
+        activeTabId,
+      };
+      setWorkspaces((prev) => [...prev, newWorkspace]);
       setActiveWorkspaceId(id);
-    }
-  }, [workspaces]);
+    },
+    [tabs, activeTabId]
+  );
 
-  const deleteWorkspace = useCallback((id: string) => {
-    setWorkspaces((prev) => prev.filter((w) => w.id !== id));
-    if (activeWorkspaceId === id) {
-      setActiveWorkspaceId(null);
-    }
-  }, [activeWorkspaceId]);
+  const loadWorkspace = useCallback(
+    (id: string) => {
+      const workspace = workspaces.find((w) => w.id === id);
+      if (workspace) {
+        setTabs((prev) => {
+          // Kill all current terminal processes before loading the new workspace
+          prev.forEach((tab) => {
+            Object.keys(tab.panes).forEach((paneId) => killTerminalProcess(paneId));
+          });
+          return JSON.parse(JSON.stringify(workspace.tabs));
+        });
+        setActiveTabId(workspace.activeTabId);
+        setActiveWorkspaceId(id);
+      }
+    },
+    [workspaces]
+  );
 
-  const addTab = useCallback((cwd?: string, isAdmin?: boolean, initialCommand?: string, envVars?: Record<string, string>) => {
-    const id = Date.now().toString();
-    const { pane, layout } = createTerminalPane(cwd, isAdmin, initialCommand, envVars);
-    const title = cwd ? cwd.split('\\').pop() || 'Terminal' : 'Terminal';
-    
-    setTabs((prev) => [...prev, { 
-      id, 
-      title, 
-      layout,
-      panes: { [pane.id]: pane }
-    }]);
-    setActiveTabId(id);
-  }, []);
+  const deleteWorkspace = useCallback(
+    (id: string) => {
+      setWorkspaces((prev) => prev.filter((w) => w.id !== id));
+      if (activeWorkspaceId === id) {
+        setActiveWorkspaceId(null);
+      }
+    },
+    [activeWorkspaceId]
+  );
+
+  const addTab = useCallback(
+    (
+      cwd?: string,
+      isAdmin?: boolean,
+      initialCommand?: string,
+      envVars?: Record<string, string>
+    ) => {
+      const id = Date.now().toString();
+      const { pane, layout } = createTerminalPane(cwd, isAdmin, initialCommand, envVars);
+      const title = cwd ? cwd.split('\\').pop() || 'Terminal' : 'Terminal';
+
+      setTabs((prev) => [
+        ...prev,
+        {
+          id,
+          title,
+          layout,
+          panes: { [pane.id]: pane },
+        },
+      ]);
+      setActiveTabId(id);
+    },
+    []
+  );
 
   const closeTab = useCallback((id: string) => {
     setTabs((prev) => {
+      const tabToClose = prev.find((t) => t.id === id);
+      if (tabToClose) {
+        Object.keys(tabToClose.panes).forEach((paneId) => killTerminalProcess(paneId));
+      }
+
       const newTabs = prev.filter((t) => t.id !== id);
       if (newTabs.length === 0) {
         const { pane, layout } = createTerminalPane();
         const newId = Date.now().toString();
         setActiveTabId(newId);
-        return [{ 
-          id: newId, 
-          title: 'Terminal', 
-          layout,
-          panes: { [pane.id]: pane }
-        }];
+        return [
+          {
+            id: newId,
+            title: 'Terminal',
+            layout,
+            panes: { [pane.id]: pane },
+          },
+        ];
       }
 
       setActiveTabId((prevActiveId) => {
@@ -143,72 +190,83 @@ export const useTabs = () => {
     });
   }, []);
 
-  const splitPane = useCallback((tabId: string, targetPaneId: string, direction: 'horizontal' | 'vertical') => {
-    setTabs((prev) => prev.map((tab) => {
-      if (tab.id !== tabId) return tab;
+  const splitPane = useCallback(
+    (tabId: string, targetPaneId: string, direction: 'horizontal' | 'vertical') => {
+      setTabs((prev) =>
+        prev.map((tab) => {
+          if (tab.id !== tabId) return tab;
 
-      const targetPane = tab.panes[targetPaneId];
-      const { pane: newPane, layout: newPaneLayout } = createTerminalPane(targetPane?.cwd, targetPane?.isAdmin, undefined, targetPane?.envVars);
-      const newPanes = { ...tab.panes, [newPane.id]: newPane };
+          const targetPane = tab.panes[targetPaneId];
+          const { pane: newPane, layout: newPaneLayout } = createTerminalPane(
+            targetPane?.cwd,
+            targetPane?.isAdmin,
+            undefined,
+            targetPane?.envVars
+          );
+          const newPanes = { ...tab.panes, [newPane.id]: newPane };
 
-      const updateLayout = (layout: PaneLayout): PaneLayout => {
-        if (layout.type === 'terminal' && layout.paneId === targetPaneId) {
-          return {
-            type: 'split',
-            splitDirection: direction,
-            children: [
-              { ...layout },
-              newPaneLayout
-            ]
+          const updateLayout = (layout: PaneLayout): PaneLayout => {
+            if (layout.type === 'terminal' && layout.paneId === targetPaneId) {
+              return {
+                type: 'split',
+                splitDirection: direction,
+                children: [{ ...layout }, newPaneLayout],
+              };
+            }
+            if (layout.type === 'split' && layout.children) {
+              return {
+                ...layout,
+                children: [updateLayout(layout.children[0]), updateLayout(layout.children[1])],
+              };
+            }
+            return layout;
           };
-        }
-        if (layout.type === 'split' && layout.children) {
-          return {
-            ...layout,
-            children: [updateLayout(layout.children[0]), updateLayout(layout.children[1])]
-          };
-        }
-        return layout;
-      };
 
-      return {
-        ...tab,
-        panes: newPanes,
-        layout: updateLayout(tab.layout)
-      };
-    }));
-  }, []);
+          return {
+            ...tab,
+            panes: newPanes,
+            layout: updateLayout(tab.layout),
+          };
+        })
+      );
+    },
+    []
+  );
 
   const closePane = useCallback((tabId: string, paneId: string) => {
-    setTabs((prev) => prev.map((tab) => {
-      if (tab.id !== tabId) return tab;
-      if (Object.keys(tab.panes).length <= 1) return tab; // Don't close last pane
+    setTabs((prev) =>
+      prev.map((tab) => {
+        if (tab.id !== tabId) return tab;
+        if (Object.keys(tab.panes).length <= 1) return tab; // Don't close last pane
 
-      const newPanes = { ...tab.panes };
-      delete newPanes[paneId];
+        killTerminalProcess(paneId);
 
-      const updateLayout = (layout: PaneLayout): PaneLayout => {
-        if (layout.type === 'split' && layout.children) {
-          if (layout.children[0].type === 'terminal' && layout.children[0].paneId === paneId) {
-            return layout.children[1];
+        const newPanes = { ...tab.panes };
+        delete newPanes[paneId];
+
+        const updateLayout = (layout: PaneLayout): PaneLayout => {
+          if (layout.type === 'split' && layout.children) {
+            if (layout.children[0].type === 'terminal' && layout.children[0].paneId === paneId) {
+              return layout.children[1];
+            }
+            if (layout.children[1].type === 'terminal' && layout.children[1].paneId === paneId) {
+              return layout.children[0];
+            }
+            return {
+              ...layout,
+              children: [updateLayout(layout.children[0]), updateLayout(layout.children[1])],
+            };
           }
-          if (layout.children[1].type === 'terminal' && layout.children[1].paneId === paneId) {
-            return layout.children[0];
-          }
-          return {
-            ...layout,
-            children: [updateLayout(layout.children[0]), updateLayout(layout.children[1])]
-          };
-        }
-        return layout;
-      };
+          return layout;
+        };
 
-      return {
-        ...tab,
-        panes: newPanes,
-        layout: updateLayout(tab.layout)
-      };
-    }));
+        return {
+          ...tab,
+          panes: newPanes,
+          layout: updateLayout(tab.layout),
+        };
+      })
+    );
   }, []);
 
   const renameTab = useCallback((id: string, newTitle: string) => {

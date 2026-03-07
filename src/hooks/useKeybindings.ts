@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { loadState, saveState } from './usePersistence';
 
-export type KeybindingAction = 
+export type KeybindingAction =
   | 'commandPalette'
   | 'newTab'
   | 'closeTab'
@@ -43,22 +43,25 @@ export const formatKeybinding = (binding: Keybinding): string => {
   if (binding.altKey) parts.push('Alt');
   if (binding.shiftKey) parts.push('Shift');
   if (binding.metaKey) parts.push('Meta');
-  
+
   let key = (binding.key || '').toUpperCase();
   if (key === ' ') key = 'Space';
   if (!key) return '';
-  
+
   parts.push(key);
   return parts.join('+');
 };
 
-export const isKeyMatch = (event: KeyboardEvent | React.KeyboardEvent, binding: Keybinding): boolean => {
+export const isKeyMatch = (
+  event: KeyboardEvent | React.KeyboardEvent,
+  binding: Keybinding
+): boolean => {
   if (!binding) return false;
   if (event.ctrlKey !== !!binding.ctrlKey) return false;
   if (event.shiftKey !== !!binding.shiftKey) return false;
   if (event.altKey !== !!binding.altKey) return false;
   if (event.metaKey !== !!binding.metaKey) return false;
-  
+
   if (!binding.key) return false;
   return event.key.toLowerCase() === binding.key.toLowerCase();
 };

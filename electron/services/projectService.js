@@ -199,5 +199,5 @@ async function getProjectDetails(projectPath) {
 
 module.exports = {
   getProjectInfo,
-  getProjectDetails
+  getProjectDetails,
 };

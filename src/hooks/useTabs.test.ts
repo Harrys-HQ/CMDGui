@@ -32,7 +32,7 @@ describe('useTabs Hook', () => {
   it('should add a new tab', async () => {
     const { result } = renderHook(() => useTabs());
     await waitFor(() => expect(result.current.tabs).toHaveLength(1));
-    
+
     act(() => {
       result.current.addTab();
     });
@@ -60,7 +60,7 @@ describe('useTabs Hook', () => {
   it('should close a tab', async () => {
     const { result } = renderHook(() => useTabs());
     await waitFor(() => expect(result.current.tabs).toHaveLength(1));
-    
+
     // Add a second tab so we can close one
     act(() => {
       result.current.addTab();

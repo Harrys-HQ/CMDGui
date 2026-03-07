@@ -1,15 +1,18 @@
 # Track Specification: v1.5.0 Configurable Keybindings
 
 ## Overview
+
 Enable users to customize keyboard shortcuts for application actions. Currently, shortcuts are hardcoded in `App.tsx` and `Terminal.tsx`. This feature will centralize keybinding management and provide a UI for customization.
 
 ## User Experience
+
 - **Settings UI:** A new "Keybindings" tab in the Settings modal.
 - **Customization:** Users can click a command to record a new key combination.
 - **Persistence:** Custom keybindings are saved and persist across sessions.
 - **Conflict Detection:** (Optional for v1) Warn if a keybinding is already in use.
 
 ## Technical Requirements
+
 - **Centralized Registry:** Create a `KeybindingService` or `useKeybindings` hook to manage the map of `Action ID -> Key Combination`.
 - **Storage:** Persist keybindings in `settings.json` via `usePersistence` or `settingsService`.
 - **Advanced Tools:**

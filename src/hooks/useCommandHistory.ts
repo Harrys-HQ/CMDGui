@@ -9,7 +9,7 @@ export interface HistoryItem {
 }
 
 export const useCommandHistory = () => {
-  const [history, setHistory] = useState<HistoryItem[]>(() => 
+  const [history, setHistory] = useState<HistoryItem[]>(() =>
     loadLocalState<HistoryItem[]>('commandHistory', [])
   );
 
@@ -23,7 +23,7 @@ export const useCommandHistory = () => {
 
     setHistory((prev) => {
       // Remove duplicate if exists to bring it to top
-      const filtered = prev.filter(h => h.command !== trimmed);
+      const filtered = prev.filter((h) => h.command !== trimmed);
       const newItem: HistoryItem = {
         id: Date.now().toString(),
         command: trimmed,
@@ -34,13 +34,13 @@ export const useCommandHistory = () => {
   }, []);
 
   const toggleBookmark = useCallback((id: string) => {
-    setHistory((prev) => prev.map(h => 
-      h.id === id ? { ...h, isBookmarked: !h.isBookmarked } : h
-    ));
+    setHistory((prev) =>
+      prev.map((h) => (h.id === id ? { ...h, isBookmarked: !h.isBookmarked } : h))
+    );
   }, []);
 
   const clearHistory = useCallback(() => {
-    setHistory(prev => prev.filter(h => h.isBookmarked));
+    setHistory((prev) => prev.filter((h) => h.isBookmarked));
   }, []);
 
   return {

@@ -4,7 +4,7 @@ This file registers active development tracks.
 
 ## Active Tracks
 
-*(No active tracks currently)*
+_(No active tracks currently)_
 
 ## Archived Tracks
 

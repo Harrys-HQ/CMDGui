@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Project, Tab } from '../types';
 import ProjectItem from './ProjectItem';
 import TaskItem from './TaskItem';
 import FileExplorer from './FileExplorer';
+import { loadState, saveState } from '../hooks/usePersistence';
 
 interface SidebarProps {
   width: number;
@@ -84,8 +85,25 @@ const Sidebar: React.FC<SidebarProps> = ({
   });
   const [openExplorerPath, setOpenExplorerPath] = useState<string | null>(null);
 
+  useEffect(() => {
+    const loadExpandedState = async () => {
+      const savedState = await loadState<{ projects: boolean; tasks: boolean }>(
+        'sidebarExpandedSections',
+        { projects: true, tasks: true }
+      );
+      if (savedState) {
+        setExpandedSections(savedState);
+      }
+    };
+    loadExpandedState();
+  }, []);
+
   const toggleSection = (section: 'projects' | 'tasks') => {
-    setExpandedSections((prev) => ({ ...prev, [section]: !prev[section] }));
+    setExpandedSections((prev) => {
+      const newState = { ...prev, [section]: !prev[section] };
+      saveState('sidebarExpandedSections', newState);
+      return newState;
+    });
   };
 
   const handleDragStart = (index: number) => {
@@ -184,7 +202,11 @@ const Sidebar: React.FC<SidebarProps> = ({
         <div className="project-list">
           {projects.map((p, index) => {
             // Only show filtered projects if searching, otherwise show all for reordering
-            if (searchQuery && !p.name.toLowerCase().includes(searchQuery.toLowerCase()) && !p.path.toLowerCase().includes(searchQuery.toLowerCase())) {
+            if (
+              searchQuery &&
+              !p.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
+              !p.path.toLowerCase().includes(searchQuery.toLowerCase())
+            ) {
               return null;
             }
 
@@ -200,7 +222,9 @@ const Sidebar: React.FC<SidebarProps> = ({
                   searchQuery={searchQuery}
                   onSelect={() => onAddTabWithCwd(p.path)}
                   onRunScript={(scriptName) => onRunProjectScript(p.path, scriptName)}
-                  onToggleExplorer={() => setOpenExplorerPath(openExplorerPath === p.path ? null : p.path)}
+                  onToggleExplorer={() =>
+                    setOpenExplorerPath(openExplorerPath === p.path ? null : p.path)
+                  }
                   isExplorerOpen={openExplorerPath === p.path}
                   onRemove={(e) => {
                     e.stopPropagation();
@@ -211,8 +235,8 @@ const Sidebar: React.FC<SidebarProps> = ({
                   onDragEnd={handleProjectDragEnd}
                 />
                 {openExplorerPath === p.path && (
-                  <FileExplorer 
-                    rootPath={p.path} 
+                  <FileExplorer
+                    rootPath={p.path}
                     onSelectFolder={(path) => onAddTabWithCwd(path)}
                   />
                 )}

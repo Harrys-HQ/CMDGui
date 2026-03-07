@@ -1,4 +1,15 @@
-const { app, BrowserWindow, ipcMain, dialog, shell, session, Menu, globalShortcut, screen, powerSaveBlocker } = require('electron');
+const {
+  app,
+  BrowserWindow,
+  ipcMain,
+  dialog,
+  shell,
+  session,
+  Menu,
+  globalShortcut,
+  screen,
+  powerSaveBlocker,
+} = require('electron');
 const { autoUpdater } = require('electron-updater');
 const path = require('path');
 const os = require('os');
@@ -55,7 +66,7 @@ function createWindow() {
   } else {
     const indexPath = path.join(__dirname, '../dist/index.html');
     console.log('Running in prod mode, loading:', indexPath);
-    
+
     if (!fs.existsSync(indexPath)) {
       console.error('CRITICAL: index.html not found at:', indexPath);
     }
@@ -79,7 +90,8 @@ function createWindow() {
 
   // Optional: Open DevTools if an "error" level message is logged to console
   mainWindow.webContents.on('console-message', (event, level, message, line, sourceId) => {
-    if (level >= 3) { // 3 is Error level
+    if (level >= 3) {
+      // 3 is Error level
       console.log('Renderer Error detected, opening DevTools');
       mainWindow.webContents.openDevTools();
     }
@@ -218,8 +230,9 @@ ipcMain.on('app-set-quake-mode', (event, enabled) => {
 ipcMain.on('app-set-stay-awake', (event, enabled) => {
   if (enabled) {
     if (stayAwakeId === null) {
-      // 'prevent-app-suspension' prevents the system from entering low-power (sleep) modes.
-      stayAwakeId = powerSaveBlocker.start('prevent-app-suspension');
+      // 'prevent-display-sleep' prevents the system from entering low-power (sleep) modes
+      // AND prevents the display from turning off (critical for bypassing auto-lock).
+      stayAwakeId = powerSaveBlocker.start('prevent-display-sleep');
       console.log('Stay Awake enabled, blocker ID:', stayAwakeId);
     }
   } else {

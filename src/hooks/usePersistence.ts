@@ -60,7 +60,7 @@ export const saveState = async <T>(key: string, value: T): Promise<void> => {
     saveTimer = setTimeout(async () => {
       saveTimer = null;
       const keysToSave = Object.keys(saveQueue);
-      
+
       for (const k of keysToSave) {
         const val = saveQueue[k];
         try {
@@ -70,11 +70,11 @@ export const saveState = async <T>(key: string, value: T): Promise<void> => {
           console.error('Failed to save Electron state for ' + k, e);
         }
       }
-      
+
       // Resolve all pending promises
       const resolves = [...pendingResolves];
       pendingResolves.length = 0;
-      resolves.forEach(res => res());
+      resolves.forEach((res) => res());
     }, 500);
   });
 };

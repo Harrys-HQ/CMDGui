@@ -125,8 +125,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   onUpdateKeybinding,
   onResetKeybindings,
 }) => {
-  const [activeTab, setActiveTab] = useState<'project' | 'appearance' | 'keybindings' | 'cli' | 'workspaces' | 'history' | 'about'>('project');
-  const [appVersion, setAppVersion] = useState<string>('1.6.0');
+  const [activeTab, setActiveTab] = useState<
+    'project' | 'appearance' | 'keybindings' | 'cli' | 'workspaces' | 'history' | 'about'
+  >('project');
+  const [appVersion, setAppVersion] = useState<string>('1.6.1');
   const [recordingAction, setRecordingAction] = useState<KeybindingAction | null>(null);
 
   // Update State
@@ -404,7 +406,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
             <>
               <section className="modal-section">
                 <h3 className="modal-section-title">Terminal Appearance</h3>
-                
+
                 <h4 style={{ fontSize: '14px', marginBottom: '10px', color: '#888' }}>Theme</h4>
                 <div className="theme-grid">
                   {[
@@ -425,18 +427,50 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                 </div>
 
                 {terminalTheme === 'custom' && customTheme && onCustomThemeChange && (
-                  <div style={{ marginTop: '20px', padding: '15px', background: '#2d2d2d', borderRadius: '4px' }}>
-                    <h4 style={{ fontSize: '12px', marginBottom: '15px', color: '#aaa', textTransform: 'uppercase' }}>
+                  <div
+                    style={{
+                      marginTop: '20px',
+                      padding: '15px',
+                      background: '#2d2d2d',
+                      borderRadius: '4px',
+                    }}
+                  >
+                    <h4
+                      style={{
+                        fontSize: '12px',
+                        marginBottom: '15px',
+                        color: '#aaa',
+                        textTransform: 'uppercase',
+                      }}
+                    >
                       Custom Theme Editor
                     </h4>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '10px' }}>
+                    <div
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
+                        gap: '10px',
+                      }}
+                    >
                       {Object.entries(customTheme).map(([key, value]) => (
-                        <div key={key} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <input 
-                            type="color" 
-                            value={value} 
-                            onChange={(e) => onCustomThemeChange({ ...customTheme, [key]: e.target.value })}
-                            style={{ width: '24px', height: '24px', padding: '0', border: 'none', background: 'transparent', cursor: 'pointer' }}
+                        <div
+                          key={key}
+                          style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+                        >
+                          <input
+                            type="color"
+                            value={value}
+                            onChange={(e) =>
+                              onCustomThemeChange({ ...customTheme, [key]: e.target.value })
+                            }
+                            style={{
+                              width: '24px',
+                              height: '24px',
+                              padding: '0',
+                              border: 'none',
+                              background: 'transparent',
+                              cursor: 'pointer',
+                            }}
                           />
                           <span style={{ fontSize: '11px', color: '#ccc' }}>{key}</span>
                         </div>
@@ -495,7 +529,15 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                       onChange={(e) => onQuakeModeChange(e.target.checked)}
                       style={{ cursor: 'pointer' }}
                     />
-                    <label htmlFor="quake-mode-toggle" style={{ cursor: 'pointer', fontSize: '14px', color: '#ccc', marginLeft: '10px' }}>
+                    <label
+                      htmlFor="quake-mode-toggle"
+                      style={{
+                        cursor: 'pointer',
+                        fontSize: '14px',
+                        color: '#ccc',
+                        marginLeft: '10px',
+                      }}
+                    >
                       Enable Quake Mode (Alt + Space)
                     </label>
                   </div>
@@ -510,7 +552,15 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                       onChange={(e) => onStayAwakeChange(e.target.checked)}
                       style={{ cursor: 'pointer' }}
                     />
-                    <label htmlFor="stay-awake-toggle" style={{ cursor: 'pointer', fontSize: '14px', color: '#ccc', marginLeft: '10px' }}>
+                    <label
+                      htmlFor="stay-awake-toggle"
+                      style={{
+                        cursor: 'pointer',
+                        fontSize: '14px',
+                        color: '#ccc',
+                        marginLeft: '10px',
+                      }}
+                    >
                       Stay Awake (Prevent system lock/sleep)
                     </label>
                   </div>
@@ -595,7 +645,15 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                         <div className="command-name-col">
                           <span className="command-pill">{w.name}</span>
                         </div>
-                        <div className="command-desc-col" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                        <div
+                          className="command-desc-col"
+                          style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            width: '100%',
+                          }}
+                        >
                           <div style={{ fontSize: '11px', color: '#888' }}>
                             {w.tabs.length} Tab(s)
                           </div>
@@ -610,7 +668,14 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                       </div>
                     ))
                   ) : (
-                    <div style={{ padding: '20px', textAlign: 'center', color: '#666', fontSize: '13px' }}>
+                    <div
+                      style={{
+                        padding: '20px',
+                        textAlign: 'center',
+                        color: '#666',
+                        fontSize: '13px',
+                      }}
+                    >
                       No saved workspaces found.
                     </div>
                   )}
@@ -622,9 +687,18 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
           {activeTab === 'history' && (
             <>
               <section className="modal-section">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
-                  <h3 className="modal-section-title" style={{ marginBottom: 0 }}>Command History</h3>
-                  <button 
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginBottom: '15px',
+                  }}
+                >
+                  <h3 className="modal-section-title" style={{ marginBottom: 0 }}>
+                    Command History
+                  </h3>
+                  <button
                     onClick={onClearHistory}
                     className="secondary-btn"
                     style={{ fontSize: '11px', padding: '4px 10px', color: '#ff5252' }}
@@ -632,12 +706,31 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                     Clear History
                   </button>
                 </div>
-                <div style={{ maxHeight: '400px', overflowY: 'auto', border: '1px solid #333', borderRadius: '4px' }}>
+                <div
+                  style={{
+                    maxHeight: '400px',
+                    overflowY: 'auto',
+                    border: '1px solid #333',
+                    borderRadius: '4px',
+                  }}
+                >
                   {history && history.length > 0 ? (
                     history.map((h) => (
-                      <div key={h.id} className="command-item" style={{ cursor: 'default', borderBottom: '1px solid #2d2d2d' }}>
+                      <div
+                        key={h.id}
+                        className="command-item"
+                        style={{ cursor: 'default', borderBottom: '1px solid #2d2d2d' }}
+                      >
                         <div className="command-name-col" style={{ flex: 1 }}>
-                          <div style={{ fontSize: '13px', color: '#d4d4d4', fontFamily: 'var(--font-family-mono)' }}>{h.command}</div>
+                          <div
+                            style={{
+                              fontSize: '13px',
+                              color: '#d4d4d4',
+                              fontFamily: 'var(--font-family-mono)',
+                            }}
+                          >
+                            {h.command}
+                          </div>
                           <div style={{ fontSize: '10px', color: '#666', marginTop: '4px' }}>
                             {new Date(h.timestamp).toLocaleString()}
                           </div>
@@ -653,7 +746,12 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                           <button
                             onClick={() => onToggleBookmark && onToggleBookmark(h.id)}
                             className="secondary-btn"
-                            style={{ padding: '4px 12px', fontSize: '11px', height: '28px', color: h.isBookmarked ? '#e5e510' : '#888' }}
+                            style={{
+                              padding: '4px 12px',
+                              fontSize: '11px',
+                              height: '28px',
+                              color: h.isBookmarked ? '#e5e510' : '#888',
+                            }}
                           >
                             {h.isBookmarked ? '★' : '☆'}
                           </button>

@@ -15,6 +15,9 @@ import { useCommandHistory } from './hooks/useCommandHistory';
 import { cleanTerminalTitle } from './utils/terminalUtils';
 import { Tab, PaneLayout } from './types';
 
+import PromptModal from './components/modals/PromptModal';
+import ConfirmModal from './components/modals/ConfirmModal';
+
 const App: React.FC = () => {
   const {
     tabs,
@@ -62,11 +65,38 @@ const App: React.FC = () => {
   const [isQuickSwitcherOpen, setIsQuickSwitcherOpen] = useState(false);
   const [isUpdateAvailable, setIsUpdateAvailable] = useState(false);
 
+  // Modal States
+  const [promptModal, setPromptModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    initialValue: string;
+    onConfirm: (val: string) => void;
+  }>({
+    isOpen: false,
+    title: '',
+    initialValue: '',
+    onConfirm: () => {},
+  });
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+  });
+
   const terminalRefs = useRef<{ [key: string]: { clear: () => void } | null }>({});
 
-  const handleTerminalNotification = useCallback((tabId: string, type: 'alert' | 'confirmation') => {
-    updateTabStatus(tabId, type === 'alert' ? { hasAlert: true } : { hasConfirmation: true });
-  }, [updateTabStatus]);
+  const handleTerminalNotification = useCallback(
+    (tabId: string, type: 'alert' | 'confirmation') => {
+      updateTabStatus(tabId, type === 'alert' ? { hasAlert: true } : { hasConfirmation: true });
+    },
+    [updateTabStatus]
+  );
 
   const handleTerminalClear = useCallback((paneId: string, clearFn: () => void) => {
     terminalRefs.current[paneId] = { clear: clearFn };
@@ -79,23 +109,61 @@ const App: React.FC = () => {
     else if (!result.success) alert('Error checking for updates: ' + result.error);
   };
 
-  const handleCloseTab = useCallback((id: string) => {
-    closeTab(id);
-    if (terminalRefs.current[id]) delete terminalRefs.current[id];
-  }, [closeTab]);
+  const handleCloseTab = useCallback(
+    (id: string) => {
+      const tabToClose = tabs.find((t) => t.id === id);
+      if (tabToClose) {
+        Object.keys(tabToClose.panes).forEach((paneId) => {
+          if (terminalRefs.current[paneId]) delete terminalRefs.current[paneId];
+        });
+      }
+      closeTab(id);
+    },
+    [tabs, closeTab]
+  );
 
-  const handleRenameTab = useCallback((id: string, currentTitle: string) => {
-    const newTitle = prompt('Rename Task:', currentTitle);
-    if (newTitle) renameTab(id, newTitle);
-  }, [renameTab]);
+  const handleClosePane = useCallback(
+    (tabId: string, paneId: string) => {
+      if (terminalRefs.current[paneId]) delete terminalRefs.current[paneId];
+      closePane(tabId, paneId);
+    },
+    [closePane]
+  );
 
-  const handleAddTerminal = useCallback(async (asAdmin: boolean) => {
-    if (asAdmin && !isAdmin) {
-      if (confirm('To run terminals as Administrator, the Workspace Manager must be restarted with elevated privileges.\n\nRestart now?')) relaunchAdmin();
-      return;
-    }
-    addTab(undefined, asAdmin);
-  }, [isAdmin, relaunchAdmin, addTab]);
+  const handleRenameTab = useCallback(
+    (id: string, currentTitle: string) => {
+      setPromptModal({
+        isOpen: true,
+        title: 'Rename Task',
+        initialValue: currentTitle,
+        onConfirm: (newTitle) => {
+          if (newTitle) renameTab(id, newTitle);
+          setPromptModal((prev) => ({ ...prev, isOpen: false }));
+        },
+      });
+    },
+    [renameTab]
+  );
+
+  const handleAddTerminal = useCallback(
+    async (asAdmin: boolean) => {
+      if (asAdmin && !isAdmin) {
+        setConfirmModal({
+          isOpen: true,
+          title: 'Restart as Administrator?',
+          message:
+            'To run terminals as Administrator, the Workspace Manager must be restarted with elevated privileges.\n\nRestart now?',
+          onConfirm: () => {
+            relaunchAdmin();
+            setConfirmModal((prev) => ({ ...prev, isOpen: false }));
+          },
+        });
+        return;
+      }
+      addTab(undefined, asAdmin);
+    },
+    [isAdmin, relaunchAdmin, addTab]
+  );
 
   const renderLayout = (tab: Tab, layout: PaneLayout): React.ReactNode => {
     if (layout.type === 'terminal') {
@@ -123,7 +191,7 @@ const App: React.FC = () => {
           onClear={(clearFn) => handleTerminalClear(pane.id, clearFn)}
           onSplitHorizontal={() => splitPane(tab.id, pane.id, 'horizontal')}
           onSplitVertical={() => splitPane(tab.id, pane.id, 'vertical')}
-          onClosePane={() => closePane(tab.id, pane.id)}
+          onClosePane={() => handleClosePane(tab.id, pane.id)}
           showPaneControls={true}
           keymap={keymap}
         />
@@ -133,9 +201,22 @@ const App: React.FC = () => {
       const isHorizontal = layout.splitDirection === 'horizontal';
       if (!layout.children) return null;
       return (
-        <div style={{ display: 'flex', flexDirection: isHorizontal ? 'column' : 'row', width: '100%', height: '100%', gap: '2px', background: '#333' }}>
-          <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>{renderLayout(tab, layout.children[0])}</div>
-          <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>{renderLayout(tab, layout.children[1])}</div>
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: isHorizontal ? 'column' : 'row',
+            width: '100%',
+            height: '100%',
+            gap: '2px',
+            background: '#333',
+          }}
+        >
+          <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
+            {renderLayout(tab, layout.children[0])}
+          </div>
+          <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
+            {renderLayout(tab, layout.children[1])}
+          </div>
         </div>
       );
     }
@@ -150,7 +231,14 @@ const App: React.FC = () => {
       if (tab) handleRenameTab(id, tab.title);
     },
     onClearTerminal: () => {
-      if (activeTabId && terminalRefs.current[activeTabId]) terminalRefs.current[activeTabId]?.clear();
+      if (activeTabId) {
+        const activeTab = tabs.find((t) => t.id === activeTabId);
+        if (activeTab) {
+          Object.keys(activeTab.panes).forEach((paneId) => {
+            if (terminalRefs.current[paneId]) terminalRefs.current[paneId]?.clear();
+          });
+        }
+      }
     },
     onOpenSettings: () => setIsSettingsOpen(true),
     onCheckUpdates: handleCheckUpdates,
@@ -218,9 +306,18 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (isKeyMatch(e, keymapRef.current.commandPalette)) { e.preventDefault(); setIsQuickSwitcherOpen(true); }
-      if (isKeyMatch(e, keymapRef.current.newTab)) { e.preventDefault(); addTabRef.current(); }
-      if (isKeyMatch(e, keymapRef.current.closeTab)) { e.preventDefault(); if (activeTabIdRef.current) closeTabRef.current(activeTabIdRef.current); }
+      if (isKeyMatch(e, keymapRef.current.commandPalette)) {
+        e.preventDefault();
+        setIsQuickSwitcherOpen(true);
+      }
+      if (isKeyMatch(e, keymapRef.current.newTab)) {
+        e.preventDefault();
+        addTabRef.current();
+      }
+      if (isKeyMatch(e, keymapRef.current.closeTab)) {
+        e.preventDefault();
+        if (activeTabIdRef.current) closeTabRef.current(activeTabIdRef.current);
+      }
       if (isKeyMatch(e, keymapRef.current.nextTab)) {
         e.preventDefault();
         const t = tabsRef.current;
@@ -239,27 +336,127 @@ const App: React.FC = () => {
   }, []);
 
   const activeTab = tabs.find((t) => t.id === activeTabId);
-  useEffect(() => { if (activeTabId) clearTabNotifications(activeTabId); }, [activeTabId, clearTabNotifications]);
+  useEffect(() => {
+    if (activeTabId) clearTabNotifications(activeTabId);
+  }, [activeTabId, clearTabNotifications]);
 
   return (
     <div className="app-root-layout">
       <TitleBar />
       <div className="workspace-layout">
-        <Sidebar width={sidebarWidth} projects={projects} tabs={tabs} activeTabId={activeTabId} onAddProject={addProject} onRemoveProject={removeProject} onAddTerminal={handleAddTerminal} onSelectTab={setActiveTabId} onCloseTab={(id, e) => { e.stopPropagation(); handleCloseTab(id); }} onRenameTab={handleRenameTab} onOpenSettings={() => setIsSettingsOpen(true)} onAddTabWithCwd={(cwd) => { const p = projects.find(p => p.path === cwd); addTab(cwd, false, p?.startupCommand, p?.envVars); }} onRunProjectScript={(cwd, name) => { const p = projects.find(p => p.path === cwd); addTab(cwd, false, `npm run ${name}`, p?.envVars); }} onReorderTabs={reorderTabs} onReorderProjects={reorderProjects} />
+        <Sidebar
+          width={sidebarWidth}
+          projects={projects}
+          tabs={tabs}
+          activeTabId={activeTabId}
+          onAddProject={addProject}
+          onRemoveProject={removeProject}
+          onAddTerminal={handleAddTerminal}
+          onSelectTab={setActiveTabId}
+          onCloseTab={(id, e) => {
+            e.stopPropagation();
+            handleCloseTab(id);
+          }}
+          onRenameTab={handleRenameTab}
+          onOpenSettings={() => setIsSettingsOpen(true)}
+          onAddTabWithCwd={(cwd) => {
+            const p = projects.find((p) => p.path === cwd);
+            addTab(cwd, false, p?.startupCommand, p?.envVars);
+          }}
+          onRunProjectScript={(cwd, name) => {
+            const p = projects.find((p) => p.path === cwd);
+            addTab(cwd, false, `npm run ${name}`, p?.envVars);
+          }}
+          onReorderTabs={reorderTabs}
+          onReorderProjects={reorderProjects}
+        />
         <div className="resizer" onMouseDown={startResizing} />
         <div className="main-content">
           <div className="terminal-container">
             {tabs.map((tab) => (
-              <div key={tab.id} style={{ display: activeTabId === tab.id ? 'block' : 'none', height: '100%', position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
+              <div
+                key={tab.id}
+                style={{
+                  display: activeTabId === tab.id ? 'block' : 'none',
+                  height: '100%',
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                }}
+              >
                 {renderLayout(tab, tab.layout)}
               </div>
             ))}
           </div>
         </div>
       </div>
-      <StatusBar status="Ready" activeTabTitle={activeTab?.title} tabCount={tabs.length} isUpdateAvailable={isUpdateAvailable} onShowUpdates={() => setIsSettingsOpen(true)} />
-      <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} terminalTheme={terminalTheme} onThemeChange={setTerminalTheme} customTheme={customTheme} onCustomThemeChange={setCustomTheme} terminalFontSize={terminalFontSize} onFontSizeChange={setTerminalFontSize} terminalScrollback={terminalScrollback} onScrollbackChange={setTerminalScrollback} isQuakeModeEnabled={isQuakeModeEnabled} onQuakeModeChange={setIsQuakeModeEnabled} isStayAwakeEnabled={isStayAwakeEnabled} onStayAwakeChange={setIsStayAwakeEnabled} workspaces={workspaces} onDeleteWorkspace={deleteWorkspace} history={history} onToggleBookmark={toggleBookmark} onClearHistory={clearHistory} onRunCommand={(cmd) => { addTab(undefined, false, cmd); setIsSettingsOpen(false); }} defaultShell={defaultShell} onShellChange={setDefaultShell} keymap={keymap} onUpdateKeybinding={updateKeybinding} onResetKeybindings={resetKeybindings} />
-      {isQuickSwitcherOpen && <QuickSwitcher isOpen={isQuickSwitcherOpen} onClose={() => setIsQuickSwitcherOpen(false)} tabs={tabs} projects={projects} commands={commands} onSelectTab={setActiveTabId} onSelectProject={(path) => { const p = projects.find(p => p.path === path); addTab(path, false, p?.startupCommand, p?.envVars); }} />}
+      <StatusBar
+        status="Ready"
+        activeTabTitle={activeTab?.title}
+        tabCount={tabs.length}
+        isUpdateAvailable={isUpdateAvailable}
+        onShowUpdates={() => setIsSettingsOpen(true)}
+      />
+      <SettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        terminalTheme={terminalTheme}
+        onThemeChange={setTerminalTheme}
+        customTheme={customTheme}
+        onCustomThemeChange={setCustomTheme}
+        terminalFontSize={terminalFontSize}
+        onFontSizeChange={setTerminalFontSize}
+        terminalScrollback={terminalScrollback}
+        onScrollbackChange={setTerminalScrollback}
+        isQuakeModeEnabled={isQuakeModeEnabled}
+        onQuakeModeChange={setIsQuakeModeEnabled}
+        isStayAwakeEnabled={isStayAwakeEnabled}
+        onStayAwakeChange={setIsStayAwakeEnabled}
+        workspaces={workspaces}
+        onDeleteWorkspace={deleteWorkspace}
+        history={history}
+        onToggleBookmark={toggleBookmark}
+        onClearHistory={clearHistory}
+        onRunCommand={(cmd) => {
+          addTab(undefined, false, cmd);
+          setIsSettingsOpen(false);
+        }}
+        defaultShell={defaultShell}
+        onShellChange={setDefaultShell}
+        keymap={keymap}
+        onUpdateKeybinding={updateKeybinding}
+        onResetKeybindings={resetKeybindings}
+      />
+      {isQuickSwitcherOpen && (
+        <QuickSwitcher
+          isOpen={isQuickSwitcherOpen}
+          onClose={() => setIsQuickSwitcherOpen(false)}
+          tabs={tabs}
+          projects={projects}
+          commands={commands}
+          onSelectTab={setActiveTabId}
+          onSelectProject={(path) => {
+            const p = projects.find((p) => p.path === path);
+            addTab(path, false, p?.startupCommand, p?.envVars);
+          }}
+        />
+      )}
+      <PromptModal
+        isOpen={promptModal.isOpen}
+        title={promptModal.title}
+        initialValue={promptModal.initialValue}
+        onConfirm={promptModal.onConfirm}
+        onCancel={() => setPromptModal((prev) => ({ ...prev, isOpen: false }))}
+      />
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        onConfirm={confirmModal.onConfirm}
+        onCancel={() => setConfirmModal((prev) => ({ ...prev, isOpen: false }))}
+      />
     </div>
   );
 };
