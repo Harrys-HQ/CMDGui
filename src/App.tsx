@@ -12,8 +12,9 @@ import { useSettings } from './hooks/useSettings';
 import { useCommands } from './hooks/useCommands';
 import { useKeybindings, isKeyMatch } from './hooks/useKeybindings';
 import { useCommandHistory } from './hooks/useCommandHistory';
-import { cleanTerminalTitle } from './utils/terminalUtils';
+import { cleanTerminalTitle, clearOrphanedBuffers } from './utils/terminalUtils';
 import { Tab, PaneLayout } from './types';
+import { Panel, Group, Separator } from 'react-resizable-panels';
 
 import PromptModal from './components/modals/PromptModal';
 import ConfirmModal from './components/modals/ConfirmModal';
@@ -38,7 +39,7 @@ const App: React.FC = () => {
   } = useTabs();
 
   const { history, addHistory, toggleBookmark, clearHistory } = useCommandHistory();
-  const { projects, addProject, removeProject, reorderProjects } = useProjects();
+  const { projects, addProject, removeProject, reorderProjects, refreshGitStatus } = useProjects();
   const { sidebarWidth, startResizing } = useSidebarResizer();
   const {
     terminalTheme,
@@ -201,23 +202,15 @@ const App: React.FC = () => {
       const isHorizontal = layout.splitDirection === 'horizontal';
       if (!layout.children) return null;
       return (
-        <div
-          style={{
-            display: 'flex',
-            flexDirection: isHorizontal ? 'column' : 'row',
-            width: '100%',
-            height: '100%',
-            gap: '2px',
-            background: '#333',
-          }}
-        >
-          <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
+        <Group orientation={isHorizontal ? 'vertical' : 'horizontal'} style={{ width: '100%', height: '100%' }}>
+          <Panel style={{ position: 'relative', overflow: 'hidden' }}>
             {renderLayout(tab, layout.children[0])}
-          </div>
-          <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
+          </Panel>
+          <Separator className={`pane-resizer-${layout.splitDirection}`} />
+          <Panel style={{ position: 'relative', overflow: 'hidden' }}>
             {renderLayout(tab, layout.children[1])}
-          </div>
-        </div>
+          </Panel>
+        </Group>
       );
     }
     return null;
@@ -340,6 +333,12 @@ const App: React.FC = () => {
     if (activeTabId) clearTabNotifications(activeTabId);
   }, [activeTabId, clearTabNotifications]);
 
+  // Periodic cleanup of orphaned terminal buffers
+  useEffect(() => {
+    const allPaneIds = tabs.flatMap((tab) => Object.keys(tab.panes));
+    clearOrphanedBuffers(allPaneIds);
+  }, [tabs]);
+
   return (
     <div className="app-root-layout">
       <TitleBar />
@@ -369,6 +368,7 @@ const App: React.FC = () => {
           }}
           onReorderTabs={reorderTabs}
           onReorderProjects={reorderProjects}
+          onRefreshGitStatus={refreshGitStatus}
         />
         <div className="resizer" onMouseDown={startResizing} />
         <div className="main-content">

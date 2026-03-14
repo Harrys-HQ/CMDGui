@@ -21,6 +21,7 @@ interface SidebarProps {
   onRunProjectScript: (cwd: string, scriptName: string) => void;
   onReorderTabs: (startIndex: number, endIndex: number) => void;
   onReorderProjects: (startIndex: number, endIndex: number) => void;
+  onRefreshGitStatus?: () => void;
 }
 
 const CollapsibleSection: React.FC<{
@@ -72,6 +73,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   onRunProjectScript,
   onReorderTabs,
   onReorderProjects,
+  onRefreshGitStatus,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isAddMenuOpen, setIsAddMenuOpen] = useState(false);
@@ -171,164 +173,166 @@ const Sidebar: React.FC<SidebarProps> = ({
   };
 
   return (
-    <div className="sidebar" style={{ width }}>
-      <CollapsibleSection
-        title="PROJECT MANAGER"
-        isExpanded={expandedSections.projects}
-        onToggle={() => toggleSection('projects')}
-        action={
-          <div
-            className="sidebar-action-btn"
-            onClick={(e) => {
-              e.stopPropagation();
-              onAddProject();
-            }}
-            title="Add Project Folder"
-          >
-            +
-          </div>
-        }
-      >
-        <div className="sidebar-search-container">
-          <input
-            type="text"
-            className="sidebar-search-input"
-            placeholder="Search projects..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
-
-        <div className="project-list">
-          {projects.map((p, index) => {
-            // Only show filtered projects if searching, otherwise show all for reordering
-            if (
-              searchQuery &&
-              !p.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
-              !p.path.toLowerCase().includes(searchQuery.toLowerCase())
-            ) {
-              return null;
-            }
-
-            return (
-              <div
-                key={p.path}
-                onDragOver={(e) => handleProjectDragOver(e, index)}
-                onDrop={(e) => handleProjectDrop(e, index)}
-                className={dragOverProjectIndex === index ? 'drag-over-indicator' : ''}
-              >
-                <ProjectItem
-                  project={p}
-                  searchQuery={searchQuery}
-                  onSelect={() => onAddTabWithCwd(p.path)}
-                  onRunScript={(scriptName) => onRunProjectScript(p.path, scriptName)}
-                  onToggleExplorer={() =>
-                    setOpenExplorerPath(openExplorerPath === p.path ? null : p.path)
-                  }
-                  isExplorerOpen={openExplorerPath === p.path}
-                  onRemove={(e) => {
-                    e.stopPropagation();
-                    onRemoveProject(p.path);
-                  }}
-                  onContextMenu={(e) => handleProjectContextMenu(e, p)}
-                  onDragStart={() => handleProjectDragStart(index)}
-                  onDragEnd={handleProjectDragEnd}
-                />
-                {openExplorerPath === p.path && (
-                  <FileExplorer
-                    rootPath={p.path}
-                    onSelectFolder={(path) => onAddTabWithCwd(path)}
-                  />
-                )}
-              </div>
-            );
-          })}
-          {filteredProjects.length === 0 && (
-            <div style={{ padding: '15px', color: '#666', fontSize: '12px', fontStyle: 'italic' }}>
-              No projects found.
-            </div>
-          )}
-        </div>
-      </CollapsibleSection>
-
-      <CollapsibleSection
-        title="ACTIVE TASKS"
-        isExpanded={expandedSections.tasks}
-        onToggle={() => toggleSection('tasks')}
-        action={
-          <div style={{ position: 'relative' }}>
+    <div className="sidebar" style={{ width }} onClick={onRefreshGitStatus}>
+      <div className="sidebar-content">
+        <CollapsibleSection
+          title="PROJECT MANAGER"
+          isExpanded={expandedSections.projects}
+          onToggle={() => toggleSection('projects')}
+          action={
             <div
               className="sidebar-action-btn"
               onClick={(e) => {
                 e.stopPropagation();
-                setIsAddMenuOpen(!isAddMenuOpen);
+                onAddProject();
               }}
-              title="New Terminal..."
+              title="Add Project Folder"
             >
               +
             </div>
-            {isAddMenuOpen && (
-              <div className="dropdown-menu" onMouseLeave={() => setIsAddMenuOpen(false)}>
+          }
+        >
+          <div className="sidebar-search-container">
+            <input
+              type="text"
+              className="sidebar-search-input"
+              placeholder="Search projects..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+
+          <div className="project-list">
+            {projects.map((p, index) => {
+              // Only show filtered projects if searching, otherwise show all for reordering
+              if (
+                searchQuery &&
+                !p.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
+                !p.path.toLowerCase().includes(searchQuery.toLowerCase())
+              ) {
+                return null;
+              }
+
+              return (
                 <div
-                  className="project-item"
-                  onClick={() => {
-                    onAddTerminal(false);
-                    setIsAddMenuOpen(false);
-                  }}
+                  key={p.path}
+                  onDragOver={(e) => handleProjectDragOver(e, index)}
+                  onDrop={(e) => handleProjectDrop(e, index)}
+                  className={dragOverProjectIndex === index ? 'drag-over-indicator' : ''}
                 >
-                  <span>New Terminal</span>
+                  <ProjectItem
+                    project={p}
+                    searchQuery={searchQuery}
+                    onSelect={() => onAddTabWithCwd(p.path)}
+                    onRunScript={(scriptName) => onRunProjectScript(p.path, scriptName)}
+                    onToggleExplorer={() =>
+                      setOpenExplorerPath(openExplorerPath === p.path ? null : p.path)
+                    }
+                    isExplorerOpen={openExplorerPath === p.path}
+                    onRemove={(e) => {
+                      e.stopPropagation();
+                      onRemoveProject(p.path);
+                    }}
+                    onContextMenu={(e) => handleProjectContextMenu(e, p)}
+                    onDragStart={() => handleProjectDragStart(index)}
+                    onDragEnd={handleProjectDragEnd}
+                  />
+                  {openExplorerPath === p.path && (
+                    <FileExplorer
+                      rootPath={p.path}
+                      onSelectFolder={(path) => onAddTabWithCwd(path)}
+                    />
+                  )}
                 </div>
-                <div
-                  className="project-item"
-                  onClick={() => {
-                    onAddTerminal(true);
-                    setIsAddMenuOpen(false);
-                  }}
-                >
-                  <span style={{ marginRight: '6px' }}>🛡️</span>
-                  <span>Run as Admin...</span>
-                </div>
+              );
+            })}
+            {filteredProjects.length === 0 && (
+              <div
+                style={{ padding: '15px', color: '#666', fontSize: '12px', fontStyle: 'italic' }}
+              >
+                No projects found.
               </div>
             )}
           </div>
-        }
-      >
-        <div className="task-list">
-          {tabs.map((tab, index) => {
-            // Only show filtered tabs if searching, otherwise show all for reordering
-            if (searchQuery && !tab.title.toLowerCase().includes(searchQuery.toLowerCase())) {
-              return null;
-            }
+        </CollapsibleSection>
 
-            return (
+        <CollapsibleSection
+          title="ACTIVE TASKS"
+          isExpanded={expandedSections.tasks}
+          onToggle={() => toggleSection('tasks')}
+          action={
+            <div style={{ position: 'relative' }}>
               <div
-                key={tab.id}
-                onDragOver={(e) => handleDragOver(e, index)}
-                onDrop={(e) => handleDrop(e, index)}
-                className={dragOverTabIndex === index ? 'drag-over-indicator' : ''}
+                className="sidebar-action-btn"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsAddMenuOpen(!isAddMenuOpen);
+                }}
+                title="New Terminal..."
               >
-                <TaskItem
-                  tab={tab}
-                  isActive={activeTabId === tab.id}
-                  searchQuery={searchQuery}
-                  onSelect={() => onSelectTab(tab.id)}
-                  onClose={(e) => onCloseTab(tab.id, e)}
-                  onRename={(e) => {
-                    e.stopPropagation();
-                    e.preventDefault();
-                    onRenameTab(tab.id, tab.title);
-                  }}
-                  onContextMenu={(e) => handleTabContextMenu(e, tab)}
-                  onDragStart={() => handleDragStart(index)}
-                  onDragEnd={handleDragEnd}
-                />
+                +
               </div>
-            );
-          })}
-        </div>
-      </CollapsibleSection>
+              {isAddMenuOpen && (
+                <div className="dropdown-menu" onMouseLeave={() => setIsAddMenuOpen(false)}>
+                  <div
+                    className="project-item"
+                    onClick={() => {
+                      onAddTerminal(false);
+                      setIsAddMenuOpen(false);
+                    }}
+                  >
+                    <span>New Terminal</span>
+                  </div>
+                  <div
+                    className="project-item"
+                    onClick={() => {
+                      onAddTerminal(true);
+                      setIsAddMenuOpen(false);
+                    }}
+                  >
+                    <span style={{ marginRight: '6px' }}>🛡️</span>
+                    <span>Run as Admin...</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          }
+        >
+          <div className="task-list">
+            {tabs.map((tab, index) => {
+              // Only show filtered tabs if searching, otherwise show all for reordering
+              if (searchQuery && !tab.title.toLowerCase().includes(searchQuery.toLowerCase())) {
+                return null;
+              }
 
-      <div style={{ flex: 1 }}></div>
+              return (
+                <div
+                  key={tab.id}
+                  onDragOver={(e) => handleDragOver(e, index)}
+                  onDrop={(e) => handleDrop(e, index)}
+                  className={dragOverTabIndex === index ? 'drag-over-indicator' : ''}
+                >
+                  <TaskItem
+                    tab={tab}
+                    isActive={activeTabId === tab.id}
+                    searchQuery={searchQuery}
+                    onSelect={() => onSelectTab(tab.id)}
+                    onClose={(e) => onCloseTab(tab.id, e)}
+                    onRename={(e) => {
+                      e.stopPropagation();
+                      e.preventDefault();
+                      onRenameTab(tab.id, tab.title);
+                    }}
+                    onContextMenu={(e) => handleTabContextMenu(e, tab)}
+                    onDragStart={() => handleDragStart(index)}
+                    onDragEnd={handleDragEnd}
+                  />
+                </div>
+              );
+            })}
+          </div>
+        </CollapsibleSection>
+      </div>
 
       <div onClick={onOpenSettings} className="sidebar-footer-btn">
         <span style={{ marginRight: '8px', fontSize: '16px' }}>⚙️</span> Settings & Docs

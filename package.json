@@ -1,6 +1,6 @@
 {
   "name": "cmd-gui",
-  "version": "1.6.1",
+  "version": "1.7.0",
   "description": "A modern, persistent workspace manager and terminal emulator built with Electron and React.",
   "main": "electron/main.js",
   "scripts": {
@@ -57,12 +57,14 @@
   },
   "type": "commonjs",
   "dependencies": {
+    "@xterm/addon-serialize": "^0.14.0",
     "concurrently": "^9.2.1",
     "cross-env": "^10.1.0",
     "electron-updater": "^6.7.3",
     "node-pty": "^1.1.0",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
+    "react-resizable-panels": "^4.7.2",
     "wait-on": "^9.0.3",
     "xterm": "^5.3.0",
     "xterm-addon-fit": "^0.8.0",
@@ -95,6 +97,6 @@
     "vitest": "^4.0.18"
   },
   "overrides": {
-    "tar": "^6.2.1"
+    "tar": "^7.5.10"
   }
 }

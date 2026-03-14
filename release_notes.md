@@ -1,3 +1,24 @@
+## 🚀 Release: CmdGUI v1.7.0
+
+### ✨ Terminal & Workspace Enhancements
+- **Terminal Persistence:** Integrated `@xterm/addon-serialize` to save and restore terminal buffers. Your command output now persists across application restarts.
+- **Resizable Split Panes:** Replaced static splits with `react-resizable-panels`. You can now drag to resize terminal panes within a tab.
+- **Terminal Search UI:** A polished, floating search bar (`Ctrl + F`) with match navigation, case-sensitivity toggle, and smooth animations.
+- **Git Status Badges:** Real-time visibility of Git branch names and dirty status indicators (clean/dirty) directly in the Project Manager sidebar.
+- **Actionable Project Scripts:** Lightning-fast access to common scripts (`dev`, `start`, `build`, etc.) via badges under each project, plus a full scripts dropdown menu.
+
+### 📂 Smart Detection Expansion
+- **New Project Types:** Enhanced detection for **Go**, **Rust**, **Python**, and **Docker** (Dockerfile & Docker Compose) projects.
+- **Default Scripts:** Automatically provides relevant build/run/test scripts for newly supported project types.
+- **Makefile Support:** Automatically parses `Makefile` targets and exposes them as actionable scripts.
+
+### 🛠️ UI & Maintenance
+- **Scrollable Sidebar:** Added vertical scrolling to the sidebar to handle large numbers of projects and tasks while keeping the settings footer fixed.
+- **Security Audit:** Fixed several high-severity vulnerabilities in dependencies (notably `tar`).
+- **Orphaned Data Cleanup:** Implemented automated cleanup of terminal buffers and temporary data to prevent storage bloat.
+
+---
+
 ## 🚀 Release: CmdGUI v1.6.1
 
 ### ✨ UI & Process Polish

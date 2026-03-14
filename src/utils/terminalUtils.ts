@@ -51,7 +51,24 @@ export const killTerminalProcess = (paneId: string) => {
     }
     delete globalPtyRegistry[paneId];
   }
+
+  // Clear persisted terminal buffer when pane is killed
+  localStorage.removeItem(`terminal_buffer_${paneId}`);
 };
 
 export const isPaneKilled = (paneId: string) => killedPanes.has(paneId);
 export const cleanupKilledPane = (paneId: string) => killedPanes.delete(paneId);
+
+/**
+ * Clears terminal buffers from localStorage that are no longer associated with active panes.
+ */
+export const clearOrphanedBuffers = (activePaneIds: string[]) => {
+  const keys = Object.keys(localStorage);
+  const bufferKeys = keys.filter((k) => k.startsWith('terminal_buffer_'));
+  bufferKeys.forEach((key) => {
+    const paneId = key.replace('terminal_buffer_', '');
+    if (!activePaneIds.includes(paneId)) {
+      localStorage.removeItem(key);
+    }
+  });
+};

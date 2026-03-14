@@ -58,6 +58,34 @@ export const useProjects = () => {
     detectTypes();
   }, [projects, isLoaded]);
 
+  const refreshGitStatus = useCallback(async () => {
+    if (!window.electron || !isLoaded) return;
+    const updatedProjects = await Promise.all(
+      projects.map(async (p) => {
+        const details = await window.electron.getProjectDetails(p.path);
+        return {
+          ...p,
+          gitBranch: details.gitBranch || undefined,
+          gitDirty: details.gitDirty,
+          // Update type and scripts as well while we're at it
+          type: details.type,
+          scripts: details.scripts,
+        };
+      })
+    );
+    // Only update state if something actually changed to avoid re-renders
+    if (JSON.stringify(updatedProjects) !== JSON.stringify(projects)) {
+      setProjects(updatedProjects);
+    }
+  }, [projects, isLoaded]);
+
+  // Periodic Git Status Refresh (every 30 seconds)
+  useEffect(() => {
+    if (!isLoaded) return;
+    const interval = setInterval(refreshGitStatus, 30000);
+    return () => clearInterval(interval);
+  }, [isLoaded, refreshGitStatus]);
+
   const addProject = useCallback(async () => {
     if (!window.electron) return;
     const folderPath = await window.electron.selectFolder();
@@ -88,5 +116,6 @@ export const useProjects = () => {
     addProject,
     removeProject,
     reorderProjects,
+    refreshGitStatus,
   };
 };

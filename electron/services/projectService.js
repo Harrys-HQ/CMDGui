@@ -139,10 +139,25 @@ async function getProjectDetails(projectPath) {
       filesLower.includes('pyproject.toml')
     ) {
       details.type = 'python';
+      details.scripts = {
+        run: 'python main.py',
+        pip: 'pip install -r requirements.txt',
+      };
     } else if (filesLower.includes('cargo.toml')) {
       details.type = 'rust';
+      details.scripts = {
+        build: 'cargo build',
+        run: 'cargo run',
+        test: 'cargo test',
+        check: 'cargo check',
+      };
     } else if (filesLower.includes('go.mod')) {
       details.type = 'go';
+      details.scripts = {
+        build: 'go build',
+        run: 'go run .',
+        test: 'go test ./...',
+      };
     } else if (filesLower.includes('composer.json')) {
       try {
         const compContent = await fs.promises.readFile(
@@ -164,12 +179,40 @@ async function getProjectDetails(projectPath) {
       details.type = 'java';
     } else if (filesLower.includes('dockerfile') || filesLower.includes('docker-compose.yml')) {
       details.type = 'docker';
+      if (filesLower.includes('docker-compose.yml')) {
+        details.scripts = {
+          up: 'docker-compose up',
+          down: 'docker-compose down',
+          build: 'docker-compose build',
+        };
+      } else {
+        details.scripts = {
+          build: 'docker build -t app .',
+          run: 'docker run app',
+        };
+      }
     } else if (files.some((f) => f.endsWith('.sln') || f.endsWith('.csproj'))) {
       details.type = 'dotnet';
     } else if (files.some((f) => f.endsWith('.cpp') || f.endsWith('.hpp') || f.endsWith('.cc'))) {
       details.type = 'cpp';
     } else if (filesLower.includes('.git')) {
       details.type = 'git';
+    }
+
+    // 1.5. Parse Makefile if exists and no scripts found yet
+    if (filesLower.includes('makefile') && Object.keys(details.scripts).length === 0) {
+      try {
+        const makeContent = await fs.promises.readFile(path.join(projectPath, 'Makefile'), 'utf8');
+        const targetLines = makeContent.split('\n').filter((l) => /^[a-zA-Z0-9_-]+:/.test(l));
+        targetLines.forEach((line) => {
+          const target = line.split(':')[0].trim();
+          if (target && target !== '.PHONY') {
+            details.scripts[target] = `make ${target}`;
+          }
+        });
+      } catch (e) {
+        // Ignore makefile errors
+      }
     }
 
     // 2. Determine Git Status

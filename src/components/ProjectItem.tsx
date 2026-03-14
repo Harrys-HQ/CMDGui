@@ -170,6 +170,11 @@ const ProjectItem: React.FC<ProjectItemProps> = React.memo(
       if (onToggleExplorer) onToggleExplorer();
     };
 
+    const favoriteScripts = ['dev', 'start', 'build', 'test', 'watch', 'serve'];
+    const availableFavorites = project.scripts
+      ? Object.keys(project.scripts).filter((s) => favoriteScripts.includes(s.toLowerCase()))
+      : [];
+
     return (
       <div
         onClick={onSelect}
@@ -182,81 +187,120 @@ const ProjectItem: React.FC<ProjectItemProps> = React.memo(
         style={{
           position: 'relative',
           borderLeft: isExplorerOpen ? '2px solid var(--accent-primary)' : 'none',
+          height: 'auto',
+          minHeight: '32px',
+          paddingTop: '8px',
+          paddingBottom: '8px',
+          flexDirection: 'column',
+          alignItems: 'stretch',
         }}
       >
-        <ProjectIcon type={project.type} />
-        <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-          <span style={{ textOverflow: 'ellipsis', overflow: 'hidden' }}>
-            {getHighlightedText(project.name, searchQuery)}
-          </span>
-          {project.gitBranch && (
-            <span style={{ fontSize: '10px', color: '#888', marginTop: '-2px' }}>
-              <span style={{ marginRight: '4px' }}>ᚠ</span>
-              {project.gitBranch}
-              {project.gitDirty && <span style={{ color: '#e5e510', marginLeft: '4px' }}>*</span>}
+        <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+          <ProjectIcon type={project.type} />
+          <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+            <span style={{ textOverflow: 'ellipsis', overflow: 'hidden' }}>
+              {getHighlightedText(project.name, searchQuery)}
             </span>
-          )}
+            {project.gitBranch && (
+              <div
+                className={`git-badge ${project.gitDirty ? 'dirty' : ''}`}
+                style={{ marginLeft: 0, marginTop: '2px', alignSelf: 'flex-start' }}
+              >
+                <span className="git-branch-icon">ᚠ</span>
+                {project.gitBranch}
+                {project.gitDirty && <span>*</span>}
+              </div>
+            )}
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center' }}>
+            <span
+              onClick={handleToggleExplorer}
+              title="Toggle File Explorer"
+              style={{
+                fontSize: '12px',
+                marginRight: '8px',
+                cursor: 'pointer',
+                opacity: isExplorerOpen ? 1 : 0.5,
+              }}
+            >
+              📂
+            </span>
+            {project.scripts && Object.keys(project.scripts).length > 0 && (
+              <div style={{ position: 'static' }}>
+                <span
+                  onClick={toggleScriptMenu}
+                  title="All Scripts"
+                  style={{
+                    fontSize: '12px',
+                    color: '#007acc',
+                    marginRight: '6px',
+                    opacity: 0.8,
+                    cursor: 'pointer',
+                  }}
+                >
+                  ⚡
+                </span>
+                {isScriptMenuOpen && (
+                  <div
+                    className="dropdown-menu"
+                    onMouseLeave={() => setIsScriptMenuOpen(false)}
+                    style={{
+                      top: '100%',
+                      right: '20px',
+                      maxHeight: '200px',
+                      overflowY: 'auto',
+                      position: 'absolute',
+                    }}
+                  >
+                    {Object.entries(project.scripts).map(([scriptName, scriptCmd]) => (
+                      <div
+                        key={scriptName}
+                        className="project-item"
+                        style={{ fontSize: '11px', padding: '6px 12px' }}
+                        title={scriptCmd as string}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setIsScriptMenuOpen(false);
+                          if (onRunScript) onRunScript(scriptName);
+                        }}
+                      >
+                        <span style={{ fontWeight: 'bold', marginRight: '8px', color: '#d4d4d4' }}>
+                          {scriptName}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center' }}>
-          <span
-            onClick={handleToggleExplorer}
-            title="Toggle File Explorer"
+        {availableFavorites.length > 0 && (
+          <div
             style={{
-              fontSize: '12px',
-              marginRight: '8px',
-              cursor: 'pointer',
-              opacity: isExplorerOpen ? 1 : 0.5,
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: '4px',
+              marginTop: '6px',
+              marginLeft: '24px',
             }}
           >
-            📂
-          </span>
-          {project.scripts && Object.keys(project.scripts).length > 0 && (
-            <div style={{ position: 'static' }}>
-              <span
-                onClick={toggleScriptMenu}
-                title="NPM Scripts available"
-                style={{
-                  fontSize: '12px',
-                  color: '#007acc',
-                  marginRight: '6px',
-                  opacity: 0.8,
-                  cursor: 'pointer',
+            {availableFavorites.map((s) => (
+              <div
+                key={s}
+                className="script-badge"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (onRunScript) onRunScript(s);
                 }}
               >
-                ⚡
-              </span>
-              {isScriptMenuOpen && (
-                <div
-                  className="dropdown-menu"
-                  onMouseLeave={() => setIsScriptMenuOpen(false)}
-                  style={{ top: '100%', right: '20px', maxHeight: '200px', overflowY: 'auto' }}
-                >
-                  {Object.entries(project.scripts).map(([scriptName, scriptCmd]) => (
-                    <div
-                      key={scriptName}
-                      className="project-item"
-                      style={{ fontSize: '11px', padding: '6px 12px' }}
-                      title={scriptCmd as string}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setIsScriptMenuOpen(false);
-                        if (onRunScript) onRunScript(scriptName);
-                      }}
-                    >
-                      <span style={{ fontWeight: 'bold', marginRight: '8px', color: '#d4d4d4' }}>
-                        {scriptName}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-        <span onClick={onRemove} className="project-remove-btn" title="Remove Project">
-          ×
-        </span>
+                {s}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     );
   }

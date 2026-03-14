@@ -3,6 +3,7 @@ import { Terminal as Xterm } from 'xterm';
 import { FitAddon } from 'xterm-addon-fit';
 import { WebLinksAddon } from 'xterm-addon-web-links';
 import { SearchAddon } from 'xterm-addon-search';
+import { SerializeAddon } from '@xterm/addon-serialize';
 import { TerminalTheme } from '../types';
 import { Keymap, isKeyMatch } from '../hooks/useKeybindings';
 import { globalPtyRegistry, isPaneKilled, cleanupKilledPane } from '../utils/terminalUtils';
@@ -92,10 +93,12 @@ const Terminal: React.FC<TerminalProps> = ({
   const xtermRef = useRef<Xterm | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
   const searchAddonRef = useRef<SearchAddon | null>(null);
+  const serializeAddonRef = useRef<SerializeAddon | null>(null);
   const pidRef = useRef<number | null>(null);
   const [isReady, setIsReady] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchOptions, setSearchOptions] = useState({ caseSensitive: false, wholeWord: false });
   const dataBuffer = useRef<string[]>([]);
   const onTitleChangeRef = useRef(onTitleChange);
   const onExitRef = useRef(onExit);
@@ -155,12 +158,25 @@ const Terminal: React.FC<TerminalProps> = ({
     const fitAddon = new FitAddon();
     const webLinksAddon = new WebLinksAddon((_, uri) => window.electron.openExternal(uri));
     const searchAddon = new SearchAddon();
+    const serializeAddon = new SerializeAddon();
     term.loadAddon(fitAddon);
     term.loadAddon(webLinksAddon);
     term.loadAddon(searchAddon);
+    term.loadAddon(serializeAddon);
     xtermRef.current = term;
     fitAddonRef.current = fitAddon;
     searchAddonRef.current = searchAddon;
+    serializeAddonRef.current = serializeAddon;
+
+    // Restore terminal buffer from localStorage if available
+    const savedBuffer = localStorage.getItem(`terminal_buffer_${paneId}`);
+    if (savedBuffer) {
+      try {
+        term.write(savedBuffer);
+      } catch (e) {
+        console.error('Failed to restore terminal buffer:', e);
+      }
+    }
 
     if (isActiveRef.current && terminalRef.current && terminalRef.current.offsetWidth > 0) {
       try {
@@ -382,6 +398,34 @@ const Terminal: React.FC<TerminalProps> = ({
       if (rafId) cancelAnimationFrame(rafId);
     };
   }, [isActive, isReady]);
+  useEffect(() => {
+    // Periodic buffer persistence (every 10 seconds)
+    const interval = setInterval(() => {
+      if (xtermRef.current && serializeAddonRef.current) {
+        try {
+          // Serialize current buffer state
+          const buffer = serializeAddonRef.current.serialize();
+          localStorage.setItem(`terminal_buffer_${paneId}`, buffer);
+        } catch (e) {
+          console.error('Failed to serialize terminal buffer:', e);
+        }
+      }
+    }, 10000);
+
+    return () => {
+      // Save one last time on unmount
+      if (xtermRef.current && serializeAddonRef.current) {
+        try {
+          const buffer = serializeAddonRef.current.serialize();
+          localStorage.setItem(`terminal_buffer_${paneId}`, buffer);
+        } catch (e) {
+          // Ignore
+        }
+      }
+      clearInterval(interval);
+    };
+  }, [paneId]);
+
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative' }}>
       {showPaneControls && (
@@ -439,7 +483,7 @@ const Terminal: React.FC<TerminalProps> = ({
         </div>
       )}
       {isSearchOpen && (
-        <div className="terminal-search-bar">
+        <div className="terminal-search-bar" onClick={(e) => e.stopPropagation()}>
           <input
             autoFocus
             type="text"
@@ -447,16 +491,60 @@ const Terminal: React.FC<TerminalProps> = ({
             value={searchQuery}
             onChange={(e) => {
               setSearchQuery(e.target.value);
-              searchAddonRef.current?.findNext(e.target.value);
+              searchAddonRef.current?.findNext(e.target.value, searchOptions);
             }}
             onKeyDown={(e) => {
-              if (e.key === 'Enter') searchAddonRef.current?.findNext(searchQuery);
-              if (e.key === 'Escape') setIsSearchOpen(false);
+              if (e.key === 'Enter') {
+                if (e.shiftKey) {
+                  searchAddonRef.current?.findPrevious(searchQuery, searchOptions);
+                } else {
+                  searchAddonRef.current?.findNext(searchQuery, searchOptions);
+                }
+              }
+              if (e.key === 'Escape') {
+                setIsSearchOpen(false);
+                xtermRef.current?.focus();
+              }
             }}
           />
-          <button onClick={() => searchAddonRef.current?.findPrevious(searchQuery)}>↑</button>
-          <button onClick={() => searchAddonRef.current?.findNext(searchQuery)}>↓</button>
-          <button onClick={() => setIsSearchOpen(false)}>×</button>
+          <button
+            title="Case Sensitive"
+            className={searchOptions.caseSensitive ? 'active-search-opt' : ''}
+            onClick={() => {
+              const newOpts = { ...searchOptions, caseSensitive: !searchOptions.caseSensitive };
+              setSearchOptions(newOpts);
+              searchAddonRef.current?.findNext(searchQuery, newOpts);
+            }}
+            style={{
+              fontSize: '10px',
+              padding: '2px 4px',
+              border: searchOptions.caseSensitive ? '1px solid var(--accent-primary)' : 'none',
+            }}
+          >
+            Aa
+          </button>
+          <div style={{ width: '1px', height: '16px', background: '#444' }} />
+          <button
+            onClick={() => searchAddonRef.current?.findPrevious(searchQuery, searchOptions)}
+            title="Previous Match (Shift+Enter)"
+          >
+            ↑
+          </button>
+          <button
+            onClick={() => searchAddonRef.current?.findNext(searchQuery, searchOptions)}
+            title="Next Match (Enter)"
+          >
+            ↓
+          </button>
+          <button
+            onClick={() => {
+              setIsSearchOpen(false);
+              xtermRef.current?.focus();
+            }}
+            title="Close"
+          >
+            ×
+          </button>
         </div>
       )}
       <div ref={terminalRef} style={{ width: '100%', height: '100%', overflow: 'hidden' }} />
