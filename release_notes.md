@@ -1,3 +1,12 @@
+## 🚀 Release: CmdGUI v1.7.1
+
+### ✨ Terminal Split & Context Menu Enhancements
+- **Enhanced Terminal Context Menu:** Right-click inside any terminal to access common actions directly, including Copy, Paste, and Clear.
+- **Direct Terminal Splitting:** You can now split terminals horizontally or vertically directly from the terminal context menu.
+- **Safety & Stability:** Improved `localStorage` safety checks and cleaned up unused project management props to ensure a smoother, more reliable experience.
+
+---
+
 ## 🚀 Release: CmdGUI v1.7.0
 
 ### ✨ Terminal & Workspace Enhancements

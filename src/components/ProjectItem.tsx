@@ -9,7 +9,6 @@ interface ProjectItemProps {
   onRunScript?: (scriptName: string) => void;
   onToggleExplorer?: () => void;
   isExplorerOpen?: boolean;
-  onRemove: (e: React.MouseEvent) => void;
   onContextMenu: (e: React.MouseEvent) => void;
   onDragStart: () => void;
   onDragEnd: () => void;
@@ -152,12 +151,10 @@ const ProjectItem: React.FC<ProjectItemProps> = React.memo(
     onRunScript,
     onToggleExplorer,
     isExplorerOpen,
-    onRemove,
     onContextMenu,
     onDragStart,
     onDragEnd,
   }) => {
-    const [isExpanded, setIsExpanded] = useState(false);
     const [isScriptMenuOpen, setIsScriptMenuOpen] = useState(false);
 
     const toggleScriptMenu = (e: React.MouseEvent) => {

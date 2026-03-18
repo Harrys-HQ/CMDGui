@@ -53,7 +53,9 @@ export const killTerminalProcess = (paneId: string) => {
   }
 
   // Clear persisted terminal buffer when pane is killed
-  localStorage.removeItem(`terminal_buffer_${paneId}`);
+  if (typeof localStorage !== 'undefined' && typeof localStorage.removeItem === 'function') {
+    localStorage.removeItem(`terminal_buffer_${paneId}`);
+  }
 };
 
 export const isPaneKilled = (paneId: string) => killedPanes.has(paneId);

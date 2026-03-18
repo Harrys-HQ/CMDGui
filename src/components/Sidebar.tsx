@@ -229,10 +229,6 @@ const Sidebar: React.FC<SidebarProps> = ({
                       setOpenExplorerPath(openExplorerPath === p.path ? null : p.path)
                     }
                     isExplorerOpen={openExplorerPath === p.path}
-                    onRemove={(e) => {
-                      e.stopPropagation();
-                      onRemoveProject(p.path);
-                    }}
                     onContextMenu={(e) => handleProjectContextMenu(e, p)}
                     onDragStart={() => handleProjectDragStart(index)}
                     onDragEnd={handleProjectDragEnd}

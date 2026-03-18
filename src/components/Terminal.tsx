@@ -418,7 +418,7 @@ const Terminal: React.FC<TerminalProps> = ({
         try {
           const buffer = serializeAddonRef.current.serialize();
           localStorage.setItem(`terminal_buffer_${paneId}`, buffer);
-        } catch (e) {
+        } catch {
           // Ignore
         }
       }
@@ -426,8 +426,57 @@ const Terminal: React.FC<TerminalProps> = ({
     };
   }, [paneId]);
 
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    window.electron.showContextMenu('terminal');
+  };
+
+  useEffect(() => {
+    if (!window.electron.onTerminalContextAction) return;
+
+    const cleanup = window.electron.onTerminalContextAction((action: string) => {
+      if (!isActiveRef.current) return;
+      const term = xtermRef.current;
+      if (!term) return;
+
+      switch (action) {
+        case 'copy': {
+          const selection = term.getSelection();
+          if (selection) {
+            navigator.clipboard.writeText(selection);
+            term.clearSelection();
+          }
+          break;
+        }
+        case 'paste':
+          navigator.clipboard.readText().then((text) => {
+            // eslint-disable-next-line no-control-regex
+            const sanitized = text.replace(/[\u0000-\u0008\u000e-\u001f\u007f]/g, '');
+            term.paste(sanitized);
+          });
+          break;
+        case 'split-horizontal':
+          if (onSplitHorizontal) onSplitHorizontal();
+          break;
+        case 'split-vertical':
+          if (onSplitVertical) onSplitVertical();
+          break;
+        case 'clear':
+          if (pidRef.current !== null) {
+            window.electron.writeTerminal(pidRef.current, '\x0c');
+          }
+          break;
+      }
+    });
+
+    return cleanup;
+  }, [onSplitHorizontal, onSplitVertical]);
+
   return (
-    <div style={{ width: '100%', height: '100%', position: 'relative' }}>
+    <div
+      style={{ width: '100%', height: '100%', position: 'relative' }}
+      onContextMenu={handleContextMenu}
+    >
       {showPaneControls && (
         <div
           className="pane-controls"

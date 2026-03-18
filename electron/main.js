@@ -282,6 +282,15 @@ ipcMain.handle('context-menu-show', (event, type, data) => {
       },
       { type: 'separator' },
       {
+        label: 'Split Horizontal',
+        click: () => event.sender.send('terminal-context-action', 'split-horizontal'),
+      },
+      {
+        label: 'Split Vertical',
+        click: () => event.sender.send('terminal-context-action', 'split-vertical'),
+      },
+      { type: 'separator' },
+      {
         label: 'Clear Terminal',
         click: () => event.sender.send('terminal-context-action', 'clear'),
       }
