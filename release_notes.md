@@ -1,4 +1,4 @@
-## 🚀 Release: CmdGUI v1.7.1
+## 🚀 Release: CmdGUI v1.7.2
 
 ### ✨ UI Stability & Performance Optimization
 - **Rubber Banding Fix:** Eliminated the "bounce" effect in the terminal by implementing `overscroll-behavior: none` and optimized `requestAnimationFrame` debouncing for terminal resizing.
