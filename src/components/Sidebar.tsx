@@ -173,7 +173,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   };
 
   return (
-    <div className="sidebar" style={{ width }} onClick={onRefreshGitStatus}>
+    <div className="sidebar" style={{ width: 'var(--sidebar-width)' }} onClick={onRefreshGitStatus}>
       <div className="sidebar-content">
         <CollapsibleSection
           title="PROJECT MANAGER"

@@ -107,25 +107,40 @@ const Terminal: React.FC<TerminalProps> = ({
   const onClearRef = useRef(onClear);
   const isActiveRef = useRef(isActive);
 
+  const isFitPendingRef = useRef(false);
+
   const fitTerminal = () => {
     if (!xtermRef.current || !fitAddonRef.current || !terminalRef.current) return;
     if (!xtermRef.current.element || !xtermRef.current.textarea) return;
+    if (!isActiveRef.current) return;
+    if (isFitPendingRef.current) return;
 
     const el = terminalRef.current;
     if (el.offsetWidth === 0 || el.offsetHeight === 0 || !document.body.contains(el)) return;
 
-    try {
-      fitAddonRef.current.fit();
-      if (pidRef.current !== null) {
-        window.electron.resizeTerminal(
-          pidRef.current,
-          xtermRef.current.cols,
-          xtermRef.current.rows
-        );
+    isFitPendingRef.current = true;
+
+    // Use requestAnimationFrame to debounce and prevent layout thrashing
+    requestAnimationFrame(() => {
+      isFitPendingRef.current = false;
+      if (!xtermRef.current || !fitAddonRef.current || !isActiveRef.current) return;
+      try {
+        const oldCols = xtermRef.current.cols;
+        const oldRows = xtermRef.current.rows;
+
+        fitAddonRef.current.fit();
+
+        const newCols = xtermRef.current.cols;
+        const newRows = xtermRef.current.rows;
+
+        // Only IPC if dimensions actually changed
+        if ((oldCols !== newCols || oldRows !== newRows) && pidRef.current !== null) {
+          window.electron.resizeTerminal(pidRef.current, newCols, newRows);
+        }
+      } catch (e) {
+        console.warn('Terminal fit skipped:', e);
       }
-    } catch (e) {
-      console.warn('Terminal fit skipped:', e);
-    }
+    });
   };
 
   useEffect(() => {
@@ -596,7 +611,15 @@ const Terminal: React.FC<TerminalProps> = ({
           </button>
         </div>
       )}
-      <div ref={terminalRef} style={{ width: '100%', height: '100%', overflow: 'hidden' }} />
+      <div
+        ref={terminalRef}
+        style={{
+          width: '100%',
+          height: '100%',
+          overflow: 'hidden',
+          contain: 'size layout',
+        }}
+      />
     </div>
   );
 };

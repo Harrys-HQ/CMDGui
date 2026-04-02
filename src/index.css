@@ -42,6 +42,7 @@ body {
   height: 100vh;
   width: 100vw;
   overflow: hidden;
+  overscroll-behavior: none;
   font-size: var(--font-size-md);
 }
 
@@ -50,6 +51,9 @@ body {
   flex-direction: row;
   height: 100%;
   width: 100%;
+  overflow: hidden;
+  min-height: 0;
+  min-width: 0;
 }
 
 /* Layout Classes */
@@ -57,6 +61,8 @@ body {
   display: flex;
   width: 100%;
   height: 100%;
+  min-height: 0;
+  min-width: 0;
 }
 
 .sidebar {
@@ -261,12 +267,18 @@ body {
   flex-direction: column;
   overflow: hidden;
   background-color: var(--bg-root);
+  min-height: 0;
+  min-width: 0;
+  overscroll-behavior: none;
 }
 
 .terminal-container {
   flex: 1;
   position: relative;
   background: var(--bg-root);
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .terminal-search-bar {
@@ -498,4 +510,20 @@ body {
   display: flex;
   flex: 1;
   overflow: hidden;
+  min-height: 0;
+  min-width: 0;
+}
+
+.resizer {
+  width: 4px;
+  cursor: col-resize;
+  background-color: transparent;
+  transition: background-color 0.2s;
+  z-index: 10;
+  flex-shrink: 0;
+}
+
+.resizer:hover,
+.resizing .resizer {
+  background-color: var(--accent-primary);
 }

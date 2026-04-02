@@ -1,6 +1,9 @@
 ## 🚀 Release: CmdGUI v1.7.1
 
-### ✨ Terminal Split & Context Menu Enhancements
+### ✨ UI Stability & Performance Optimization
+- **Rubber Banding Fix:** Eliminated the "bounce" effect in the terminal by implementing `overscroll-behavior: none` and optimized `requestAnimationFrame` debouncing for terminal resizing.
+- **High-Performance Sidebar:** Refactored the sidebar resizer to use CSS variables, ensuring buttery-smooth resizing with zero React re-renders during drag operations.
+- **Layout Stability:** Forced flex containers to respect boundaries with `min-height: 0` and `min-width: 0`, preventing unexpected layout shifts when terminal output is large.
 - **Enhanced Terminal Context Menu:** Right-click inside any terminal to access common actions directly, including Copy, Paste, and Clear.
 - **Direct Terminal Splitting:** You can now split terminals horizontally or vertically directly from the terminal context menu.
 - **Safety & Stability:** Improved `localStorage` safety checks and cleaned up unused project management props to ensure a smoother, more reliable experience.
