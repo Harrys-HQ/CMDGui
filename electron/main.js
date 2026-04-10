@@ -21,6 +21,16 @@ const settingsService = require('./services/settingsService');
 let mainWindow;
 let stayAwakeId = null;
 
+// Check if hardware acceleration should be disabled
+const settings = settingsService.loadSettings();
+if (settings.isGPUAccelerationEnabled === false) {
+  console.log('Hardware Acceleration is disabled via settings.');
+  app.disableHardwareAcceleration();
+}
+
+// Fix for horizontal bar artifacts/flickering in xterm.js on Windows
+app.commandLine.appendSwitch('disable-gpu-rasterization');
+
 function createWindow() {
   const windowState = settingsService.getWindowState();
 
@@ -29,6 +39,7 @@ function createWindow() {
     y: windowState.y,
     width: windowState.width,
     height: windowState.height,
+    show: false, // Don't show the window until it's ready
     backgroundColor: '#1e1e1e',
     icon: path.join(__dirname, '../build/icon.png'),
     titleBarStyle: 'hidden',
@@ -44,9 +55,13 @@ function createWindow() {
     },
   });
 
-  if (windowState.isMaximized) {
-    mainWindow.maximize();
-  }
+  // Use ready-to-show to prevent "white flash" and improve startup visuals
+  mainWindow.once('ready-to-show', () => {
+    if (windowState.isMaximized) {
+      mainWindow.maximize();
+    }
+    mainWindow.show();
+  });
 
   // Save window state on change
   const saveState = () => settingsService.saveWindowState(mainWindow);

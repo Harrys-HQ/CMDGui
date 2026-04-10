@@ -33,6 +33,7 @@ export const useSettings = () => {
   const [terminalScrollback, setTerminalScrollback] = useState(1000);
   const [isQuakeModeEnabled, setIsQuakeModeEnabled] = useState(false);
   const [isStayAwakeEnabled, setIsStayAwakeEnabled] = useState(false);
+  const [isGPUAccelerationEnabled, setIsGPUAccelerationEnabled] = useState(true);
   const [defaultShell, setDefaultShell] = useState('');
   const [isAdmin, setIsAdmin] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
@@ -45,6 +46,7 @@ export const useSettings = () => {
       const savedScrollback = await loadState('terminalScrollback', 1000);
       const savedQuakeMode = await loadState('isQuakeModeEnabled', false);
       const savedStayAwake = await loadState('isStayAwakeEnabled', false);
+      const savedGPU = await loadState('isGPUAccelerationEnabled', true);
       const savedShell = await loadState('defaultShell', '');
 
       setTerminalTheme(savedTheme);
@@ -53,11 +55,18 @@ export const useSettings = () => {
       setTerminalScrollback(savedScrollback);
       setIsQuakeModeEnabled(savedQuakeMode);
       setIsStayAwakeEnabled(savedStayAwake);
+      setIsGPUAccelerationEnabled(savedGPU);
       setDefaultShell(savedShell);
       setIsLoaded(true);
     };
     init();
   }, []);
+
+  useEffect(() => {
+    if (isLoaded) {
+      saveState('isGPUAccelerationEnabled', isGPUAccelerationEnabled);
+    }
+  }, [isGPUAccelerationEnabled, isLoaded]);
 
   useEffect(() => {
     if (isLoaded) {
@@ -137,6 +146,8 @@ export const useSettings = () => {
     setIsQuakeModeEnabled,
     isStayAwakeEnabled,
     setIsStayAwakeEnabled,
+    isGPUAccelerationEnabled,
+    setIsGPUAccelerationEnabled,
     defaultShell,
     setDefaultShell,
     isAdmin,

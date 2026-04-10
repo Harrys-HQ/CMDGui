@@ -54,6 +54,8 @@ const App: React.FC = () => {
     setIsQuakeModeEnabled,
     isStayAwakeEnabled,
     setIsStayAwakeEnabled,
+    isGPUAccelerationEnabled,
+    setIsGPUAccelerationEnabled,
     defaultShell,
     setDefaultShell,
     isAdmin,
@@ -414,6 +416,8 @@ const App: React.FC = () => {
         onQuakeModeChange={setIsQuakeModeEnabled}
         isStayAwakeEnabled={isStayAwakeEnabled}
         onStayAwakeChange={setIsStayAwakeEnabled}
+        isGPUAccelerationEnabled={isGPUAccelerationEnabled}
+        onGPUAccelerationChange={setIsGPUAccelerationEnabled}
         workspaces={workspaces}
         onDeleteWorkspace={deleteWorkspace}
         history={history}

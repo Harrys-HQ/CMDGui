@@ -18,6 +18,8 @@ interface SettingsModalProps {
   onQuakeModeChange?: (enabled: boolean) => void;
   isStayAwakeEnabled?: boolean;
   onStayAwakeChange?: (enabled: boolean) => void;
+  isGPUAccelerationEnabled?: boolean;
+  onGPUAccelerationChange?: (enabled: boolean) => void;
   workspaces?: Workspace[];
   onDeleteWorkspace?: (id: string) => void;
   history?: HistoryItem[];
@@ -113,6 +115,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   onQuakeModeChange,
   isStayAwakeEnabled,
   onStayAwakeChange,
+  isGPUAccelerationEnabled,
+  onGPUAccelerationChange,
   workspaces,
   onDeleteWorkspace,
   history,
@@ -563,6 +567,36 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                     >
                       Stay Awake (Prevent system lock/sleep)
                     </label>
+                  </div>
+                )}
+
+                {onGPUAccelerationChange && (
+                  <div style={{ marginTop: '15px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center' }}>
+                      <input
+                        type="checkbox"
+                        id="gpu-toggle"
+                        checked={isGPUAccelerationEnabled}
+                        onChange={(e) => onGPUAccelerationChange(e.target.checked)}
+                        style={{ cursor: 'pointer' }}
+                      />
+                      <label
+                        htmlFor="gpu-toggle"
+                        style={{
+                          cursor: 'pointer',
+                          fontSize: '14px',
+                          color: '#ccc',
+                          marginLeft: '10px',
+                        }}
+                      >
+                        Enable Hardware Acceleration (Requires Restart)
+                      </label>
+                    </div>
+                    {!isGPUAccelerationEnabled && (
+                      <p style={{ fontSize: '11px', color: '#888', marginLeft: '25px', marginTop: '4px' }}>
+                        Disabling this can fix graphical glitches on some systems.
+                      </p>
+                    )}
                   </div>
                 )}
 

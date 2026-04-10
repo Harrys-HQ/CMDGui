@@ -166,6 +166,7 @@ const Terminal: React.FC<TerminalProps> = ({
       cursorBlink: true,
       fontSize,
       scrollback,
+      lineHeight: 1.2,
       fontFamily: 'Consolas, monospace',
       theme: getTheme(theme, customTheme),
       allowProposedApi: true,
@@ -272,6 +273,20 @@ const Terminal: React.FC<TerminalProps> = ({
         if (globalPtyRegistry[paneId].cleanupData) globalPtyRegistry[paneId].cleanupData!();
         if (globalPtyRegistry[paneId].cleanupExit) globalPtyRegistry[paneId].cleanupExit!();
       } else {
+        // Wait for a single frame to ensure DOM is ready and measurements are accurate
+        await new Promise((resolve) => requestAnimationFrame(resolve));
+
+        if (isUnmounted) return;
+
+        // Try to fit before creating PTY if element is already open
+        if (term.element) {
+          try {
+            fitAddon.fit();
+          } catch (e) {
+            // Ignore
+          }
+        }
+
         pid = await window.electron.createTerminal({
           cols: term.cols || 80,
           rows: term.rows || 24,
@@ -617,7 +632,7 @@ const Terminal: React.FC<TerminalProps> = ({
           width: '100%',
           height: '100%',
           overflow: 'hidden',
-          contain: 'size layout',
+          contain: 'paint',
         }}
       />
     </div>

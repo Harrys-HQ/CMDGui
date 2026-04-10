@@ -8,6 +8,7 @@ _(No active tracks currently)_
 
 ## Archived Tracks
 
+- [v1.7.2 Graphical Stability Fix](./tracks/v1.7.2-graphical-stability/index.md) (Completed: 2026-04-10)
 - [v1.7.1 UI Stability (Rubber Band Effect)](./tracks/v1.7.1-ui-stability/index.md) (Completed: 2026-03-26)
 - [v1.7.0 Enhancements](./tracks/v1.7.0-enhancements/index.md) (Completed: 2026-03-13)
 - [v1.2.0 Upgrade](./tracks/v1.2.0-upgrade/index.md)
