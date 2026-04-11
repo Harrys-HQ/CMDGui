@@ -1,3 +1,14 @@
+## 🚀 Release: CmdGUI v1.7.3
+
+### ✨ Graphical Stability & Startup Refinement
+- **Zero-Flicker Startup:** Implemented `ready-to-show` event handling in the main process to ensure the window is fully painted before becoming visible.
+- **Hardware Acceleration Control:** Added a new setting in **Appearance** to toggle Hardware Acceleration (GPU). Users experiencing graphical glitches can now disable this for a more stable experience.
+- **GPU Rasterization Fix:** Applied the `--disable-gpu-rasterization` flag by default to resolve persistent horizontal artifacts and rendering glitches.
+- **Terminal Rendering Polish:** Set explicit `lineHeight` and optimized `contain: content` for the terminal container to improve text rendering and scroll performance.
+- **Resizing Precision:** Optimized terminal fit logic with `requestAnimationFrame` to ensure perfectly scaled terminals regardless of window size changes or high-DPI displays.
+
+---
+
 ## 🚀 Release: CmdGUI v1.7.2
 
 ### ✨ UI Stability & Performance Optimization
