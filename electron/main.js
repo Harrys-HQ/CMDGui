@@ -17,6 +17,10 @@ const fs = require('fs');
 const projectService = require('./services/projectService');
 const terminalService = require('./services/terminalService');
 const settingsService = require('./services/settingsService');
+const loggerService = require('./services/loggerService');
+
+// Initialize logging
+loggerService.init();
 
 // Global error handling for the main process
 process.on('uncaughtException', (error) => {

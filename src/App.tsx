@@ -12,7 +12,11 @@ import { useSettings } from './hooks/useSettings';
 import { useCommands } from './hooks/useCommands';
 import { useKeybindings, isKeyMatch } from './hooks/useKeybindings';
 import { useCommandHistory } from './hooks/useCommandHistory';
-import { cleanTerminalTitle, clearOrphanedBuffers } from './utils/terminalUtils';
+import {
+  cleanTerminalTitle,
+  clearOrphanedBuffers,
+  globalPtyRegistry,
+} from './utils/terminalUtils';
 import { Tab, PaneLayout } from './types';
 import { Panel, Group, Separator } from 'react-resizable-panels';
 
@@ -67,6 +71,55 @@ const App: React.FC = () => {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isQuickSwitcherOpen, setIsQuickSwitcherOpen] = useState(false);
   const [isUpdateAvailable, setIsUpdateAvailable] = useState(false);
+  const [hibernatedTabs, setHibernatedTabs] = useState<Set<string>>(new Set());
+
+  // Hibernation logic: Check every minute for inactive tabs
+  useEffect(() => {
+    const HIBERNATION_THRESHOLD = 5 * 60 * 1000; // 5 minutes
+    const interval = setInterval(() => {
+      const now = Date.now();
+      const newHibernated = new Set(hibernatedTabs);
+      let changed = false;
+
+      tabs.forEach((tab) => {
+        if (tab.id === activeTabId) {
+          if (newHibernated.has(tab.id)) {
+            newHibernated.delete(tab.id);
+            changed = true;
+          }
+          return;
+        }
+
+        // Check last active time of all panes in this tab
+        const panes = Object.keys(tab.panes);
+        const lastActive = Math.max(
+          ...panes.map((p) => globalPtyRegistry[p]?.lastActive || 0)
+        );
+
+        if (lastActive > 0 && now - lastActive > HIBERNATION_THRESHOLD) {
+          if (!newHibernated.has(tab.id)) {
+            newHibernated.add(tab.id);
+            changed = true;
+            console.log(`[Hibernation] Hibernating tab ${tab.id} (${tab.title})`);
+          }
+        }
+      });
+
+      if (changed) setHibernatedTabs(newHibernated);
+    }, 60000);
+
+    return () => clearInterval(interval);
+  }, [tabs, activeTabId, hibernatedTabs]);
+
+  // Wake up tab when it becomes active
+  useEffect(() => {
+    if (activeTabId && hibernatedTabs.has(activeTabId)) {
+      const newHibernated = new Set(hibernatedTabs);
+      newHibernated.delete(activeTabId);
+      setHibernatedTabs(newHibernated);
+      console.log(`[Hibernation] Waking up tab ${activeTabId}`);
+    }
+  }, [activeTabId, hibernatedTabs]);
 
   // Modal States
   const [promptModal, setPromptModal] = useState<{
@@ -169,6 +222,23 @@ const App: React.FC = () => {
   );
 
   const renderLayout = (tab: Tab, layout: PaneLayout): React.ReactNode => {
+    if (hibernatedTabs.has(tab.id)) {
+      return (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            height: '100%',
+            color: '#666',
+            fontSize: '12px',
+          }}
+        >
+          Tab is hibernating to save memory...
+        </div>
+      );
+    }
+
     if (layout.type === 'terminal') {
       const pane = tab.panes[layout.paneId!];
       if (!pane) return null;

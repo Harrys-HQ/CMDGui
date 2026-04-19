@@ -4,6 +4,8 @@ import { FitAddon } from 'xterm-addon-fit';
 import { WebLinksAddon } from 'xterm-addon-web-links';
 import { SearchAddon } from 'xterm-addon-search';
 import { SerializeAddon } from '@xterm/addon-serialize';
+import { WebglAddon } from '@xterm/addon-webgl';
+import { CanvasAddon } from '@xterm/addon-canvas';
 import { TerminalTheme } from '../types';
 import { Keymap, isKeyMatch } from '../hooks/useKeybindings';
 import { globalPtyRegistry, isPaneKilled, cleanupKilledPane } from '../utils/terminalUtils';
@@ -112,6 +114,26 @@ const Terminal: React.FC<TerminalProps> = ({
   const isFitPendingRef = useRef(false);
   const writeRafId = useRef<number | null>(null);
 
+  const loadHighPerformanceRenderer = (term: Xterm) => {
+    try {
+      const webglAddon = new WebglAddon();
+      webglAddon.onContextLoss(() => {
+        webglAddon.dispose();
+      });
+      term.loadAddon(webglAddon);
+      console.log(`[Terminal ${paneId}] WebGL renderer loaded.`);
+    } catch (e) {
+      console.warn(`[Terminal ${paneId}] WebGL failed, falling back to Canvas:`, e);
+      try {
+        const canvasAddon = new CanvasAddon();
+        term.loadAddon(canvasAddon);
+        console.log(`[Terminal ${paneId}] Canvas renderer loaded.`);
+      } catch (e2) {
+        console.warn(`[Terminal ${paneId}] Canvas failed, using DOM renderer:`, e2);
+      }
+    }
+  };
+
   const flushWriteBuffer = () => {
     if (xtermRef.current && writeBuffer.current) {
       try {
@@ -167,12 +189,24 @@ const Terminal: React.FC<TerminalProps> = ({
     onClearRef.current = onClear;
     isActiveRef.current = isActive;
 
-    // If terminal becomes active, flush buffer
-    if (isActive && xtermRef.current && dataBuffer.current.length > 0) {
-      xtermRef.current.write(dataBuffer.current.join(''));
-      dataBuffer.current = [];
-      // Also trigger a fit after a short delay to ensure layout is ready
-      setTimeout(fitTerminal, 50);
+    if (isActive) {
+      if (globalPtyRegistry[paneId]) {
+        globalPtyRegistry[paneId].lastActive = Date.now();
+      }
+
+      // If terminal becomes active, flush both local and global buffers
+      if (xtermRef.current) {
+        if (globalPtyRegistry[paneId]?.dataBuffer?.length) {
+          xtermRef.current.write(globalPtyRegistry[paneId].dataBuffer!.join(''));
+          globalPtyRegistry[paneId].dataBuffer = [];
+        }
+        if (dataBuffer.current.length > 0) {
+          xtermRef.current.write(dataBuffer.current.join(''));
+          dataBuffer.current = [];
+        }
+        // Also trigger a fit after a short delay to ensure layout is ready
+        setTimeout(fitTerminal, 50);
+      }
     }
   }, [onTitleChange, onExit, onCommand, onNotification, onClear, isActive]);
 
@@ -213,6 +247,8 @@ const Terminal: React.FC<TerminalProps> = ({
     if (isActiveRef.current && terminalRef.current && terminalRef.current.offsetWidth > 0) {
       try {
         term.open(terminalRef.current);
+        loadHighPerformanceRenderer(term);
+
         if (dataBuffer.current.length > 0) {
           term.write(dataBuffer.current.join(''));
           dataBuffer.current = [];
@@ -315,17 +351,27 @@ const Terminal: React.FC<TerminalProps> = ({
           cleanupKilledPane(paneId);
           return;
         }
-        globalPtyRegistry[paneId] = { pid };
+        globalPtyRegistry[paneId] = { pid, dataBuffer: [], lastActive: Date.now() };
         if (initialCommand)
           setTimeout(() => {
             if (!isUnmounted && globalPtyRegistry[paneId])
               window.electron.writeTerminal(pid, initialCommand + '\n');
           }, 500);
+      } else {
+        globalPtyRegistry[paneId].lastActive = Date.now();
       }
 
       if (isUnmounted) return;
       pidRef.current = pid;
       setIsReady(true);
+
+      // Restore buffered data if any
+      if (globalPtyRegistry[paneId]?.dataBuffer?.length) {
+        if (term.element && isActiveRef.current) {
+          term.write(globalPtyRegistry[paneId].dataBuffer!.join(''));
+          globalPtyRegistry[paneId].dataBuffer = [];
+        }
+      }
 
       const cleanupData = window.electron.onTerminalData(pid, (data) => {
         if (isUnmounted) return;
@@ -335,8 +381,13 @@ const Terminal: React.FC<TerminalProps> = ({
             writeRafId.current = requestAnimationFrame(flushWriteBuffer);
           }
         } else {
-          dataBuffer.current.push(data);
-          if (dataBuffer.current.length > 1000) dataBuffer.current.shift();
+          // Store in global registry for hibernation support
+          if (globalPtyRegistry[paneId]) {
+            if (!globalPtyRegistry[paneId].dataBuffer) globalPtyRegistry[paneId].dataBuffer = [];
+            globalPtyRegistry[paneId].dataBuffer!.push(data);
+            if (globalPtyRegistry[paneId].dataBuffer!.length > 1000)
+              globalPtyRegistry[paneId].dataBuffer!.shift();
+          }
           isDirtyRef.current = true;
         }
         if (!isActiveRef.current && onNotificationRef.current) {
@@ -424,6 +475,7 @@ const Terminal: React.FC<TerminalProps> = ({
         try {
           if (!xtermRef.current.element) {
             xtermRef.current.open(el);
+            loadHighPerformanceRenderer(xtermRef.current);
             if (dataBuffer.current.length > 0) {
               xtermRef.current.write(dataBuffer.current.join(''));
               dataBuffer.current = [];

@@ -6,6 +6,7 @@ This file registers active development tracks.
 
 ## Archived Tracks
 
+- [v1.8.0 Performance & Stability Overhaul](./tracks/v1.8.0-performance-overhaul/index.md) (Completed: 2026-04-19)
 - [v1.7.4 Stability & Performance](./tracks/v1.7.4-stability/index.md) (Completed: 2026-04-19)
 - [v1.7.3 Graphical Refinement](./tracks/v1.7.3-graphical-refinement/index.md) (Completed: 2026-04-11)
 - [v1.7.2 Graphical Stability Fix](./tracks/v1.7.2-graphical-stability/index.md) (Completed: 2026-04-10)

@@ -32,10 +32,16 @@ export const cleanTerminalTitle = (
   return cleanTitle !== currentTitle ? cleanTitle : null;
 };
 
-// Global PTY registry to persist processes during layout shifts (splits)
+// Global PTY registry to persist processes during layout shifts (splits) and hibernation
 export const globalPtyRegistry: Record<
   string,
-  { pid: number; cleanupData?: () => void; cleanupExit?: () => void }
+  {
+    pid: number;
+    cleanupData?: () => void;
+    cleanupExit?: () => void;
+    dataBuffer?: string[];
+    lastActive?: number;
+  }
 > = {};
 
 const killedPanes = new Set<string>();
