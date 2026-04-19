@@ -4,10 +4,9 @@ This file registers active development tracks.
 
 ## Active Tracks
 
-_(No active tracks currently)_
-
 ## Archived Tracks
 
+- [v1.7.4 Stability & Performance](./tracks/v1.7.4-stability/index.md) (Completed: 2026-04-19)
 - [v1.7.3 Graphical Refinement](./tracks/v1.7.3-graphical-refinement/index.md) (Completed: 2026-04-11)
 - [v1.7.2 Graphical Stability Fix](./tracks/v1.7.2-graphical-stability/index.md) (Completed: 2026-04-10)
 - [v1.7.1 UI Stability (Rubber Band Effect)](./tracks/v1.7.1-ui-stability/index.md) (Completed: 2026-03-26)

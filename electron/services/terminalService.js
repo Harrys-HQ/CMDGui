@@ -2,8 +2,31 @@ const pty = require('node-pty');
 const os = require('os');
 
 const terminals = {};
+const dataBuffers = {};
+const FLUSH_INTERVAL_MS = 16; // ~60fps
+const MAX_BUFFER_SIZE = 65536; // 64KB
+
+let flushTimer = null;
+
 // Use powershell.exe on Windows, bash on others
 const shellCommand = os.platform() === 'win32' ? 'powershell.exe' : 'bash';
+
+function flushBuffers(mainWindow) {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+
+  Object.keys(dataBuffers).forEach((pid) => {
+    const buffer = dataBuffers[pid];
+    if (buffer && buffer.length > 0) {
+      mainWindow.webContents.send(`terminal-incoming-${pid}`, buffer);
+      dataBuffers[pid] = '';
+    }
+  });
+}
+
+function startFlushTimer(mainWindow) {
+  if (flushTimer) return;
+  flushTimer = setInterval(() => flushBuffers(mainWindow), FLUSH_INTERVAL_MS);
+}
 
 function createTerminal(mainWindow, options = {}) {
   const { cols, rows, cwd, shell, envVars } = options;
@@ -22,18 +45,37 @@ function createTerminal(mainWindow, options = {}) {
 
     const pid = ptyProcess.pid;
     terminals[pid] = ptyProcess;
+    dataBuffers[pid] = '';
+
+    startFlushTimer(mainWindow);
 
     ptyProcess.onData((data) => {
       if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send(`terminal-incoming-${pid}`, data);
+        dataBuffers[pid] += data;
+
+        // If buffer gets too large, flush immediately
+        if (dataBuffers[pid].length >= MAX_BUFFER_SIZE) {
+          mainWindow.webContents.send(`terminal-incoming-${pid}`, dataBuffers[pid]);
+          dataBuffers[pid] = '';
+        }
       }
     });
 
     ptyProcess.onExit(() => {
       if (mainWindow && !mainWindow.isDestroyed()) {
+        // Flush remaining data before exit
+        if (dataBuffers[pid] && dataBuffers[pid].length > 0) {
+          mainWindow.webContents.send(`terminal-incoming-${pid}`, dataBuffers[pid]);
+        }
         mainWindow.webContents.send(`terminal-exit-${pid}`);
       }
       delete terminals[pid];
+      delete dataBuffers[pid];
+
+      if (Object.keys(terminals).length === 0 && flushTimer) {
+        clearInterval(flushTimer);
+        flushTimer = null;
+      }
     });
 
     return pid;

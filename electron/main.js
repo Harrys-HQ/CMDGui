@@ -18,6 +18,16 @@ const projectService = require('./services/projectService');
 const terminalService = require('./services/terminalService');
 const settingsService = require('./services/settingsService');
 
+// Global error handling for the main process
+process.on('uncaughtException', (error) => {
+  console.error('CRITICAL: Uncaught Exception in Main Process:', error);
+  // Optional: write to a log file
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('CRITICAL: Unhandled Rejection in Main Process at:', promise, 'reason:', reason);
+});
+
 let mainWindow;
 let stayAwakeId = null;
 

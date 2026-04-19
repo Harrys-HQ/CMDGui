@@ -100,6 +100,8 @@ const Terminal: React.FC<TerminalProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [searchOptions, setSearchOptions] = useState({ caseSensitive: false, wholeWord: false });
   const dataBuffer = useRef<string[]>([]);
+  const writeBuffer = useRef<string>('');
+  const isDirtyRef = useRef(false);
   const onTitleChangeRef = useRef(onTitleChange);
   const onExitRef = useRef(onExit);
   const onCommandRef = useRef(onCommand);
@@ -108,6 +110,20 @@ const Terminal: React.FC<TerminalProps> = ({
   const isActiveRef = useRef(isActive);
 
   const isFitPendingRef = useRef(false);
+  const writeRafId = useRef<number | null>(null);
+
+  const flushWriteBuffer = () => {
+    if (xtermRef.current && writeBuffer.current) {
+      try {
+        xtermRef.current.write(writeBuffer.current);
+        writeBuffer.current = '';
+        isDirtyRef.current = true;
+      } catch (e) {
+        console.error('Failed to write to terminal:', e);
+      }
+    }
+    writeRafId.current = null;
+  };
 
   const fitTerminal = () => {
     if (!xtermRef.current || !fitAddonRef.current || !terminalRef.current) return;
@@ -314,14 +330,14 @@ const Terminal: React.FC<TerminalProps> = ({
       const cleanupData = window.electron.onTerminalData(pid, (data) => {
         if (isUnmounted) return;
         if (term.element && isActiveRef.current) {
-          try {
-            term.write(data);
-          } catch (e) {
-            console.error('Failed to write to terminal:', e);
+          writeBuffer.current += data;
+          if (writeRafId.current === null) {
+            writeRafId.current = requestAnimationFrame(flushWriteBuffer);
           }
         } else {
           dataBuffer.current.push(data);
           if (dataBuffer.current.length > 1000) dataBuffer.current.shift();
+          isDirtyRef.current = true;
         }
         if (!isActiveRef.current && onNotificationRef.current) {
           const lower = data.toLowerCase();
@@ -429,22 +445,33 @@ const Terminal: React.FC<TerminalProps> = ({
     };
   }, [isActive, isReady]);
   useEffect(() => {
-    // Periodic buffer persistence (every 10 seconds)
+    // Periodic buffer persistence (every 30 seconds)
     const interval = setInterval(() => {
-      if (xtermRef.current && serializeAddonRef.current) {
+      if (!isDirtyRef.current || !xtermRef.current || !serializeAddonRef.current) return;
+
+      const performSave = () => {
+        if (!xtermRef.current || !serializeAddonRef.current) return;
         try {
           // Serialize current buffer state
           const buffer = serializeAddonRef.current.serialize();
           localStorage.setItem(`terminal_buffer_${paneId}`, buffer);
+          isDirtyRef.current = false;
         } catch (e) {
           console.error('Failed to serialize terminal buffer:', e);
         }
+      };
+
+      // Use requestIdleCallback if available to avoid blocking main thread
+      if ('requestIdleCallback' in window) {
+        (window as any).requestIdleCallback(performSave, { timeout: 2000 });
+      } else {
+        performSave();
       }
-    }, 10000);
+    }, 30000);
 
     return () => {
-      // Save one last time on unmount
-      if (xtermRef.current && serializeAddonRef.current) {
+      // Save one last time on unmount if dirty
+      if (isDirtyRef.current && xtermRef.current && serializeAddonRef.current) {
         try {
           const buffer = serializeAddonRef.current.serialize();
           localStorage.setItem(`terminal_buffer_${paneId}`, buffer);
@@ -453,6 +480,7 @@ const Terminal: React.FC<TerminalProps> = ({
         }
       }
       clearInterval(interval);
+      if (writeRafId.current !== null) cancelAnimationFrame(writeRafId.current);
     };
   }, [paneId]);
 
