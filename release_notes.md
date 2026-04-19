@@ -1,3 +1,24 @@
+## 🚀 Release: CmdGUI v1.8.0
+
+### ✨ High-Performance Rendering & Memory Efficiency
+- **GPU-Accelerated Rendering:** Integrated `@xterm/addon-webgl` for ultra-fast text rendering. The terminal now uses the GPU to handle high-density output with a buttery-smooth 60fps experience.
+- **Smart Rendering Fallback:** Automatically detects GPU capabilities and falls back to `@xterm/addon-canvas` or standard DOM rendering if WebGL is unavailable.
+- **Tab Hibernation:** Drastically reduced memory usage by implementing "Hibernation". Tabs inactive for more than 5 minutes unmount their UI components while preserving the background process, allowing you to scale to 50+ tabs without performance loss.
+- **UI Virtualization:** The **File Explorer** now uses `react-window` virtualization. Even directories with thousands of files now scroll instantly with zero lag.
+
+### 🛠️ Stability & Error Resilience
+- **IPC Data Batching:** Optimized the data flow between the Main and Renderer processes. Terminal output is now batched and throttled (16ms/64KB) to prevent UI freezes and "quitting" during heavy command execution.
+- **Global Error Handling:** Implemented dedicated handlers for `uncaughtException` and `unhandledRejection` in the Main process to prevent silent crashes and improve reliability.
+- **Persistent Logging:** Added a file-based logging service (`main.log`) in the user data directory to capture critical errors and diagnostic information.
+- **Optimized Persistence:** Replaced aggressive 10s buffer serialization with a smart 30s "dirty-check" system using `requestIdleCallback` to ensure background saves never interrupt your work.
+
+### 💾 Session & UI Polish
+- **Enhanced Session Recovery:** Improved tab and layout persistence to ensure your workspace restores accurately even after an unclean exit.
+- **Renderer-side Write Batching:** Implemented `requestAnimationFrame` batching for terminal writes, ensuring the UI stays responsive even when receiving massive amounts of data.
+- **Dependency Audit:** Pruned build size and moved development-only types to devDependencies for a leaner production package.
+
+---
+
 ## 🚀 Release: CmdGUI v1.7.3
 
 ### ✨ Graphical Stability & Startup Refinement

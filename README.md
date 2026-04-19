@@ -13,8 +13,9 @@
 - **🖥️ Integrated Terminal Environment:** Full-featured terminal emulation using `xterm.js` and `node-pty`.
 - **📂 Project Manager:** Easily add, remove, and switch between project directories from a collapsible sidebar.
 - **🏷️ Smart Detection:** Automatically identifies and assigns icons to project types (React, Vue, Angular, Svelte, Node.js, Python, Rust, Go, Docker, .NET, C++, and Git).
-- **📑 Multi-Tab Interface:** Run independent terminal sessions for different tasks or projects simultaneously.
-- **💾 Persistent State:** Your open tabs, sidebar width, and added projects are saved automatically.
+- **📑 Multi-Tab Interface:** Run independent terminal sessions with **Tab Hibernation** (memory-saving) to support dozens of concurrent tasks.
+- **⚡ GPU-Accelerated Rendering:** High-performance WebGL rendering pipeline for buttery-smooth terminal output.
+- **💾 Persistent State:** Your open tabs, sidebar width, and added projects are saved automatically with **Automatic Session Recovery**.
 - **🛡️ Admin Mode:** Built-in support for relaunching with elevated privileges for administrative tasks.
 
 <details>
@@ -44,9 +45,9 @@
 
 ## Tech Stack
 
-- **Frontend:** React 19, Vite, TypeScript
-- **Backend:** Electron, Node.js
-- **Terminal:** xterm.js, node-pty, xterm-addon-fit
+- **Frontend:** React 19, Vite, TypeScript, react-window
+- **Backend:** Electron, Node.js, node-pty
+- **Terminal:** xterm.js, WebGL/Canvas Rendering, xterm-addon-serialize
 
 ## Getting Started
 
