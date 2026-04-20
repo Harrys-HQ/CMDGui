@@ -324,6 +324,7 @@ const Terminal: React.FC<TerminalProps> = ({
         pid = globalPtyRegistry[paneId].pid;
         if (globalPtyRegistry[paneId].cleanupData) globalPtyRegistry[paneId].cleanupData!();
         if (globalPtyRegistry[paneId].cleanupExit) globalPtyRegistry[paneId].cleanupExit!();
+        globalPtyRegistry[paneId].lastActive = Date.now();
       } else {
         // Wait for a single frame to ensure DOM is ready and measurements are accurate
         await new Promise((resolve) => requestAnimationFrame(resolve));
@@ -357,8 +358,6 @@ const Terminal: React.FC<TerminalProps> = ({
             if (!isUnmounted && globalPtyRegistry[paneId])
               window.electron.writeTerminal(pid, initialCommand + '\n');
           }, 500);
-      } else {
-        globalPtyRegistry[paneId].lastActive = Date.now();
       }
 
       if (isUnmounted) return;

@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { FixedSizeList as List } from 'react-window';
+// @ts-ignore
+import * as RW from 'react-window';
+const List = (RW as any).FixedSizeList || (RW as any).List;
 import { FileEntry } from '../types';
 
 interface FileExplorerProps {
@@ -132,9 +134,8 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ rootPath, onSelectFolder })
         itemCount={flattenedData.length}
         itemSize={ITEM_HEIGHT}
         width="100%"
-      >
-        {Row}
-      </List>
+        children={Row as any}
+      />
     </div>
   );
 };

@@ -1,0 +1,5 @@
+- name: ollama_chat/gemma4:e4b
+  edit_format: diff
+  extra_params:
+    num_ctx: 32768
+    temperature: 0.1
