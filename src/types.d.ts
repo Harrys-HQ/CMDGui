@@ -141,6 +141,14 @@ export interface ElectronAPI {
   setStayAwake: (enabled: boolean) => void;
   settingsGet: <T>(key: string) => Promise<T | null>;
   settingsSet: (key: string, value: unknown) => Promise<void>;
+
+  // File Operations
+  fileCreate: (path: string) => Promise<{ success: boolean; error?: string }>;
+  fileMkdir: (path: string) => Promise<{ success: boolean; error?: string }>;
+  fileRename: (oldPath: string, newPath: string) => Promise<{ success: boolean; error?: string }>;
+  fileDelete: (path: string) => Promise<{ success: boolean; error?: string }>;
+  fileShowInFolder: (path: string) => Promise<{ success: boolean; error?: string }>;
+
   showContextMenu: (type: string, data?: ContextMenuData) => Promise<void>;
   onTerminalContextAction: (callback: (action: string) => void) => () => void;
   onSidebarContextAction: (callback: (data: SidebarAction) => void) => () => void;

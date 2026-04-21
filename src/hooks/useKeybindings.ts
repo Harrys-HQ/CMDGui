@@ -29,11 +29,11 @@ const DEFAULT_KEYMAP: Keymap = {
   closeTab: { key: 'w', ctrlKey: true, shiftKey: true },
   nextTab: { key: 'Tab', ctrlKey: true },
   prevTab: { key: 'Tab', ctrlKey: true, shiftKey: true },
-  clearTerminal: { key: 'l', ctrlKey: true }, // Handled by shell usually, but good to have known
+  clearTerminal: { key: 'l', ctrlKey: true, shiftKey: true }, // Changed to Ctrl+Shift+L
   copy: { key: 'c', ctrlKey: true, shiftKey: true },
   paste: { key: 'v', ctrlKey: true, shiftKey: true },
-  find: { key: 'f', ctrlKey: true },
-  newLine: { key: 'Enter', ctrlKey: true },
+  find: { key: 'f', ctrlKey: true, shiftKey: true }, // Changed to Ctrl+Shift+F
+  newLine: { key: 'Enter', shiftKey: true }, // Changed to Shift+Enter
 };
 
 export const formatKeybinding = (binding: Keybinding): string => {

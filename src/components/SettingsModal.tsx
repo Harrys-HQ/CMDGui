@@ -330,15 +330,15 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                   </div>
                   <div className="command-item">
                     <div className="command-name-col">
-                      <span className="command-pill">Ctrl + L</span>
+                      <span className="command-pill">Ctrl + Shift + L</span>
                     </div>
                     <div className="command-desc-col">
-                      <div>Clear the screen.</div>
+                      <div>Clear the screen and buffer.</div>
                     </div>
                   </div>
                   <div className="command-item">
                     <div className="command-name-col">
-                      <span className="command-pill">Ctrl + F</span>
+                      <span className="command-pill">Ctrl + Shift + F</span>
                     </div>
                     <div className="command-desc-col">
                       <div>Find in Terminal</div>

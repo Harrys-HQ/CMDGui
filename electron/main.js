@@ -17,6 +17,7 @@ const fs = require('fs');
 const projectService = require('./services/projectService');
 const terminalService = require('./services/terminalService');
 const settingsService = require('./services/settingsService');
+const fileService = require('./services/fileService');
 const loggerService = require('./services/loggerService');
 
 // Initialize logging
@@ -358,6 +359,48 @@ ipcMain.handle('context-menu-show', (event, type, data) => {
           event.sender.send('sidebar-context-action', { action: 'close-tab', id: data.id }),
       }
     );
+  } else if (type === 'file-explorer') {
+    if (data.isDirectory) {
+      template.push({
+        label: 'Open in Terminal',
+        click: () =>
+          event.sender.send('sidebar-context-action', {
+            action: 'explorer-open-terminal',
+            path: data.path,
+          }),
+      });
+      template.push({ type: 'separator' });
+      template.push({
+        label: 'New File',
+        click: () =>
+          event.sender.send('sidebar-context-action', { action: 'explorer-new-file', path: data.path }),
+      });
+      template.push({
+        label: 'New Folder',
+        click: () =>
+          event.sender.send('sidebar-context-action', {
+            action: 'explorer-new-folder',
+            path: data.path,
+          }),
+      });
+      template.push({ type: 'separator' });
+    }
+
+    template.push({
+      label: 'Rename',
+      click: () =>
+        event.sender.send('sidebar-context-action', { action: 'explorer-rename', path: data.path }),
+    });
+    template.push({
+      label: 'Delete',
+      click: () =>
+        event.sender.send('sidebar-context-action', { action: 'explorer-delete', path: data.path }),
+    });
+    template.push({ type: 'separator' });
+    template.push({
+      label: 'Show in Explorer',
+      click: () => shell.showItemInFolder(data.path),
+    });
   }
 
   if (template.length > 0) {
@@ -483,4 +526,26 @@ ipcMain.on('terminal-resize', (event, { pid, cols, rows }) => {
 
 ipcMain.on('terminal-kill', (event, pid) => {
   terminalService.killTerminal(pid);
+});
+
+// --- IPC Handlers for File Operations ---
+
+ipcMain.handle('file-create', (event, filePath) => {
+  return fileService.createFile(filePath);
+});
+
+ipcMain.handle('file-mkdir', (event, dirPath) => {
+  return fileService.createDirectory(dirPath);
+});
+
+ipcMain.handle('file-rename', (event, oldPath, newPath) => {
+  return fileService.renameItem(oldPath, newPath);
+});
+
+ipcMain.handle('file-delete', (event, itemPath) => {
+  return fileService.deleteItem(itemPath);
+});
+
+ipcMain.handle('file-show-in-folder', (event, itemPath) => {
+  return fileService.openInExplorer(itemPath);
 });

@@ -47,6 +47,13 @@ contextBridge.exposeInMainWorld('electron', {
   settingsGet: (key) => ipcRenderer.invoke('settings-get', key),
   settingsSet: (key, value) => ipcRenderer.invoke('settings-set', key, value),
 
+  // File Operations
+  fileCreate: (path) => ipcRenderer.invoke('file-create', path),
+  fileMkdir: (path) => ipcRenderer.invoke('file-mkdir', path),
+  fileRename: (oldPath, newPath) => ipcRenderer.invoke('file-rename', oldPath, newPath),
+  fileDelete: (path) => ipcRenderer.invoke('file-delete', path),
+  fileShowInFolder: (path) => ipcRenderer.invoke('file-show-in-folder', path),
+
   // Context Menus
   showContextMenu: (type, data) => ipcRenderer.invoke('context-menu-show', type, data),
   onTerminalContextAction: (callback) => {
