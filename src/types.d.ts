@@ -82,7 +82,12 @@ export interface TerminalTheme {
 export type SidebarAction =
   | { action: 'close-tab'; id: string }
   | { action: 'rename-tab'; id: string }
-  | { action: 'remove-project'; path: string };
+  | { action: 'remove-project'; path: string }
+  | { action: 'explorer-open-terminal'; path: string }
+  | { action: 'explorer-new-file'; path: string }
+  | { action: 'explorer-new-folder'; path: string }
+  | { action: 'explorer-rename'; path: string }
+  | { action: 'explorer-delete'; path: string };
 
 export interface UpdateInfo {
   version: string;
@@ -109,7 +114,7 @@ export interface UpdateStatus {
   error?: string;
 }
 
-export type ContextMenuData = { id: string } | { path: string };
+export type ContextMenuData = { id: string } | { path: string; isDirectory?: boolean };
 
 export interface ElectronAPI {
   createTerminal: (options?: {
