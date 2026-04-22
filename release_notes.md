@@ -1,3 +1,26 @@
+## 🚀 Release: CmdGUI v1.9.0
+
+### ✨ File Explorer Operations
+- **Full CRUD Support:** You can now create, rename, and delete files and folders directly from the sidebar. No more switching to Windows Explorer for simple file management.
+*   **Inline Renaming:** Rename files and folders with a smooth, IDE-like inline text input.
+*   **Secure Deletion:** Deleting items from the sidebar moves them to the OS Trash/Recycle Bin using Electron's secure shell API.
+*   **Quick Creation:** New "New File" and "New Folder" options in the right-click context menu.
+*   **Contextual Shortcuts:** Right-click folder entries to open a new terminal tab directly in that directory.
+
+### 🎹 Universal Shortcut Compatibility
+- **Non-Conflicting Modifiers:** Migrated core application shortcuts to `Ctrl + Shift` to prevent interception of standard terminal control codes.
+    - **Find:** Now `Ctrl + Shift + F` (leaves `Ctrl + F` for CLI tools).
+    - **Clear Screen:** Now `Ctrl + Shift + L` (leaves `Ctrl + L` for standard shell clearing).
+    - **New Line:** Now `Shift + Enter` (prevents conflicts with multiline commands).
+- **Terminal Pass-through:** Improved the key event handler to ensure all standard terminal shortcuts (e.g., `Ctrl + R`, `Ctrl + A`, `Ctrl + C`, `Ctrl + D`) are passed directly to the shell without being blocked by the app UI.
+
+### 🛠️ Maintenance & Refinement
+- **Secure File Service:** Implemented a new backend service for file operations with robust error handling.
+- **IPC Registry Improvements:** Optimized how file-explorer actions are communicated between the sidebar and the main process.
+- **UI Consistency:** Updated all "GEMINI" documentation tabs and tooltips to reflect the new shortcut defaults.
+
+---
+
 ## 🚀 Release: CmdGUI v1.8.0
 
 ### ✨ High-Performance Rendering & Memory Efficiency
