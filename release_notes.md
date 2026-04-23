@@ -1,3 +1,9 @@
+## 🚀 Release: CmdGUI v1.9.1
+
+### 🐞 Bug Fixes
+- **UI Stability:** Fixed a critical `TypeError` when clicking folder icons in the sidebar caused by missing pane data during re-renders.
+- **Improved Defensive Programming:** Added safety checks across the codebase to ensure tab and pane data are validated before access, preventing application crashes from corrupted state.
+
 ## 🚀 Release: CmdGUI v1.9.0
 
 ### ✨ File Explorer Operations
