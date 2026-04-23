@@ -91,10 +91,10 @@ const App: React.FC = () => {
         }
 
         // Check last active time of all panes in this tab
-        const panes = Object.keys(tab.panes);
-        const lastActive = Math.max(
-          ...panes.map((p) => globalPtyRegistry[p]?.lastActive || 0)
-        );
+        const panes = tab.panes ? Object.keys(tab.panes) : [];
+        const lastActive = panes.length > 0 
+          ? Math.max(...panes.map((p) => globalPtyRegistry[p]?.lastActive || 0))
+          : 0;
 
         if (lastActive > 0 && now - lastActive > HIBERNATION_THRESHOLD) {
           if (!newHibernated.has(tab.id)) {
@@ -168,7 +168,7 @@ const App: React.FC = () => {
   const handleCloseTab = useCallback(
     (id: string) => {
       const tabToClose = tabs.find((t) => t.id === id);
-      if (tabToClose) {
+      if (tabToClose && tabToClose.panes) {
         Object.keys(tabToClose.panes).forEach((paneId) => {
           if (terminalRefs.current[paneId]) delete terminalRefs.current[paneId];
         });
@@ -298,7 +298,7 @@ const App: React.FC = () => {
     onClearTerminal: () => {
       if (activeTabId) {
         const activeTab = tabs.find((t) => t.id === activeTabId);
-        if (activeTab) {
+        if (activeTab && activeTab.panes) {
           Object.keys(activeTab.panes).forEach((paneId) => {
             if (terminalRefs.current[paneId]) terminalRefs.current[paneId]?.clear();
           });
@@ -407,7 +407,7 @@ const App: React.FC = () => {
 
   // Periodic cleanup of orphaned terminal buffers
   useEffect(() => {
-    const allPaneIds = tabs.flatMap((tab) => Object.keys(tab.panes));
+    const allPaneIds = tabs.flatMap((tab) => (tab.panes ? Object.keys(tab.panes) : []));
     clearOrphanedBuffers(allPaneIds);
   }, [tabs]);
 

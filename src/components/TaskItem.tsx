@@ -46,7 +46,8 @@ const TaskItem: React.FC<TaskItemProps> = React.memo(
     onDragStart,
     onDragEnd,
   }) => {
-    const firstPane = Object.values(tab.panes)[0];
+    const panes = tab?.panes || {};
+    const firstPane = Object.values(panes)[0];
     const isAdmin = firstPane?.isAdmin;
     const cwd = firstPane?.cwd;
 

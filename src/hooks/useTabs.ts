@@ -112,7 +112,9 @@ export const useTabs = () => {
         setTabs((prev) => {
           // Kill all current terminal processes before loading the new workspace
           prev.forEach((tab) => {
-            Object.keys(tab.panes).forEach((paneId) => killTerminalProcess(paneId));
+            if (tab.panes) {
+              Object.keys(tab.panes).forEach((paneId) => killTerminalProcess(paneId));
+            }
           });
           return JSON.parse(JSON.stringify(workspace.tabs));
         });
@@ -161,7 +163,7 @@ export const useTabs = () => {
   const closeTab = useCallback((id: string) => {
     setTabs((prev) => {
       const tabToClose = prev.find((t) => t.id === id);
-      if (tabToClose) {
+      if (tabToClose && tabToClose.panes) {
         Object.keys(tabToClose.panes).forEach((paneId) => killTerminalProcess(paneId));
       }
 
@@ -237,7 +239,7 @@ export const useTabs = () => {
     setTabs((prev) =>
       prev.map((tab) => {
         if (tab.id !== tabId) return tab;
-        if (Object.keys(tab.panes).length <= 1) return tab; // Don't close last pane
+        if (!tab.panes || Object.keys(tab.panes).length <= 1) return tab; // Don't close last pane
 
         killTerminalProcess(paneId);
 
