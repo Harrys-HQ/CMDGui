@@ -19,3 +19,9 @@
 ## Phase 4: Validation
 - [x] **Task 4.1:** Verify file operations in a test directory (Verified logic and IPC registry).
 - [x] **Task 4.2:** Verify `Ctrl+L` and `Ctrl+F` pass-through (Verified by changing defaults to Ctrl+Shift).
+
+## Phase 5: Post-Release Stability (v1.9.1)
+- [x] **Task 5.1:** Fix `TypeError` (Object.values) on sidebar folder interaction.
+- [x] **Task 5.2:** Audit and add safety checks for `tab.panes` across the codebase.
+- [x] **Task 5.3:** Build and verify v1.9.1 release assets.
+
