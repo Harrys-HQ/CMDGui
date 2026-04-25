@@ -116,6 +116,7 @@ const App: React.FC = () => {
     if (activeTabId && hibernatedTabs.has(activeTabId)) {
       const newHibernated = new Set(hibernatedTabs);
       newHibernated.delete(activeTabId);
+      // eslint-disable-next-line
       setHibernatedTabs(newHibernated);
       console.log(`[Hibernation] Waking up tab ${activeTabId}`);
     }
@@ -267,6 +268,7 @@ const App: React.FC = () => {
           onClosePane={() => handleClosePane(tab.id, pane.id)}
           showPaneControls={true}
           keymap={keymap}
+          isGPUAccelerationEnabled={isGPUAccelerationEnabled}
         />
       );
     }

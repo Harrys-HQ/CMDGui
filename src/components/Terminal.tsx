@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Terminal as Xterm } from 'xterm';
 import { FitAddon } from 'xterm-addon-fit';
 import { WebLinksAddon } from 'xterm-addon-web-links';
@@ -31,6 +31,7 @@ interface TerminalProps {
   onClosePane?: () => void;
   showPaneControls?: boolean;
   keymap: Keymap;
+  isGPUAccelerationEnabled?: boolean;
 }
 
 const getTheme = (name: string = 'vscode', custom?: TerminalTheme) => {
@@ -90,6 +91,7 @@ const Terminal: React.FC<TerminalProps> = ({
   onClosePane,
   showPaneControls,
   keymap,
+  isGPUAccelerationEnabled = true,
 }) => {
   const terminalRef = useRef<HTMLDivElement>(null);
   const xtermRef = useRef<Xterm | null>(null);
@@ -114,25 +116,29 @@ const Terminal: React.FC<TerminalProps> = ({
   const isFitPendingRef = useRef(false);
   const writeRafId = useRef<number | null>(null);
 
-  const loadHighPerformanceRenderer = (term: Xterm) => {
-    try {
-      const webglAddon = new WebglAddon();
-      webglAddon.onContextLoss(() => {
-        webglAddon.dispose();
-      });
-      term.loadAddon(webglAddon);
-      console.log(`[Terminal ${paneId}] WebGL renderer loaded.`);
-    } catch (e) {
-      console.warn(`[Terminal ${paneId}] WebGL failed, falling back to Canvas:`, e);
+  const loadHighPerformanceRenderer = useCallback(
+    (term: Xterm) => {
+      if (!isGPUAccelerationEnabled || !term.element) return;
       try {
-        const canvasAddon = new CanvasAddon();
-        term.loadAddon(canvasAddon);
-        console.log(`[Terminal ${paneId}] Canvas renderer loaded.`);
-      } catch (e2) {
-        console.warn(`[Terminal ${paneId}] Canvas failed, using DOM renderer:`, e2);
+        const webglAddon = new WebglAddon();
+        webglAddon.onContextLoss(() => {
+          webglAddon.dispose();
+        });
+        term.loadAddon(webglAddon);
+        console.log(`[Terminal ${paneId}] WebGL renderer loaded.`);
+      } catch (e) {
+        console.warn(`[Terminal ${paneId}] WebGL failed, falling back to Canvas:`, e);
+        try {
+          const canvasAddon = new CanvasAddon();
+          term.loadAddon(canvasAddon);
+          console.log(`[Terminal ${paneId}] Canvas renderer loaded.`);
+        } catch (e2) {
+          console.warn(`[Terminal ${paneId}] Canvas failed, using DOM renderer:`, e2);
+        }
       }
-    }
-  };
+    },
+    [paneId, isGPUAccelerationEnabled]
+  );
 
   const flushWriteBuffer = () => {
     if (xtermRef.current && writeBuffer.current) {
@@ -208,7 +214,7 @@ const Terminal: React.FC<TerminalProps> = ({
         setTimeout(fitTerminal, 50);
       }
     }
-  }, [onTitleChange, onExit, onCommand, onNotification, onClear, isActive]);
+  }, [onTitleChange, onExit, onCommand, onNotification, onClear, isActive, paneId]);
 
   useEffect(() => {
     if (!terminalRef.current) return;
@@ -335,7 +341,7 @@ const Terminal: React.FC<TerminalProps> = ({
         if (term.element) {
           try {
             fitAddon.fit();
-          } catch (e) {
+          } catch {
             // Ignore
           }
         }
@@ -494,7 +500,7 @@ const Terminal: React.FC<TerminalProps> = ({
     return () => {
       if (rafId) cancelAnimationFrame(rafId);
     };
-  }, [isActive, isReady]);
+  }, [isActive, isReady, loadHighPerformanceRenderer]);
   useEffect(() => {
     // Periodic buffer persistence (every 30 seconds)
     const interval = setInterval(() => {
@@ -514,7 +520,9 @@ const Terminal: React.FC<TerminalProps> = ({
 
       // Use requestIdleCallback if available to avoid blocking main thread
       if ('requestIdleCallback' in window) {
-        (window as any).requestIdleCallback(performSave, { timeout: 2000 });
+        (
+          window as unknown as { requestIdleCallback: (cb: () => void, opts?: { timeout: number }) => void }
+        ).requestIdleCallback(performSave, { timeout: 2000 });
       } else {
         performSave();
       }

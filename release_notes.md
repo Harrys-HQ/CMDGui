@@ -1,3 +1,10 @@
+## 🚀 Release: CmdGUI v1.9.2
+
+### 🐞 Bug Fixes
+- **UI Stability:** Fixed a critical `Object.values(undefined)` crash when clicking folder icons in the sidebar caused by `react-window` v2 breaking changes.
+- **Rendering Stability:** Fixed the `Terminal` component attempting to load high-performance renderers (WebGL) before the underlying DOM element was fully mounted and initialized.
+- **Dependency Issues:** Updated `react-window` integration to correctly conform to its v2.x API.
+
 ## 🚀 Release: CmdGUI v1.9.1
 
 ### 🐞 Bug Fixes

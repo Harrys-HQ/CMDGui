@@ -1,11 +1,10 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { loadState, saveState } from './usePersistence';
 
 export const useSidebarResizer = () => {
   const [sidebarWidth, setSidebarWidth] = useState(250);
   const [isResizing, setIsResizing] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
-  const layoutRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const init = async () => {

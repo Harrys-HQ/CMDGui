@@ -58,12 +58,12 @@ const CollapsibleSection: React.FC<{
 };
 
 const Sidebar: React.FC<SidebarProps> = ({
-  width,
+  width: _width,
   projects,
   tabs,
   activeTabId,
   onAddProject,
-  onRemoveProject,
+  onRemoveProject: _onRemoveProject,
   onAddTerminal,
   onSelectTab,
   onCloseTab,

@@ -1,7 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-// @ts-ignore
-import * as RW from 'react-window';
-const List = (RW as any).FixedSizeList || (RW as any).List;
+import { List } from 'react-window';
 import { FileEntry } from '../types';
 
 interface FileExplorerProps {
@@ -45,8 +43,25 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ rootPath, onSelectFolder })
   }, [rootPath]);
 
   useEffect(() => {
+    // eslint-disable-next-line
     loadFolder(rootPath);
   }, [rootPath, loadFolder]);
+
+  const toggleFolder = useCallback(
+    async (path: string) => {
+      const newExpanded = new Set(expandedPaths);
+      if (newExpanded.has(path)) {
+        newExpanded.delete(path);
+      } else {
+        newExpanded.add(path);
+        if (!childrenCache[path]) {
+          await loadFolder(path);
+        }
+      }
+      setExpandedPaths(newExpanded);
+    },
+    [expandedPaths, childrenCache, loadFolder]
+  );
 
   useEffect(() => {
     if (!window.electron.onSidebarContextAction) return;
@@ -76,7 +91,7 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ rootPath, onSelectFolder })
         case 'explorer-rename':
           if (data.path) {
             setRenamingPath(data.path);
-            setEditValue(data.path.split(/[\\\/]/).pop() || '');
+            setEditValue(data.path.split(/[\\/]/).pop() || '');
           }
           break;
 
@@ -86,7 +101,7 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ rootPath, onSelectFolder })
             if (confirmed) {
               const res = await window.electron.fileDelete(data.path);
               if (res.success) {
-                const parentPath = data.path.split(/[\\\/]/).slice(0, -1).join('\\');
+                const parentPath = data.path.split(/[\\/]/).slice(0, -1).join('\\');
                 loadFolder(parentPath || rootPath);
               } else {
                 alert(`Delete failed: ${res.error}`);
@@ -98,27 +113,11 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ rootPath, onSelectFolder })
     });
 
     return cleanup;
-  }, [onSelectFolder, expandedPaths, rootPath, loadFolder]);
-
-  const toggleFolder = useCallback(
-    async (path: string) => {
-      const newExpanded = new Set(expandedPaths);
-      if (newExpanded.has(path)) {
-        newExpanded.delete(path);
-      } else {
-        newExpanded.add(path);
-        if (!childrenCache[path]) {
-          await loadFolder(path);
-        }
-      }
-      setExpandedPaths(newExpanded);
-    },
-    [expandedPaths, childrenCache, loadFolder]
-  );
+  }, [onSelectFolder, expandedPaths, rootPath, loadFolder, toggleFolder]);
 
   const handleRenameSubmit = async () => {
     if (!renamingPath || !editValue) return;
-    const parentPath = renamingPath.split(/[\\\/]/).slice(0, -1).join('\\');
+    const parentPath = renamingPath.split(/[\\/]/).slice(0, -1).join('\\');
     const newPath = (parentPath ? parentPath + '\\' : '') + editValue;
 
     const res = await window.electron.fileRename(renamingPath, newPath);
@@ -232,7 +231,13 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ rootPath, onSelectFolder })
               setCreatingInPath(null);
             }}
             onKeyDown={(e) => {
-              if (e.key === 'Enter') isRenaming ? handleRenameSubmit() : handleCreateSubmit();
+              if (e.key === 'Enter') {
+                if (isRenaming) {
+                  handleRenameSubmit();
+                } else {
+                  handleCreateSubmit();
+                }
+              }
               if (e.key === 'Escape') {
                 setRenamingPath(null);
                 setCreatingInPath(null);
@@ -281,11 +286,10 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ rootPath, onSelectFolder })
       }}
     >
       <List
-        height={containerHeight}
-        itemCount={flattenedData.length}
-        itemSize={ITEM_HEIGHT}
-        width="100%"
-        children={Row as any}
+        rowCount={flattenedData.length}
+        rowHeight={ITEM_HEIGHT}
+        rowComponent={Row as any}
+        rowProps={{}}
       />
     </div>
   );
