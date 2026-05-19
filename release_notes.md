@@ -1,3 +1,8 @@
+## 🚀 Release: CmdGUI v1.9.3
+
+### 🛠️ Maintenance & Refinement
+- **Robust Terminal Clearing:** Replaced the basic clear command with a comprehensive mechanism that clears the xterm.js buffer, the visible viewport, and the persisted local storage state. This ensures that "Clear Terminal" (via `Ctrl+Shift+L`, context menu, or command palette) is 100% reliable across sessions.
+
 ## 🚀 Release: CmdGUI v1.9.2
 
 ### 🐞 Bug Fixes

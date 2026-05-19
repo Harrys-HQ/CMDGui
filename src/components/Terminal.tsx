@@ -297,6 +297,11 @@ const Terminal: React.FC<TerminalProps> = ({
       if (isKeyMatch(e, keymap.clearTerminal)) {
         if (pidRef.current !== null) {
           window.electron.writeTerminal(pidRef.current, '\x0c');
+          if (xtermRef.current) {
+            xtermRef.current.clear();
+            xtermRef.current.write('\x1b[2J\x1b[H');
+          }
+          localStorage.removeItem(`terminal_buffer_${paneId}`);
         }
         return false;
       }
@@ -320,7 +325,14 @@ const Terminal: React.FC<TerminalProps> = ({
 
     if (onClearRef.current)
       onClearRef.current(() => {
-        if (pidRef.current !== null) window.electron.writeTerminal(pidRef.current, '\x0c');
+        if (pidRef.current !== null) {
+          window.electron.writeTerminal(pidRef.current, '\x0c');
+          if (xtermRef.current) {
+            xtermRef.current.clear();
+            xtermRef.current.write('\x1b[2J\x1b[H');
+          }
+          localStorage.removeItem(`terminal_buffer_${paneId}`);
+        }
       });
 
     let isUnmounted = false;
@@ -581,13 +593,18 @@ const Terminal: React.FC<TerminalProps> = ({
         case 'clear':
           if (pidRef.current !== null) {
             window.electron.writeTerminal(pidRef.current, '\x0c');
+            if (xtermRef.current) {
+              xtermRef.current.clear();
+              xtermRef.current.write('\x1b[2J\x1b[H');
+            }
+            localStorage.removeItem(`terminal_buffer_${paneId}`);
           }
           break;
       }
     });
 
     return cleanup;
-  }, [onSplitHorizontal, onSplitVertical]);
+  }, [onSplitHorizontal, onSplitVertical, paneId]);
 
   return (
     <div
