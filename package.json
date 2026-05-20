@@ -28,7 +28,8 @@
     "publish": {
       "provider": "github",
       "owner": "Harrys-HQ",
-      "repo": "CMDGui"
+      "repo": "CMDGui",
+      "releaseType": "release"
     },
     "win": {
       "target": "nsis",
