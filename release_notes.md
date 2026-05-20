@@ -1,3 +1,8 @@
+## 🚀 Release: CmdGUI v1.9.4
+
+### 🐞 Bug Fixes
+- **Double-Paste Fix:** Resolved an issue where `Ctrl+Shift+V` would paste text twice in the terminal by correctly preventing the browser's default paste action when handled by the application.
+
 ## 🚀 Release: CmdGUI v1.9.3
 
 ### 🛠️ Maintenance & Refinement

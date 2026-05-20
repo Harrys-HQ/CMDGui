@@ -269,10 +269,12 @@ const Terminal: React.FC<TerminalProps> = ({
       if (e.type !== 'keydown') return true;
 
       if (isKeyMatch(e, keymap.find)) {
+        e.preventDefault();
         setIsSearchOpen(true);
         return false;
       }
       if (isKeyMatch(e, keymap.copy)) {
+        e.preventDefault();
         const selection = term.getSelection();
         if (selection) {
           navigator.clipboard.writeText(selection);
@@ -281,6 +283,7 @@ const Terminal: React.FC<TerminalProps> = ({
         return false;
       }
       if (isKeyMatch(e, keymap.paste)) {
+        e.preventDefault();
         navigator.clipboard.readText().then((text) => {
           // eslint-disable-next-line no-control-regex
           const sanitized = text.replace(/[\u0000-\u0008\u000e-\u001f\u007f]/g, '');
@@ -289,12 +292,14 @@ const Terminal: React.FC<TerminalProps> = ({
         return false;
       }
       if (isKeyMatch(e, keymap.newLine)) {
+        e.preventDefault();
         if (pidRef.current !== null) {
           window.electron.writeTerminal(pidRef.current, '\n');
         }
         return false;
       }
       if (isKeyMatch(e, keymap.clearTerminal)) {
+        e.preventDefault();
         if (pidRef.current !== null) {
           window.electron.writeTerminal(pidRef.current, '\x0c');
           if (xtermRef.current) {
