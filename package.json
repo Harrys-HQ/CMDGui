@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "tauri dev",
     "build": "tsc && vite build",
+    "tauri": "tauri",
     "dist": "tauri build",
     "lint": "eslint .",
     "format": "prettier --write .",
