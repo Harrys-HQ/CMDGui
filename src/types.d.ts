@@ -144,6 +144,7 @@ export interface ElectronAPI {
   quitAndInstall: () => Promise<void>;
   onUpdateStatus: (callback: (data: UpdateStatus) => void) => () => void;
   getVersion: () => Promise<string>;
+  readClipboard: () => Promise<string>;
   setQuakeMode: (enabled: boolean) => void;
   setStayAwake: (enabled: boolean) => void;
   updateActiveContext: (context: {

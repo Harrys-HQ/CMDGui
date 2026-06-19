@@ -1,5 +1,10 @@
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
+import { check, type Update } from '@tauri-apps/plugin-updater';
+import { relaunch } from '@tauri-apps/plugin-process';
+
+let activeUpdate: Update | null = null;
+const updateStatusCallbacks = new Set<(data: any) => void>();
 
 // Capture right-click mouse coordinates globally
 let lastMouseX = 0;
@@ -197,21 +202,94 @@ export const tauriBridge = {
   },
 
   checkForUpdates: async () => {
-    return { success: false, error: 'Tauri updater handles updates natively' };
+    updateStatusCallbacks.forEach((cb) => cb({ status: 'checking' }));
+    try {
+      const update = await check();
+      if (update) {
+        activeUpdate = update;
+        updateStatusCallbacks.forEach((cb) =>
+          cb({
+            status: 'available',
+            info: {
+              version: update.version,
+              releaseDate: update.date,
+              body: update.body,
+            },
+          })
+        );
+        return { success: true, updateInfo: { version: update.version } };
+      } else {
+        activeUpdate = null;
+        updateStatusCallbacks.forEach((cb) => cb({ status: 'not-available' }));
+        return { success: true, updateInfo: null };
+      }
+    } catch (e: any) {
+      console.error(e);
+      updateStatusCallbacks.forEach((cb) => cb({ status: 'error', error: String(e) }));
+      return { success: false, error: String(e) };
+    }
   },
 
   downloadUpdate: async () => {
-    return { success: false, error: 'Tauri updater handles updates natively' };
+    if (!activeUpdate) {
+      updateStatusCallbacks.forEach((cb) =>
+        cb({ status: 'error', error: 'No update available to download' })
+      );
+      return { success: false, error: 'No update available to download' };
+    }
+    updateStatusCallbacks.forEach((cb) => cb({ status: 'downloading', progress: { percent: 0 } }));
+    try {
+      let totalLength = 0;
+      let downloaded = 0;
+      await activeUpdate.downloadAndInstall((event) => {
+        switch (event.event) {
+          case 'Started':
+            totalLength = event.data.contentLength || 0;
+            updateStatusCallbacks.forEach((cb) =>
+              cb({ status: 'downloading', progress: { percent: 0 } })
+            );
+            break;
+          case 'Progress':
+            downloaded += event.data.chunkLength;
+            const percent = totalLength ? Math.round((downloaded / totalLength) * 100) : 0;
+            updateStatusCallbacks.forEach((cb) =>
+              cb({ status: 'downloading', progress: { percent } })
+            );
+            break;
+          case 'Finished':
+            updateStatusCallbacks.forEach((cb) => cb({ status: 'downloaded' }));
+            break;
+        }
+      });
+      return { success: true };
+    } catch (e: any) {
+      console.error(e);
+      updateStatusCallbacks.forEach((cb) => cb({ status: 'error', error: String(e) }));
+      return { success: false, error: String(e) };
+    }
   },
 
-  quitAndInstall: async () => {},
+  quitAndInstall: async () => {
+    try {
+      await relaunch();
+    } catch (e) {
+      console.error('Failed to relaunch:', e);
+    }
+  },
 
-  onUpdateStatus: () => {
-    return () => {};
+  onUpdateStatus: (callback: (data: any) => void) => {
+    updateStatusCallbacks.add(callback);
+    return () => {
+      updateStatusCallbacks.delete(callback);
+    };
   },
 
   getVersion: async () => {
     return '2.0.0';
+  },
+
+  readClipboard: async () => {
+    return await invoke<string>('read_clipboard');
   },
 
   setQuakeMode: (enabled: boolean) => {

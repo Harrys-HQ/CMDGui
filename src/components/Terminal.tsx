@@ -284,11 +284,11 @@ const Terminal: React.FC<TerminalProps> = ({
       }
       if (isKeyMatch(e, keymap.paste)) {
         e.preventDefault();
-        navigator.clipboard.readText().then((text) => {
+        window.electron.readClipboard().then((text) => {
           // eslint-disable-next-line no-control-regex
           const sanitized = text.replace(/[\u0000-\u0008\u000e-\u001f\u007f]/g, '');
           term.paste(sanitized);
-        });
+        }).catch((err) => console.error('Clipboard paste failed:', err));
         return false;
       }
       if (isKeyMatch(e, keymap.newLine)) {
@@ -612,11 +612,11 @@ const Terminal: React.FC<TerminalProps> = ({
           break;
         }
         case 'paste':
-          navigator.clipboard.readText().then((text) => {
+          window.electron.readClipboard().then((text) => {
             // eslint-disable-next-line no-control-regex
             const sanitized = text.replace(/[\u0000-\u0008\u000e-\u001f\u007f]/g, '');
             term.paste(sanitized);
-          });
+          }).catch((err) => console.error('Clipboard paste failed:', err));
           break;
         case 'split-horizontal':
           if (onSplitHorizontal) onSplitHorizontal();

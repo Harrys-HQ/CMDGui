@@ -17,6 +17,8 @@ pub fn run() {
             .build(),
         )?;
       }
+      #[cfg(desktop)]
+      app.handle().plugin(tauri_plugin_updater::Builder::new().build())?;
       Ok(())
     })
     .invoke_handler(tauri::generate_handler![
@@ -41,6 +43,7 @@ pub fn run() {
       file_op::dialog_select_folder,
       file_op::open_in_vscode,
       file_op::set_stay_awake,
+      file_op::read_clipboard,
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");

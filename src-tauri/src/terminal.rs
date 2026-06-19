@@ -82,8 +82,18 @@ pub async fn create_terminal(
                 path_val.push_str(&agy_path);
             }
         }
-        cmd.env("PATH", &path_val);
-        cmd.env("Path", &path_val);
+        // Find all case-insensitive variations of "PATH" currently in the environment
+        // and update them to the new path_val to avoid duplicate/conflicting entries.
+        let mut found = false;
+        for (k, _) in std::env::vars() {
+            if k.eq_ignore_ascii_case("path") {
+                cmd.env(&k, &path_val);
+                found = true;
+            }
+        }
+        if !found {
+            cmd.env("Path", &path_val);
+        }
     }
 
     if let Some(env) = options.env_vars {

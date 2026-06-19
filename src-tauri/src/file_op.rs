@@ -223,5 +223,11 @@ pub async fn set_stay_awake(enabled: bool) -> Result<(), String> {
     Ok(())
 }
 
+#[tauri::command]
+pub async fn read_clipboard() -> Result<String, String> {
+    let mut ctx = arboard::Clipboard::new().map_err(|e| e.to_string())?;
+    ctx.get_text().map_err(|e| e.to_string())
+}
+
 
 

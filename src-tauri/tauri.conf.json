@@ -25,9 +25,18 @@
       "csp": null
     }
   },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW51c2VkX3B1YmxpY19rZXlfdG9fZmVlZF9zY2hlbWE=",
+      "endpoints": [
+        "https://github.com/Harrys-HQ/CMDGui/releases/latest/download/latest.json"
+      ]
+    }
+  },
   "bundle": {
     "active": true,
     "targets": "all",
+    "createUpdaterArtifacts": true,
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
