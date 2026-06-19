@@ -7,9 +7,6 @@
   - `src/components/SettingsModal.tsx` (UI version display)
   - `release_notes.md` (Release headers)
 - **Builds & Asset Naming:**
-  - A full build and packaging (`npm run dist`) should be performed after version updates.
-  - **Standardized Naming:** Assets MUST use hyphens (e.g., `CmdGUI-Setup-1.5.0.exe`) as configured in `package.json` to ensure auto-updater compatibility.
-  - **Required Release Assets:** Every GitHub release MUST include the following three files:
-    1. The `.exe` installer (with hyphenated name)
-    2. The `.exe.blockmap` file
-    3. The `latest.yml` metadata file
+  - A full build and packaging (`npm run dist` / `tauri build`) should be performed after version updates.
+  - **Required Release Assets:** Every GitHub release should include the Tauri build artifacts, which include the `.msi` installer and/or the NSIS `.exe` installer.
+

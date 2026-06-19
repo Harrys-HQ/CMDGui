@@ -1,6 +1,6 @@
 # CmdGUI
 
-**CmdGUI** is a developer-focused workspace manager designed to streamline your command-line workflow. Built with **Electron**, **React**, and **TypeScript**, it serves as a central hub for all your active projects, allowing you to manage multiple terminal sessions (PowerShell/Bash) with a persistent state that remembers your setup between launches.
+**CmdGUI** is a developer-focused workspace manager designed to streamline your command-line workflow. Built with **Tauri**, **React**, **Rust**, and **TypeScript**, it serves as a central hub for all your active projects, allowing you to manage multiple terminal sessions (PowerShell/Bash) with a persistent state that remembers your setup between launches.
 
 ## 📸 Gallery
 
@@ -46,15 +46,16 @@
 ## Tech Stack
 
 - **Frontend:** React 19, Vite, TypeScript, react-window
-- **Backend:** Electron, Node.js, node-pty
+- **Backend:** Tauri, Rust, portable-pty
 - **Terminal:** xterm.js, WebGL/Canvas Rendering, xterm-addon-serialize
 
 ## Getting Started
 
 ### Prerequisites
 
-- Node.js (v16 or higher recommended)
+- Node.js (v18 or higher recommended)
 - npm
+- Rust (stable toolchain)
 
 ### Installation
 
@@ -67,7 +68,7 @@
 
 ### Development
 
-To run the application in development mode (React dev server + Electron):
+To run the application in development mode (React dev server + Tauri):
 
 ```bash
 npm run dev
@@ -75,7 +76,7 @@ npm run dev
 
 ### Building
 
-To build the application for production (creates an executable):
+To build the application for production (creates a Tauri installer/executable):
 
 ```bash
 npm run dist
