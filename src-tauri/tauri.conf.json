@@ -27,7 +27,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW51c2VkX3B1YmxpY19rZXlfdG9fZmVlZF9zY2hlbWE=",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEUxMjJDM0I3NDA3RTA2MkUKUldRdUJuNUF0OE1pNGU4ekhxRTJjODdWdUZCZXlKbFE2WDlTMFRLZi9LUk5Pemc1TWZhUUtxK1MK",
       "endpoints": [
         "https://github.com/Harrys-HQ/CMDGui/releases/latest/download/latest.json"
       ]
