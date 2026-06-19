@@ -10,6 +10,8 @@ interface SettingsModalProps {
   onThemeChange: (theme: string) => void;
   customTheme?: TerminalTheme;
   onCustomThemeChange?: (theme: TerminalTheme) => void;
+  uiTheme?: string;
+  onUiThemeChange?: (theme: string) => void;
   terminalFontSize: number;
   onFontSizeChange: (size: number) => void;
   terminalScrollback?: number;
@@ -31,6 +33,8 @@ interface SettingsModalProps {
   keymap?: Keymap;
   onUpdateKeybinding?: (action: KeybindingAction, binding: Keybinding) => void;
   onResetKeybindings?: () => void;
+  showTopTabBar?: boolean;
+  onShowTopTabBarChange?: (show: boolean) => void;
 }
 
 const ACTION_LABELS: Record<KeybindingAction, string> = {
@@ -107,6 +111,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   onThemeChange,
   customTheme,
   onCustomThemeChange,
+  uiTheme,
+  onUiThemeChange,
   terminalFontSize,
   onFontSizeChange,
   terminalScrollback,
@@ -128,11 +134,13 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   keymap,
   onUpdateKeybinding,
   onResetKeybindings,
+  showTopTabBar = true,
+  onShowTopTabBarChange,
 }) => {
   const [activeTab, setActiveTab] = useState<
     'project' | 'appearance' | 'keybindings' | 'cli' | 'workspaces' | 'history' | 'about'
   >('project');
-  const [appVersion, setAppVersion] = useState<string>('1.9.4');
+  const [appVersion, setAppVersion] = useState<string>('2.0.0');
   const [recordingAction, setRecordingAction] = useState<KeybindingAction | null>(null);
 
   // Update State
@@ -409,6 +417,65 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
           {activeTab === 'appearance' && (
             <>
               <section className="modal-section">
+                <h3 className="modal-section-title">Application UI Appearance</h3>
+                <h4 style={{ fontSize: '14px', marginBottom: '10px', color: '#888' }}>UI Theme</h4>
+                <div className="theme-grid">
+                  {[
+                    { id: 'dark', name: 'VS Code Dark' },
+                    { id: 'light', name: 'Light' },
+                    { id: 'amoled', name: 'Amoled Black' },
+                  ].map((theme) => (
+                    <div
+                      key={theme.id}
+                      className={`theme-option ${uiTheme === theme.id ? 'selected' : ''}`}
+                      onClick={() => onUiThemeChange && onUiThemeChange(theme.id)}
+                    >
+                      {theme.name}
+                    </div>
+                  ))}
+                </div>
+              </section>
+
+              <section className="modal-section">
+                <h3 className="modal-section-title">UI Layout</h3>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '15px', padding: '10px 0' }}>
+                  <div>
+                    <div style={{ fontWeight: '500', color: '#e5e5e5' }}>Horizontal Top Tab Bar</div>
+                    <div style={{ fontSize: '12px', color: '#888', marginTop: '4px' }}>Show horizontal tabs at the top of the workspace. Disable to use vertical sidebar tabs only.</div>
+                  </div>
+                  <button
+                    onClick={() => onShowTopTabBarChange && onShowTopTabBarChange(!showTopTabBar)}
+                    style={{
+                      width: '46px',
+                      height: '24px',
+                      borderRadius: '12px',
+                      background: showTopTabBar ? '#007acc' : '#444',
+                      border: 'none',
+                      position: 'relative',
+                      cursor: 'pointer',
+                      transition: 'background 0.2s ease',
+                      padding: 0,
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: '18px',
+                        height: '18px',
+                        borderRadius: '50%',
+                        background: '#fff',
+                        position: 'absolute',
+                        top: '3px',
+                        left: showTopTabBar ? '25px' : '3px',
+                        transition: 'left 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                        boxShadow: '0 1px 3px rgba(0,0,0,0.4)',
+                      }}
+                    />
+                  </button>
+                </div>
+              </section>
+
+
+              <section className="modal-section">
                 <h3 className="modal-section-title">Terminal Appearance</h3>
 
                 <h4 style={{ fontSize: '14px', marginBottom: '10px', color: '#888' }}>Theme</h4>
@@ -634,8 +701,35 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
           {activeTab === 'cli' && (
             <>
               <section className="modal-section">
-                <h3 className="modal-section-title">Slash Commands (/)</h3>
+                <h3 className="modal-section-title">Antigravity & AI CLI Slash Commands</h3>
+                <p style={{ fontSize: '12px', color: '#888', marginBottom: '15px' }}>
+                  Use these powerful slash commands inside your AI coding assistant shell.
+                </p>
                 <div className="command-grid">
+                  <div className="command-item">
+                    <div className="command-name-col">
+                      <span className="command-pill">/goal</span>
+                    </div>
+                    <div className="command-desc-col">
+                      <div>Run long-running autonomous tasks (e.g. overnight builds/tests) thoroughly.</div>
+                    </div>
+                  </div>
+                  <div className="command-item">
+                    <div className="command-name-col">
+                      <span className="command-pill">/schedule</span>
+                    </div>
+                    <div className="command-desc-col">
+                      <div>Schedule a recurring cron job or set a one-shot timer for background notifications.</div>
+                    </div>
+                  </div>
+                  <div className="command-item">
+                    <div className="command-name-col">
+                      <span className="command-pill">/grill-me</span>
+                    </div>
+                    <div className="command-desc-col">
+                      <div>Start an interactive multi-choice interview to align on design decisions and plans.</div>
+                    </div>
+                  </div>
                   <div className="command-item">
                     <div className="command-name-col">
                       <span className="command-pill">/bug</span>
@@ -649,7 +743,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                       <span className="command-pill">/init</span>
                     </div>
                     <div className="command-desc-col">
-                      <div>Generate GEMINI.md context file.</div>
+                      <div>Generate a GEMINI.md / ANTIGRAVITY.md context file.</div>
                     </div>
                   </div>
                   <div className="command-item">

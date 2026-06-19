@@ -1,55 +1,14 @@
 {
   "name": "cmd-gui",
-  "version": "1.9.4",
-  "description": "A modern, persistent workspace manager and terminal emulator built with Electron and React.",
-  "main": "electron/main.js",
+  "version": "2.0.0",
+  "description": "A modern, persistent workspace manager and terminal emulator built with Tauri and React.",
   "scripts": {
-    "dev": "concurrently \"npm run dev:react\" \"npm run dev:electron\"",
-    "dev:react": "vite",
-    "dev:electron": "wait-on tcp:5173 && electron .",
+    "dev": "tauri dev",
     "build": "tsc && vite build",
-    "dist": "npm run build && electron-builder",
-    "publish": "npm run build && dotenv -- electron-builder -p always",
+    "dist": "tauri build",
     "lint": "eslint .",
     "format": "prettier --write .",
     "test": "vitest"
-  },
-  "build": {
-    "appId": "com.harrya.cmdgui",
-    "productName": "CmdGUI",
-    "directories": {
-      "output": "release"
-    },
-    "files": [
-      "dist/**/*",
-      "electron/**/*",
-      "package.json"
-    ],
-    "publish": [
-      {
-        "provider": "github",
-        "owner": "Harrys-HQ",
-        "repo": "CMDGui",
-        "releaseType": "release"
-      }
-    ],
-    "win": {
-      "target": "nsis",
-      "icon": "build/icon.png",
-      "artifactName": "${productName}-Setup-${version}.${ext}"
-    },
-    "mac": {
-      "target": "dmg",
-      "icon": "build/icon.png"
-    },
-    "linux": {
-      "target": "AppImage",
-      "icon": "build/icon.png",
-      "category": "Development"
-    },
-    "asarUnpack": [
-      "**/node_modules/node-pty/**/*"
-    ]
   },
   "keywords": [],
   "author": "HarryA",
@@ -60,18 +19,16 @@
   },
   "type": "commonjs",
   "dependencies": {
+    "@tauri-apps/api": "^2.11.0",
+    "@tauri-apps/plugin-log": "^2.8.0",
     "@xterm/addon-canvas": "^0.7.0",
     "@xterm/addon-serialize": "^0.14.0",
     "@xterm/addon-webgl": "^0.19.0",
-    "concurrently": "^9.2.1",
     "cross-env": "^10.1.0",
-    "electron-updater": "^6.7.3",
-    "node-pty": "^1.1.0",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
     "react-resizable-panels": "^4.7.2",
     "react-window": "^2.2.7",
-    "wait-on": "^9.0.3",
     "xterm": "^5.3.0",
     "xterm-addon-fit": "^0.8.0",
     "xterm-addon-search": "^0.13.0",
@@ -79,6 +36,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",
+    "@tauri-apps/cli": "^2.11.2",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
@@ -88,8 +46,6 @@
     "@types/react-window": "^1.8.8",
     "@vitejs/plugin-react": "^5.1.2",
     "dotenv-cli": "^11.0.0",
-    "electron": "^40.0.0",
-    "electron-builder": "^26.4.0",
     "eslint": "^9.39.2",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-react": "^7.37.5",

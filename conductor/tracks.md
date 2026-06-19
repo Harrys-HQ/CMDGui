@@ -6,6 +6,7 @@ This file registers active development tracks.
 
 ## Archived Tracks
 
+- [v2.0.0 UI/UX Master Overhaul](./tracks/v2.0.0-ui-ux-overhaul/index.md) (Completed: 2026-05-20)
 - [v1.9.4 File Operations & Shortcuts (Double-Paste Fix)](./tracks/v1.9.0-file-ops-and-shortcuts/index.md) (Completed: 2026-05-19)
 - [v1.8.0 Performance & Stability Overhaul](./tracks/v1.8.0-performance-overhaul/index.md) (Completed: 2026-04-19)
 - [v1.7.4 Stability & Performance](./tracks/v1.7.4-stability/index.md) (Completed: 2026-04-19)

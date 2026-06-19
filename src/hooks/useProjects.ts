@@ -82,6 +82,7 @@ export const useProjects = () => {
   // Periodic Git Status Refresh (every 30 seconds)
   useEffect(() => {
     if (!isLoaded) return;
+    refreshGitStatus(); // Refresh immediately on load
     const interval = setInterval(refreshGitStatus, 30000);
     return () => clearInterval(interval);
   }, [isLoaded, refreshGitStatus]);

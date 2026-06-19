@@ -6,6 +6,8 @@ interface StatusBarProps {
   tabCount: number;
   isUpdateAvailable?: boolean;
   onShowUpdates?: () => void;
+  onToggleQuickSwitcher?: () => void;
+  onOpenSettings?: () => void;
 }
 
 const StatusBar: React.FC<StatusBarProps> = ({
@@ -14,10 +16,12 @@ const StatusBar: React.FC<StatusBarProps> = ({
   tabCount,
   isUpdateAvailable,
   onShowUpdates,
+  onToggleQuickSwitcher,
+  onOpenSettings,
 }) => {
   return (
     <div className="status-bar">
-      <div className="status-item">
+      <div className="status-item" onClick={onOpenSettings} title="Open Settings">
         <span className="codicon codicon-remote"></span>
         <span
           style={{
@@ -53,17 +57,18 @@ const StatusBar: React.FC<StatusBarProps> = ({
           <span>{activeTabTitle}</span>
         </div>
       )}
-      <div className="status-item">
+      <div className="status-item" onClick={onToggleQuickSwitcher} title="Switch Tabs (Ctrl+P)">
         <span>Tabs: {tabCount}</span>
       </div>
       <div className="status-item">
         <span>UTF-8</span>
       </div>
-      <div className="status-item">
+      <div className="status-item" onClick={onOpenSettings} title="Notifications">
         <span>🔔</span>
       </div>
     </div>
   );
 };
+
 
 export default StatusBar;

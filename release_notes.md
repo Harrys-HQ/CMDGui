@@ -1,3 +1,16 @@
+## 🚀 Release: CmdGUI v2.0.0
+
+### ✨ UI/UX Master Overhaul
+- **Modern Layout:** Introduced a vertical **Activity Bar** (VS Code style) for switching between Explorer, Source Control, and Settings.
+- **Improved Navigation:** Added a horizontal **Top Tab Bar** and **Breadcrumb Navigation** for better spatial awareness and faster task switching.
+- **Welcome Dashboard:** A new landing page for empty states featuring quick actions, recent projects, and keyboard shortcut hints.
+- **Visual Feedback:** 
+  - Replaced intrusive alerts with a modern **Toast Notification** system.
+  - Added **Active Pane Highlighting** for better focus awareness in split views.
+- **Personalization:** 
+  - Support for **Global UI Themes** (Dark, Light, and Amoled Black).
+  - Enhanced **Command Palette** (Ctrl+P) with advanced Action Commands (prefix with `>`).
+
 ## 🚀 Release: CmdGUI v1.9.4
 
 ### 🐞 Bug Fixes

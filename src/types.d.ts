@@ -32,6 +32,7 @@ export interface Project {
   envVars?: Record<string, string>;
   gitBranch?: string;
   gitDirty?: boolean;
+  gitFiles?: string[];
 }
 
 export interface ProjectDetails {
@@ -40,6 +41,7 @@ export interface ProjectDetails {
   envVars: Record<string, string>;
   gitBranch: string | null;
   gitDirty: boolean;
+  gitFiles: string[];
 }
 
 export interface Workspace {
@@ -144,6 +146,14 @@ export interface ElectronAPI {
   getVersion: () => Promise<string>;
   setQuakeMode: (enabled: boolean) => void;
   setStayAwake: (enabled: boolean) => void;
+  updateActiveContext: (context: {
+    activeProjectCwd?: string;
+    activeProjectName?: string;
+    defaultShell?: string;
+    activeTabTitle?: string;
+    totalTabs?: number;
+    projectsCount?: number;
+  }) => void;
   settingsGet: <T>(key: string) => Promise<T | null>;
   settingsSet: (key: string, value: unknown) => Promise<void>;
 

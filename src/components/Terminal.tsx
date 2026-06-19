@@ -112,25 +112,39 @@ const Terminal: React.FC<TerminalProps> = ({
   const onNotificationRef = useRef(onNotification);
   const onClearRef = useRef(onClear);
   const isActiveRef = useRef(isActive);
+  const envVarsString = JSON.stringify(envVars);
 
-  const isFitPendingRef = useRef(false);
+  const fitTimeoutRef = useRef<any>(null);
+  const isSettingUpRef = useRef(false);
   const writeRafId = useRef<number | null>(null);
+  const rendererAddonRef = useRef<any>(null);
 
   const loadHighPerformanceRenderer = useCallback(
     (term: Xterm) => {
       if (!isGPUAccelerationEnabled || !term.element) return;
+      if (rendererAddonRef.current) {
+        try {
+          rendererAddonRef.current.dispose();
+        } catch {}
+        rendererAddonRef.current = null;
+      }
       try {
         const webglAddon = new WebglAddon();
         webglAddon.onContextLoss(() => {
           webglAddon.dispose();
+          if (rendererAddonRef.current === webglAddon) {
+            rendererAddonRef.current = null;
+          }
         });
         term.loadAddon(webglAddon);
+        rendererAddonRef.current = webglAddon;
         console.log(`[Terminal ${paneId}] WebGL renderer loaded.`);
       } catch (e) {
         console.warn(`[Terminal ${paneId}] WebGL failed, falling back to Canvas:`, e);
         try {
           const canvasAddon = new CanvasAddon();
           term.loadAddon(canvasAddon);
+          rendererAddonRef.current = canvasAddon;
           console.log(`[Terminal ${paneId}] Canvas renderer loaded.`);
         } catch (e2) {
           console.warn(`[Terminal ${paneId}] Canvas failed, using DOM renderer:`, e2);
@@ -157,16 +171,15 @@ const Terminal: React.FC<TerminalProps> = ({
     if (!xtermRef.current || !fitAddonRef.current || !terminalRef.current) return;
     if (!xtermRef.current.element || !xtermRef.current.textarea) return;
     if (!isActiveRef.current) return;
-    if (isFitPendingRef.current) return;
 
     const el = terminalRef.current;
     if (el.offsetWidth === 0 || el.offsetHeight === 0 || !document.body.contains(el)) return;
 
-    isFitPendingRef.current = true;
+    if (fitTimeoutRef.current) {
+      clearTimeout(fitTimeoutRef.current);
+    }
 
-    // Use requestAnimationFrame to debounce and prevent layout thrashing
-    requestAnimationFrame(() => {
-      isFitPendingRef.current = false;
+    fitTimeoutRef.current = setTimeout(() => {
       if (!xtermRef.current || !fitAddonRef.current || !isActiveRef.current) return;
       try {
         const oldCols = xtermRef.current.cols;
@@ -184,7 +197,7 @@ const Terminal: React.FC<TerminalProps> = ({
       } catch (e) {
         console.warn('Terminal fit skipped:', e);
       }
-    });
+    }, 50);
   };
 
   useEffect(() => {
@@ -250,20 +263,7 @@ const Terminal: React.FC<TerminalProps> = ({
       }
     }
 
-    if (isActiveRef.current && terminalRef.current && terminalRef.current.offsetWidth > 0) {
-      try {
-        term.open(terminalRef.current);
-        loadHighPerformanceRenderer(term);
-
-        if (dataBuffer.current.length > 0) {
-          term.write(dataBuffer.current.join(''));
-          dataBuffer.current = [];
-        }
-        fitTerminal();
-      } catch (e) {
-        console.error('Failed to open terminal:', e);
-      }
-    }
+    // term.open is handled exclusively by the activation useEffect below to prevent duplicate visual instances.
 
     term.attachCustomKeyEventHandler((e) => {
       if (e.type !== 'keydown') return true;
@@ -342,17 +342,20 @@ const Terminal: React.FC<TerminalProps> = ({
 
     let isUnmounted = false;
     const setupPty = async () => {
-      let pid: number;
-      if (globalPtyRegistry[paneId]) {
-        pid = globalPtyRegistry[paneId].pid;
-        if (globalPtyRegistry[paneId].cleanupData) globalPtyRegistry[paneId].cleanupData!();
-        if (globalPtyRegistry[paneId].cleanupExit) globalPtyRegistry[paneId].cleanupExit!();
-        globalPtyRegistry[paneId].lastActive = Date.now();
-      } else {
-        // Wait for a single frame to ensure DOM is ready and measurements are accurate
-        await new Promise((resolve) => requestAnimationFrame(resolve));
+      if (isSettingUpRef.current) return;
+      isSettingUpRef.current = true;
+      try {
+        let pid: number;
+        if (globalPtyRegistry[paneId]) {
+          pid = globalPtyRegistry[paneId].pid;
+          if (globalPtyRegistry[paneId].cleanupData) globalPtyRegistry[paneId].cleanupData!();
+          if (globalPtyRegistry[paneId].cleanupExit) globalPtyRegistry[paneId].cleanupExit!();
+          globalPtyRegistry[paneId].lastActive = Date.now();
+        } else {
+          // Wait for a single frame to ensure DOM is ready and measurements are accurate
+          await new Promise((resolve) => requestAnimationFrame(resolve));
 
-        if (isUnmounted) return;
+          if (isUnmounted) return;
 
         // Try to fit before creating PTY if element is already open
         if (term.element) {
@@ -441,9 +444,11 @@ const Terminal: React.FC<TerminalProps> = ({
         if (!isUnmounted && pidRef.current !== null)
           window.electron.resizeTerminal(pidRef.current, size.cols, size.rows);
       });
-      term.onTitleChange((title) => {
-        if (onTitleChangeRef.current) onTitleChangeRef.current(title);
-      });
+      } catch (e) {
+        console.error('PTY setup failed:', e);
+      } finally {
+        isSettingUpRef.current = false;
+      }
     };
 
     setupPty();
@@ -462,6 +467,7 @@ const Terminal: React.FC<TerminalProps> = ({
     window.addEventListener('resize', handleResize);
     return () => {
       isUnmounted = true;
+      if (fitTimeoutRef.current) clearTimeout(fitTimeoutRef.current);
       window.removeEventListener('resize', handleResize);
       resizeObserver.disconnect();
       try {
@@ -471,7 +477,7 @@ const Terminal: React.FC<TerminalProps> = ({
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cwd, shell, envVars, paneId, initialCommand]);
+  }, [cwd, shell, envVarsString, paneId, initialCommand]);
 
   useEffect(() => {
     if (xtermRef.current) xtermRef.current.options.theme = getTheme(theme, customTheme);
@@ -490,18 +496,24 @@ const Terminal: React.FC<TerminalProps> = ({
 
   useEffect(() => {
     let rafId: number;
+    let timerId: any;
     if (isActive && terminalRef.current && xtermRef.current) {
       rafId = requestAnimationFrame(() => {
         const el = terminalRef.current;
         if (!el || !xtermRef.current || !isActiveRef.current) return;
         try {
           if (!xtermRef.current.element) {
+            el.innerHTML = '';
             xtermRef.current.open(el);
             loadHighPerformanceRenderer(xtermRef.current);
             if (dataBuffer.current.length > 0) {
               xtermRef.current.write(dataBuffer.current.join(''));
               dataBuffer.current = [];
             }
+          } else {
+            // Re-load to recreate the Canvas/WebGL surface after display: none -> block transition
+            loadHighPerformanceRenderer(xtermRef.current);
+            xtermRef.current.refresh(0, xtermRef.current.rows - 1);
           }
           requestAnimationFrame(() => {
             if (isActiveRef.current) fitTerminal();
@@ -513,9 +525,26 @@ const Terminal: React.FC<TerminalProps> = ({
           console.error('Focus/Resize after activation failed:', e);
         }
       });
+
+      // Extra safety check: run a delayed fit in case layout rendering has a sub-millisecond transition
+      timerId = setTimeout(() => {
+        if (isActiveRef.current && xtermRef.current) {
+          fitTerminal();
+          xtermRef.current.focus();
+        }
+      }, 60);
+    } else {
+      // If inactive, dispose high performance renderer to free resources and prevent context loss
+      if (rendererAddonRef.current) {
+        try {
+          rendererAddonRef.current.dispose();
+        } catch {}
+        rendererAddonRef.current = null;
+      }
     }
     return () => {
       if (rafId) cancelAnimationFrame(rafId);
+      if (timerId) clearTimeout(timerId);
     };
   }, [isActive, isReady, loadHighPerformanceRenderer]);
   useEffect(() => {
@@ -613,6 +642,7 @@ const Terminal: React.FC<TerminalProps> = ({
 
   return (
     <div
+      className={`terminal-wrapper ${isActive ? 'active' : ''}`}
       style={{ width: '100%', height: '100%', position: 'relative' }}
       onContextMenu={handleContextMenu}
     >

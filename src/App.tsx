@@ -4,7 +4,13 @@ import Terminal from './components/Terminal';
 import SettingsModal from './components/SettingsModal';
 import StatusBar from './components/StatusBar';
 import Sidebar from './components/Sidebar';
+import ActivityBar, { SidebarView } from './components/ActivityBar';
+import TopTabBar from './components/TopTabBar';
+import Breadcrumbs from './components/Breadcrumbs';
 import QuickSwitcher from './components/QuickSwitcher';
+import ToastContainer from './components/ToastContainer';
+import WelcomeDashboard from './components/WelcomeDashboard';
+import { useToast } from './hooks/useToast';
 import { useTabs } from './hooks/useTabs';
 import { useProjects } from './hooks/useProjects';
 import { useSidebarResizer } from './hooks/useSidebarResizer';
@@ -60,15 +66,29 @@ const App: React.FC = () => {
     setIsStayAwakeEnabled,
     isGPUAccelerationEnabled,
     setIsGPUAccelerationEnabled,
+    uiTheme,
+    setUiTheme,
     defaultShell,
     setDefaultShell,
     isAdmin,
     relaunchAdmin,
+    showTopTabBar,
+    setShowTopTabBar,
   } = useSettings();
 
   const { keymap, updateKeybinding, resetKeybindings } = useKeybindings();
 
+  const { showToast } = useToast();
+
+  // Apply UI Theme
+  useEffect(() => {
+    document.body.classList.remove('theme-dark', 'theme-light', 'theme-amoled');
+    document.body.classList.add(`theme-${uiTheme}`);
+  }, [uiTheme]);
+
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [activeSidebarView, setActiveSidebarView] = useState<SidebarView>('explorer');
+  const [isSidebarVisible, setIsSidebarVisible] = useState(true);
   const [isQuickSwitcherOpen, setIsQuickSwitcherOpen] = useState(false);
   const [isUpdateAvailable, setIsUpdateAvailable] = useState(false);
   const [hibernatedTabs, setHibernatedTabs] = useState<Set<string>>(new Set());
@@ -122,6 +142,39 @@ const App: React.FC = () => {
     }
   }, [activeTabId, hibernatedTabs]);
 
+  // Synchronize Active Workspace Context with Antigravity CLI / AI Agents
+  useEffect(() => {
+    if (!window.electron || !window.electron.updateActiveContext) return;
+
+    const activeTab = tabs.find((t) => t.id === activeTabId);
+    let activeProjectCwd: string | undefined = undefined;
+    let activeProjectName: string | undefined = undefined;
+
+    if (activeTab && activeTab.panes) {
+      const panes = Object.values(activeTab.panes);
+      const activePane = panes[0];
+      if (activePane && activePane.cwd) {
+        activeProjectCwd = activePane.cwd;
+        const matchedProject = projects.find((p) => p.path === activePane.cwd);
+        if (matchedProject) {
+          activeProjectName = matchedProject.name;
+        } else {
+          const parts = activePane.cwd.split(/[\\/]/);
+          activeProjectName = parts[parts.length - 1] || 'Unknown Project';
+        }
+      }
+    }
+
+    window.electron.updateActiveContext({
+      activeProjectCwd,
+      activeProjectName,
+      defaultShell,
+      activeTabTitle: activeTab?.title,
+      totalTabs: tabs.length,
+      projectsCount: projects.length,
+    });
+  }, [tabs, activeTabId, projects, defaultShell]);
+
   // Modal States
   const [promptModal, setPromptModal] = useState<{
     isOpen: boolean;
@@ -162,8 +215,8 @@ const App: React.FC = () => {
   const handleCheckUpdates = async () => {
     if (!window.electron) return;
     const result = await window.electron.checkForUpdates();
-    if (result.success && !result.updateInfo) alert('You are on the latest version!');
-    else if (!result.success) alert('Error checking for updates: ' + result.error);
+    if (result.success && !result.updateInfo) showToast('You are on the latest version!', 'info');
+    else if (!result.success) showToast('Error checking for updates: ' + result.error, 'error');
   };
 
   const handleCloseTab = useCallback(
@@ -309,9 +362,12 @@ const App: React.FC = () => {
     },
     onOpenSettings: () => setIsSettingsOpen(true),
     onCheckUpdates: handleCheckUpdates,
-    onToggleTheme: () => {
-      const themes = ['vscode', 'monokai', 'solarized-dark', 'one-dark'];
-      setTerminalTheme(themes[(themes.indexOf(terminalTheme) + 1) % themes.length]);
+    onToggleTheme: () => setUiTheme(uiTheme === 'dark' ? 'light' : 'dark'),
+    onSetUiTheme: (theme) => setUiTheme(theme as any),
+    onToggleSidebar: () => setIsSidebarVisible(!isSidebarVisible),
+    onSetSidebarView: (view) => {
+      setActiveSidebarView(view as any);
+      setIsSidebarVisible(true);
     },
     onSaveWorkspace: saveWorkspace,
     onLoadWorkspace: loadWorkspace,
@@ -417,7 +473,14 @@ const App: React.FC = () => {
     <div className="app-root-layout">
       <TitleBar />
       <div className="workspace-layout">
+        <ActivityBar
+          activeView={activeSidebarView}
+          onViewChange={setActiveSidebarView}
+          isSidebarVisible={isSidebarVisible}
+          onToggleSidebar={() => setIsSidebarVisible(!isSidebarVisible)}
+        />
         <Sidebar
+          activeView={activeSidebarView}
           width={sidebarWidth}
           projects={projects}
           tabs={tabs}
@@ -443,27 +506,62 @@ const App: React.FC = () => {
           onReorderTabs={reorderTabs}
           onReorderProjects={reorderProjects}
           onRefreshGitStatus={refreshGitStatus}
+          className={!isSidebarVisible ? 'collapsed' : ''}
         />
-        <div className="resizer" onMouseDown={startResizing} />
+        <div className={`resizer ${!isSidebarVisible ? 'collapsed' : ''}`} onMouseDown={startResizing} />
         <div className="main-content">
-          <div className="terminal-container">
-            {tabs.map((tab) => (
-              <div
-                key={tab.id}
-                style={{
-                  display: activeTabId === tab.id ? 'block' : 'none',
-                  height: '100%',
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                }}
-              >
-                {renderLayout(tab, tab.layout)}
+          {showTopTabBar && (
+            <TopTabBar
+              tabs={tabs}
+              activeTabId={activeTabId}
+              onSelectTab={setActiveTabId}
+              onCloseTab={handleCloseTab}
+              onRenameTab={handleRenameTab}
+              onReorderTabs={reorderTabs}
+            />
+          )}
+          {tabs.length > 0 ? (
+            <>
+              <Breadcrumbs
+                path={
+                  activeTab && activeTab.panes
+                    ? activeTab.panes[Object.keys(activeTab.panes)[0]]?.cwd || ''
+                    : ''
+                }
+                onNavigate={(path) => addTab(path)}
+              />
+              <div className="terminal-container">
+                {tabs.map((tab) => {
+                  if (activeTabId !== tab.id) return null;
+                  return (
+                    <div
+                      key={tab.id}
+                      style={{
+                        height: '100%',
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                      }}
+                    >
+                      {renderLayout(tab, tab.layout)}
+                    </div>
+                  );
+                })}
               </div>
-            ))}
-          </div>
+            </>
+          ) : (
+            <WelcomeDashboard
+              onNewTerminal={() => addTab()}
+              onOpenProject={addProject}
+              recentProjects={projects}
+              onSelectProject={(path) => {
+                const p = projects.find((p) => p.path === path);
+                addTab(path, false, p?.startupCommand, p?.envVars);
+              }}
+            />
+          )}
         </div>
       </div>
       <StatusBar
@@ -472,10 +570,14 @@ const App: React.FC = () => {
         tabCount={tabs.length}
         isUpdateAvailable={isUpdateAvailable}
         onShowUpdates={() => setIsSettingsOpen(true)}
+        onToggleQuickSwitcher={() => setIsQuickSwitcherOpen(true)}
+        onOpenSettings={() => setIsSettingsOpen(true)}
       />
       <SettingsModal
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
+        uiTheme={uiTheme}
+        onUiThemeChange={setUiTheme}
         terminalTheme={terminalTheme}
         onThemeChange={setTerminalTheme}
         customTheme={customTheme}
@@ -504,6 +606,8 @@ const App: React.FC = () => {
         keymap={keymap}
         onUpdateKeybinding={updateKeybinding}
         onResetKeybindings={resetKeybindings}
+        showTopTabBar={showTopTabBar}
+        onShowTopTabBarChange={setShowTopTabBar}
       />
       {isQuickSwitcherOpen && (
         <QuickSwitcher
@@ -533,6 +637,7 @@ const App: React.FC = () => {
         onConfirm={confirmModal.onConfirm}
         onCancel={() => setConfirmModal((prev) => ({ ...prev, isOpen: false }))}
       />
+      <ToastContainer />
     </div>
   );
 };

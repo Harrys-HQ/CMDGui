@@ -28,6 +28,7 @@ const DEFAULT_CUSTOM_THEME: TerminalTheme = {
 
 export const useSettings = () => {
   const [terminalTheme, setTerminalTheme] = useState('vscode');
+  const [uiTheme, setUiTheme] = useState('dark');
   const [customTheme, setCustomTheme] = useState<TerminalTheme>(DEFAULT_CUSTOM_THEME);
   const [terminalFontSize, setTerminalFontSize] = useState(14);
   const [terminalScrollback, setTerminalScrollback] = useState(1000);
@@ -36,11 +37,13 @@ export const useSettings = () => {
   const [isGPUAccelerationEnabled, setIsGPUAccelerationEnabled] = useState(true);
   const [defaultShell, setDefaultShell] = useState('');
   const [isAdmin, setIsAdmin] = useState(false);
+  const [showTopTabBar, setShowTopTabBar] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
     const init = async () => {
       const savedTheme = await loadState('terminalTheme', 'vscode');
+      const savedUiTheme = await loadState('uiTheme', 'dark');
       const savedCustomTheme = await loadState<TerminalTheme>('customTheme', DEFAULT_CUSTOM_THEME);
       const savedFontSize = await loadState('terminalFontSize', 14);
       const savedScrollback = await loadState('terminalScrollback', 1000);
@@ -48,8 +51,10 @@ export const useSettings = () => {
       const savedStayAwake = await loadState('isStayAwakeEnabled', false);
       const savedGPU = await loadState('isGPUAccelerationEnabled', true);
       const savedShell = await loadState('defaultShell', '');
+      const savedShowTabs = await loadState('showTopTabBar', false);
 
       setTerminalTheme(savedTheme);
+      setUiTheme(savedUiTheme);
       setCustomTheme({ ...DEFAULT_CUSTOM_THEME, ...savedCustomTheme });
       setTerminalFontSize(savedFontSize);
       setTerminalScrollback(savedScrollback);
@@ -57,6 +62,7 @@ export const useSettings = () => {
       setIsStayAwakeEnabled(savedStayAwake);
       setIsGPUAccelerationEnabled(savedGPU);
       setDefaultShell(savedShell);
+      setShowTopTabBar(savedShowTabs);
       setIsLoaded(true);
     };
     init();
@@ -73,6 +79,12 @@ export const useSettings = () => {
       saveState('terminalTheme', terminalTheme);
     }
   }, [terminalTheme, isLoaded]);
+
+  useEffect(() => {
+    if (isLoaded) {
+      saveState('uiTheme', uiTheme);
+    }
+  }, [uiTheme, isLoaded]);
 
   useEffect(() => {
     if (isLoaded) {
@@ -129,6 +141,12 @@ export const useSettings = () => {
     syncQuake();
   }, []);
 
+  useEffect(() => {
+    if (isLoaded) {
+      saveState('showTopTabBar', showTopTabBar);
+    }
+  }, [showTopTabBar, isLoaded]);
+
   const relaunchAdmin = () => {
     window.electron.relaunchAdmin();
   };
@@ -136,6 +154,8 @@ export const useSettings = () => {
   return {
     terminalTheme,
     setTerminalTheme,
+    uiTheme,
+    setUiTheme,
     customTheme,
     setCustomTheme,
     terminalFontSize,
@@ -152,5 +172,7 @@ export const useSettings = () => {
     setDefaultShell,
     isAdmin,
     relaunchAdmin,
+    showTopTabBar,
+    setShowTopTabBar,
   };
 };

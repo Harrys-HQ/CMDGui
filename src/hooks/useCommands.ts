@@ -10,7 +10,6 @@ export interface Command {
   shortcut?: string;
   action: () => void;
 }
-
 interface UseCommandsProps {
   onAddTerminal: (asAdmin: boolean) => void;
   onCloseTab: (id: string) => void;
@@ -19,6 +18,9 @@ interface UseCommandsProps {
   onOpenSettings: () => void;
   onCheckUpdates: () => void;
   onToggleTheme: () => void;
+  onSetUiTheme: (theme: string) => void;
+  onToggleSidebar: () => void;
+  onSetSidebarView: (view: string) => void;
   onSaveWorkspace: (name: string) => void;
   onLoadWorkspace: (id: string) => void;
   workspaces: Workspace[];
@@ -34,6 +36,9 @@ export const useCommands = ({
   onOpenSettings,
   onCheckUpdates,
   onToggleTheme,
+  onSetUiTheme,
+  onToggleSidebar,
+  onSetSidebarView,
   onSaveWorkspace,
   onLoadWorkspace,
   workspaces,
@@ -42,6 +47,55 @@ export const useCommands = ({
 }: UseCommandsProps) => {
   const commands: Command[] = useMemo(() => {
     const list: Command[] = [
+      {
+        id: 'toggle-sidebar',
+        name: 'Toggle Sidebar',
+        category: 'UI',
+        icon: '🪜',
+        action: onToggleSidebar,
+      },
+      {
+        id: 'show-explorer',
+        name: 'Show Explorer',
+        category: 'UI',
+        icon: '📁',
+        action: () => onSetSidebarView('explorer'),
+      },
+      {
+        id: 'show-git',
+        name: 'Show Source Control',
+        category: 'UI',
+        icon: '🌿',
+        action: () => onSetSidebarView('git'),
+      },
+      {
+        id: 'show-settings-sidebar',
+        name: 'Show Settings in Sidebar',
+        category: 'UI',
+        icon: '⚙️',
+        action: () => onSetSidebarView('settings'),
+      },
+      {
+        id: 'theme-dark',
+        name: 'Use Theme: VS Code Dark',
+        category: 'Appearance',
+        icon: '🌙',
+        action: () => onSetUiTheme('dark'),
+      },
+      {
+        id: 'theme-light',
+        name: 'Use Theme: Light',
+        category: 'Appearance',
+        icon: '☀️',
+        action: () => onSetUiTheme('light'),
+      },
+      {
+        id: 'theme-amoled',
+        name: 'Use Theme: Amoled Black',
+        category: 'Appearance',
+        icon: '🌑',
+        action: () => onSetUiTheme('amoled'),
+      },
       {
         id: 'save-workspace',
         name: 'Save Current Workspace',

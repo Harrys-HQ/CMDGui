@@ -22,12 +22,18 @@ jobs:
           node-version: 20
           cache: 'npm'
 
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
       - name: Install Dependencies
         run: npm ci
 
       - name: Build & Release
+        uses: tauri-apps/tauri-action@v0
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          npm run build
-          npx electron-builder --publish always
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: v__VERSION__
+          releaseName: 'CmdGUI v__VERSION__'
+          releaseDraft: true
+          prerelease: false

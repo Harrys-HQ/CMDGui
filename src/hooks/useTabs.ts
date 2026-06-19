@@ -169,17 +169,8 @@ export const useTabs = () => {
 
       const newTabs = prev.filter((t) => t.id !== id);
       if (newTabs.length === 0) {
-        const { pane, layout } = createTerminalPane();
-        const newId = Date.now().toString();
-        setActiveTabId(newId);
-        return [
-          {
-            id: newId,
-            title: 'Terminal',
-            layout,
-            panes: { [pane.id]: pane },
-          },
-        ];
+        setActiveTabId('');
+        return [];
       }
 
       setActiveTabId((prevActiveId) => {

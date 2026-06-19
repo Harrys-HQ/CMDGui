@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { List } from 'react-window';
 import { FileEntry } from '../types';
+import { useToast } from '../hooks/useToast';
 
 interface FileExplorerProps {
   rootPath: string;
@@ -15,6 +16,7 @@ interface FlatFileEntry extends FileEntry {
 const ITEM_HEIGHT = 24;
 
 const FileExplorer: React.FC<FileExplorerProps> = ({ rootPath, onSelectFolder }) => {
+  const { showToast } = useToast();
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set());
   const [childrenCache, setChildrenCache] = useState<Record<string, FileEntry[]>>({});
   const [rootFiles, setRootFiles] = useState<FileEntry[]>([]);
@@ -104,7 +106,7 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ rootPath, onSelectFolder })
                 const parentPath = data.path.split(/[\\/]/).slice(0, -1).join('\\');
                 loadFolder(parentPath || rootPath);
               } else {
-                alert(`Delete failed: ${res.error}`);
+                showToast(`Delete failed: ${res.error}`, 'error');
               }
             }
           }
@@ -125,7 +127,7 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ rootPath, onSelectFolder })
       setRenamingPath(null);
       loadFolder(parentPath || rootPath);
     } else {
-      alert(`Rename failed: ${res.error}`);
+      showToast(`Rename failed: ${res.error}`, 'error');
     }
   };
 
@@ -144,7 +146,7 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ rootPath, onSelectFolder })
       setCreatingInPath(null);
       loadFolder(creatingInPath.path);
     } else {
-      alert(`Creation failed: ${res.error}`);
+      showToast(`Creation failed: ${res.error}`, 'error');
     }
   };
 
