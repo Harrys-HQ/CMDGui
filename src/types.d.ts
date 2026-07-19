@@ -35,6 +35,12 @@ export interface Project {
   gitFiles?: string[];
 }
 
+export interface ActivePort {
+  port: number;
+  pid: number;
+  processName: string;
+}
+
 export interface ProjectDetails {
   type: string;
   scripts: Record<string, string>;
@@ -134,6 +140,12 @@ export interface ElectronAPI {
   selectFolder: () => Promise<string | null>;
   getProjectInfo: (path: string) => Promise<string>;
   getProjectDetails: (path: string) => Promise<ProjectDetails>;
+  gitStageAll: (projectPath: string) => Promise<string>;
+  gitCommit: (projectPath: string, message: string) => Promise<string>;
+  gitPull: (projectPath: string) => Promise<string>;
+  gitPush: (projectPath: string) => Promise<string>;
+  getActivePorts: () => Promise<ActivePort[]>;
+  killProcessByPid: (pid: number) => Promise<string>;
   listDirectory: (path: string) => Promise<FileEntry[]>;
   checkAdmin: () => Promise<boolean>;
   relaunchAdmin: () => void;

@@ -8,8 +8,9 @@ export const useProjects = () => {
 
   useEffect(() => {
     const init = async () => {
-      const savedProjects = await loadState<Project[]>('projects', []);
-      const validated = (savedProjects || []).filter((p) => p && typeof p === 'object');
+      const savedProjectsRaw = await loadState<Project[]>('projects', []);
+      const savedProjects = Array.isArray(savedProjectsRaw) ? savedProjectsRaw : [];
+      const validated = savedProjects.filter((p) => p && typeof p === 'object');
       setProjects(validated);
       setIsLoaded(true);
     };

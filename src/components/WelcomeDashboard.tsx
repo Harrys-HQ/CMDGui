@@ -1,5 +1,6 @@
 import React from 'react';
 import { Project } from '../types';
+import { Terminal, Plus, FolderOpen } from 'lucide-react';
 
 interface WelcomeDashboardProps {
   onNewTerminal: () => void;
@@ -17,7 +18,9 @@ const WelcomeDashboard: React.FC<WelcomeDashboardProps> = ({
   return (
     <div className="welcome-dashboard">
       <div className="welcome-header">
-        <div className="welcome-logo">⚡</div>
+        <div className="welcome-logo">
+          <Terminal size={64} style={{ strokeWidth: 1.5 }} />
+        </div>
         <h1>CmdGUI</h1>
         <p>A modern, persistent workspace manager for developers.</p>
       </div>
@@ -27,10 +30,10 @@ const WelcomeDashboard: React.FC<WelcomeDashboardProps> = ({
           <h2>Start</h2>
           <div className="welcome-actions">
             <button className="welcome-btn" onClick={onNewTerminal}>
-              <span className="btn-icon">➕</span> New Terminal
+              <Plus size={16} style={{ color: 'var(--accent-primary)' }} /> New Terminal
             </button>
             <button className="welcome-btn" onClick={onOpenProject}>
-              <span className="btn-icon">📁</span> Open Project Folder
+              <FolderOpen size={16} style={{ color: 'var(--accent-primary)' }} /> Open Project Folder
             </button>
           </div>
         </div>

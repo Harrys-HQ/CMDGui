@@ -1,5 +1,5 @@
-use portable_pty::{native_pty_system, CommandBuilder, MasterPty, PtySize};
-use serde::{Deserialize, Serialize};
+use portable_pty::{native_pty_system, CommandBuilder, MasterPty, PtySize, ChildKiller};
+use serde::Deserialize;
 use std::collections::HashMap;
 use std::io::{Read, Write};
 use std::sync::{Arc, Mutex};
@@ -9,6 +9,15 @@ use tauri::{AppHandle, Emitter, State};
 pub struct TerminalSession {
     pub master: Box<dyn MasterPty + Send>,
     pub writer: Arc<Mutex<Box<dyn Write + Send>>>,
+    pub killer: Arc<Mutex<Box<dyn ChildKiller + Send>>>,
+}
+
+impl Drop for TerminalSession {
+    fn drop(&mut self) {
+        if let Ok(mut killer) = self.killer.lock() {
+            let _ = killer.kill();
+        }
+    }
 }
 
 #[derive(Default)]
@@ -45,17 +54,29 @@ pub async fn create_terminal(
         .map_err(|e| format!("Failed to open pty: {}", e))?;
 
     let default_shell = if cfg!(target_os = "windows") {
-        "powershell.exe".to_string()
+        let system_root = std::env::var("SystemRoot")
+            .or_else(|_| std::env::var("windir"))
+            .unwrap_or_else(|_| "C:\\Windows".to_string());
+        format!(r"{}\System32\WindowsPowerShell\v1.0\powershell.exe", system_root)
     } else {
         "bash".to_string()
     };
-    let mut shell_cmd = options.shell.unwrap_or(default_shell);
+    let mut shell_cmd = options.shell.unwrap_or(default_shell.clone());
     if shell_cmd.trim().is_empty() {
-        shell_cmd = if cfg!(target_os = "windows") {
-            "powershell.exe".to_string()
-        } else {
-            "bash".to_string()
-        };
+        shell_cmd = default_shell;
+    } else if cfg!(target_os = "windows") {
+        let lower = shell_cmd.to_lowercase();
+        if lower == "powershell.exe" || lower == "powershell" {
+            let system_root = std::env::var("SystemRoot")
+                .or_else(|_| std::env::var("windir"))
+                .unwrap_or_else(|_| "C:\\Windows".to_string());
+            shell_cmd = format!(r"{}\System32\WindowsPowerShell\v1.0\powershell.exe", system_root);
+        } else if lower == "cmd.exe" || lower == "cmd" {
+            let system_root = std::env::var("SystemRoot")
+                .or_else(|_| std::env::var("windir"))
+                .unwrap_or_else(|_| "C:\\Windows".to_string());
+            shell_cmd = format!(r"{}\System32\cmd.exe", system_root);
+        }
     }
 
     let mut cmd = CommandBuilder::new(&shell_cmd);
@@ -65,9 +86,17 @@ pub async fn create_terminal(
         }
     }
 
+    // Explicitly inherit all environment variables from the current process
+    for (k, v) in std::env::vars() {
+        cmd.env(k, v);
+    }
+
     #[cfg(target_os = "windows")]
     {
-        let mut path_val = std::env::var("PATH").or_else(|_| std::env::var("Path")).unwrap_or_default();
+        let mut path_val = std::env::vars()
+            .find(|(k, _)| k.eq_ignore_ascii_case("path"))
+            .map(|(_, v)| v)
+            .unwrap_or_default();
         if let Some(home) = std::env::var_os("USERPROFILE") {
             let home_str = home.to_string_lossy();
             let npm_path = format!(r"{}\AppData\Roaming\npm", home_str);
@@ -102,10 +131,12 @@ pub async fn create_terminal(
         }
     }
 
-    let _child = pair
+    let child = pair
         .slave
         .spawn_command(cmd)
         .map_err(|e| format!("Failed to spawn command: {}", e))?;
+
+    let killer = child.clone_killer();
 
     // Drop the slave end so that the only open descriptor is the child process's.
     // This is important to ensure EOF is detected when the child exits.
@@ -133,6 +164,7 @@ pub async fn create_terminal(
 
     let pid_clone = pid.clone();
     let app_handle_clone = app_handle.clone();
+    let sessions_clone = state.sessions.clone();
 
     // Spawn a thread to read output from the PTY master
     thread::spawn(move || {
@@ -153,6 +185,11 @@ pub async fn create_terminal(
                     app_handle_clone
                         .emit(&format!("terminal-exit-{}", pid_clone), ())
                         .ok();
+                    
+                    // Remove session from map to free memory and resources
+                    if let Ok(mut sessions) = sessions_clone.lock() {
+                        sessions.remove(&pid_clone);
+                    }
                     break;
                 }
             }
@@ -162,6 +199,7 @@ pub async fn create_terminal(
     let session = TerminalSession {
         master,
         writer: Arc::new(Mutex::new(writer)),
+        killer: Arc::new(Mutex::new(killer)),
     };
 
     let mut sessions = state.sessions.lock().unwrap();
@@ -218,8 +256,10 @@ pub async fn resize_terminal(
 #[tauri::command]
 pub async fn kill_terminal(state: State<'_, TerminalState>, pid: String) -> Result<(), String> {
     let mut sessions = state.sessions.lock().unwrap();
-    if let Some(_session) = sessions.remove(&pid) {
-        // dropping the session drops master, which closes the pty and terminates child
+    if let Some(session) = sessions.remove(&pid) {
+        if let Ok(mut killer) = session.killer.lock() {
+            let _ = killer.kill();
+        }
         Ok(())
     } else {
         Err("Session not found".to_string())
@@ -229,6 +269,11 @@ pub async fn kill_terminal(state: State<'_, TerminalState>, pid: String) -> Resu
 #[tauri::command]
 pub async fn kill_all_terminals(state: State<'_, TerminalState>) -> Result<(), String> {
     let mut sessions = state.sessions.lock().unwrap();
+    for session in sessions.values() {
+        if let Ok(mut killer) = session.killer.lock() {
+            let _ = killer.kill();
+        }
+    }
     sessions.clear();
     Ok(())
 }

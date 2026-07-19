@@ -317,3 +317,228 @@ pub async fn get_project_details(project_path: String) -> ProjectDetails {
 
     details
 }
+
+#[tauri::command]
+pub async fn git_stage_all(project_path: String) -> Result<String, String> {
+    let path = Path::new(&project_path);
+    if !path.exists() {
+        return Err("Project path does not exist".to_string());
+    }
+
+    #[cfg(target_os = "windows")]
+    const CREATE_NO_WINDOW: u32 = 0x08000000;
+
+    let mut cmd = Command::new("git");
+    cmd.args(&["add", "."])
+        .current_dir(path);
+    #[cfg(target_os = "windows")]
+    cmd.creation_flags(CREATE_NO_WINDOW);
+
+    match cmd.output() {
+        Ok(out) => {
+            if out.status.success() {
+                Ok("Staged all files successfully".to_string())
+            } else {
+                Err(String::from_utf8_lossy(&out.stderr).trim().to_string())
+            }
+        }
+        Err(e) => Err(e.to_string()),
+    }
+}
+
+#[tauri::command]
+pub async fn git_commit(project_path: String, message: String) -> Result<String, String> {
+    let path = Path::new(&project_path);
+    if !path.exists() {
+        return Err("Project path does not exist".to_string());
+    }
+
+    if message.trim().is_empty() {
+        return Err("Commit message cannot be empty".to_string());
+    }
+
+    #[cfg(target_os = "windows")]
+    const CREATE_NO_WINDOW: u32 = 0x08000000;
+
+    let mut cmd = Command::new("git");
+    cmd.args(&["commit", "-m", &message])
+        .current_dir(path);
+    #[cfg(target_os = "windows")]
+    cmd.creation_flags(CREATE_NO_WINDOW);
+
+    match cmd.output() {
+        Ok(out) => {
+            if out.status.success() {
+                Ok(String::from_utf8_lossy(&out.stdout).trim().to_string())
+            } else {
+                Err(String::from_utf8_lossy(&out.stderr).trim().to_string())
+            }
+        }
+        Err(e) => Err(e.to_string()),
+    }
+}
+
+#[tauri::command]
+pub async fn git_pull(project_path: String) -> Result<String, String> {
+    let path = Path::new(&project_path);
+    if !path.exists() {
+        return Err("Project path does not exist".to_string());
+    }
+
+    #[cfg(target_os = "windows")]
+    const CREATE_NO_WINDOW: u32 = 0x08000000;
+
+    let mut cmd = Command::new("git");
+    cmd.args(&["pull"])
+        .current_dir(path);
+    #[cfg(target_os = "windows")]
+    cmd.creation_flags(CREATE_NO_WINDOW);
+
+    match cmd.output() {
+        Ok(out) => {
+            if out.status.success() {
+                Ok(String::from_utf8_lossy(&out.stdout).trim().to_string())
+            } else {
+                Err(String::from_utf8_lossy(&out.stderr).trim().to_string())
+            }
+        }
+        Err(e) => Err(e.to_string()),
+    }
+}
+
+#[tauri::command]
+pub async fn git_push(project_path: String) -> Result<String, String> {
+    let path = Path::new(&project_path);
+    if !path.exists() {
+        return Err("Project path does not exist".to_string());
+    }
+
+    #[cfg(target_os = "windows")]
+    const CREATE_NO_WINDOW: u32 = 0x08000000;
+
+    let mut cmd = Command::new("git");
+    cmd.args(&["push"])
+        .current_dir(path);
+    #[cfg(target_os = "windows")]
+    cmd.creation_flags(CREATE_NO_WINDOW);
+
+    match cmd.output() {
+        Ok(out) => {
+            if out.status.success() {
+                Ok(String::from_utf8_lossy(&out.stdout).trim().to_string())
+            } else {
+                Err(String::from_utf8_lossy(&out.stderr).trim().to_string())
+            }
+        }
+        Err(e) => Err(e.to_string()),
+    }
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct ActivePort {
+    pub port: u16,
+    pub pid: u32,
+    pub process_name: String,
+}
+
+#[tauri::command]
+pub async fn get_active_ports() -> Result<Vec<ActivePort>, String> {
+    #[cfg(target_os = "windows")]
+    {
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+
+        // 1. Build PID -> Process Name map using tasklist
+        let mut pid_map = HashMap::new();
+        let mut tasklist_cmd = Command::new("tasklist");
+        tasklist_cmd.args(&["/NH", "/FO", "CSV"]);
+        tasklist_cmd.creation_flags(CREATE_NO_WINDOW);
+
+        if let Ok(output) = tasklist_cmd.output() {
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            for line in stdout.lines() {
+                let line = line.trim();
+                if line.starts_with('"') && line.ends_with('"') {
+                    let parts: Vec<&str> = line[1..line.len()-1].split("\",\"").collect();
+                    if parts.len() >= 2 {
+                        let process_name = parts[0].to_string();
+                        if let Ok(pid) = parts[1].parse::<u32>() {
+                            pid_map.insert(pid, process_name);
+                        }
+                    }
+                }
+            }
+        }
+
+        // 2. Query netstat to find listening ports
+        let mut active_ports = Vec::new();
+        let mut netstat_cmd = Command::new("netstat");
+        netstat_cmd.args(&["-ano", "-p", "tcp"]);
+        netstat_cmd.creation_flags(CREATE_NO_WINDOW);
+
+        if let Ok(output) = netstat_cmd.output() {
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            for line in stdout.lines() {
+                let tokens: Vec<&str> = line.split_whitespace().collect();
+                if tokens.len() >= 5 && tokens[0] == "TCP" && tokens[3] == "LISTENING" {
+                    let local_addr = tokens[1];
+                    let pid_str = tokens[4];
+
+                    if let Some(port_str) = local_addr.split(':').last() {
+                        if let (Ok(port), Ok(pid)) = (port_str.parse::<u16>(), pid_str.parse::<u32>()) {
+                            let process_name = pid_map.get(&pid).cloned().unwrap_or_else(|| "Unknown".to_string());
+                            
+                            // Prevent duplicates
+                            if !active_ports.iter().any(|ap: &ActivePort| ap.port == port) {
+                                active_ports.push(ActivePort {
+                                    port,
+                                    pid,
+                                    process_name,
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Sort ports numerically
+        active_ports.sort_by_key(|ap| ap.port);
+        Ok(active_ports)
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        Ok(Vec::new())
+    }
+}
+
+#[tauri::command]
+pub async fn kill_process_by_pid(pid: u32) -> Result<String, String> {
+    #[cfg(target_os = "windows")]
+    {
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+
+        let mut cmd = Command::new("taskkill");
+        cmd.args(&["/F", "/PID", &pid.to_string()]);
+        cmd.creation_flags(CREATE_NO_WINDOW);
+
+        match cmd.output() {
+            Ok(out) => {
+                if out.status.success() {
+                    Ok(format!("Successfully terminated process with PID {}", pid))
+                } else {
+                    Err(String::from_utf8_lossy(&out.stderr).trim().to_string())
+                }
+            }
+            Err(e) => Err(e.to_string()),
+        }
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        Err("Unsupported OS".to_string())
+    }
+}
+
+

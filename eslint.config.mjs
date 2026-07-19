@@ -35,18 +35,13 @@ export default tseslint.config(
       },
     },
   },
-
-  // Config for Electron Main Process (CommonJS)
+  // Config for Node files like vite.config.ts
   {
-    files: ['electron/**/*.js', 'vite.config.ts'],
+    files: ['vite.config.ts'],
     languageOptions: {
       globals: {
         ...globals.node,
       },
-    },
-    rules: {
-      '@typescript-eslint/no-var-requires': 'off',
-      'no-undef': 'off', // Electron globals
     },
   }
 );

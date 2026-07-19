@@ -34,16 +34,18 @@ export const useTabs = () => {
         panes: { [pane.id]: pane },
       };
 
-      const savedTabs = await loadState<Tab[]>('tabs', [initialTab]);
+      const savedTabsRaw = await loadState<Tab[]>('tabs', [initialTab]);
+      const savedTabs = Array.isArray(savedTabsRaw) ? savedTabsRaw : [initialTab];
       const savedActiveId = await loadState<string>(
         'activeTabId',
         savedTabs.length > 0 ? savedTabs[0].id : initialTab.id
       );
-      const savedWorkspaces = await loadState<Workspace[]>('workspaces', []);
+      const savedWorkspacesRaw = await loadState<Workspace[]>('workspaces', []);
+      const savedWorkspaces = Array.isArray(savedWorkspacesRaw) ? savedWorkspacesRaw : [];
       const savedActiveWorkspaceId = await loadState<string | null>('activeWorkspaceId', null);
 
       // Validate and filter saved tabs
-      const validatedTabs = (savedTabs || [])
+      const validatedTabs = savedTabs
         .filter((tab) => tab && typeof tab === 'object')
         .map((tab) => {
           if (!tab.layout || !tab.panes) {
@@ -57,7 +59,7 @@ export const useTabs = () => {
         });
 
       // Validate and filter workspaces
-      const validatedWorkspaces = (savedWorkspaces || []).filter(
+      const validatedWorkspaces = savedWorkspaces.filter(
         (w) => w && typeof w === 'object' && Array.isArray(w.tabs)
       );
 

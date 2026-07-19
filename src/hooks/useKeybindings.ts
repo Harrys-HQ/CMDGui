@@ -11,7 +11,10 @@ export type KeybindingAction =
   | 'copy'
   | 'paste'
   | 'find'
-  | 'newLine';
+  | 'newLine'
+  | 'splitHorizontal'
+  | 'splitVertical'
+  | 'closePane';
 
 export interface Keybinding {
   key: string; // e.g., 'p', 'c'
@@ -34,6 +37,9 @@ const DEFAULT_KEYMAP: Keymap = {
   paste: { key: 'v', ctrlKey: true, shiftKey: true },
   find: { key: 'f', ctrlKey: true, shiftKey: true }, // Changed to Ctrl+Shift+F
   newLine: { key: 'Enter', shiftKey: true }, // Changed to Shift+Enter
+  splitHorizontal: { key: 'h', ctrlKey: true, altKey: true },
+  splitVertical: { key: 'v', ctrlKey: true, altKey: true },
+  closePane: { key: 'w', ctrlKey: true, altKey: true },
 };
 
 export const formatKeybinding = (binding: Keybinding): string => {
@@ -73,8 +79,9 @@ export const useKeybindings = () => {
   useEffect(() => {
     const init = async () => {
       const savedKeymap = await loadState<Keymap>('keymap', DEFAULT_KEYMAP);
+      const validatedKeymap = typeof savedKeymap === 'object' && savedKeymap ? savedKeymap : {};
       // Merge with default to ensure new keys are added if missing
-      setKeymap({ ...DEFAULT_KEYMAP, ...savedKeymap });
+      setKeymap({ ...DEFAULT_KEYMAP, ...validatedKeymap });
       setIsLoaded(true);
     };
     init();

@@ -159,28 +159,10 @@ pub fn app_relaunch_admin(app_handle: tauri::AppHandle) {
 
 #[tauri::command]
 pub async fn dialog_select_folder() -> Result<Option<String>, String> {
-    if cfg!(target_os = "windows") {
-        #[cfg(target_os = "windows")]
-        const CREATE_NO_WINDOW: u32 = 0x08000000;
-        let mut cmd = Command::new("powershell.exe");
-        cmd.args(&[
-            "-NoProfile",
-            "-Command",
-            "Add-Type -AssemblyName System.Windows.Forms; $f = New-Object System.Windows.Forms.FolderBrowserDialog; if ($f.ShowDialog() -eq 'OK') { $f.SelectedPath }",
-        ]);
-        #[cfg(target_os = "windows")]
-        cmd.creation_flags(CREATE_NO_WINDOW);
-        let output = cmd.output()
-            .map_err(|e| e.to_string())?;
-        let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
-        if path.is_empty() {
-            Ok(None)
-        } else {
-            Ok(Some(path))
-        }
-    } else {
-        Ok(None)
-    }
+    let folder = rfd::FileDialog::new()
+        .set_title("Select Project Folder")
+        .pick_folder();
+    Ok(folder.map(|p| p.to_string_lossy().to_string()))
 }
 
 #[tauri::command]
@@ -199,25 +181,61 @@ pub async fn open_in_vscode(path: String) -> Result<(), String> {
     Ok(())
 }
 
+pub struct StayAwakeState {
+    pub tx: std::sync::Mutex<Option<std::sync::mpsc::Sender<()>>>,
+}
+
+impl Default for StayAwakeState {
+    fn default() -> Self {
+        Self {
+            tx: std::sync::Mutex::new(None),
+        }
+    }
+}
+
 #[tauri::command]
-pub async fn set_stay_awake(enabled: bool) -> Result<(), String> {
+pub async fn set_stay_awake(
+    enabled: bool,
+    state: tauri::State<'_, StayAwakeState>,
+) -> Result<(), String> {
     #[cfg(target_os = "windows")]
     {
-        extern "system" {
-            fn SetThreadExecutionState(esFlags: u32) -> u32;
-        }
-        const ES_CONTINUOUS: u32 = 0x80000000;
-        const ES_DISPLAY_REQUIRED: u32 = 0x00000002;
-        const ES_SYSTEM_REQUIRED: u32 = 0x00000001;
+        use std::sync::mpsc::channel;
+        use std::time::Duration;
 
-        let flags = if enabled {
-            ES_CONTINUOUS | ES_DISPLAY_REQUIRED | ES_SYSTEM_REQUIRED
+        let mut tx_guard = state.tx.lock().map_err(|e| e.to_string())?;
+        if enabled {
+            if tx_guard.is_none() {
+                let (tx, rx) = channel::<()>();
+                *tx_guard = Some(tx);
+
+                std::thread::spawn(move || {
+                    extern "system" {
+                        fn SetThreadExecutionState(esFlags: u32) -> u32;
+                    }
+                    const ES_CONTINUOUS: u32 = 0x80000000;
+                    const ES_DISPLAY_REQUIRED: u32 = 0x00000002;
+                    const ES_SYSTEM_REQUIRED: u32 = 0x00000001;
+
+                    let flags = ES_CONTINUOUS | ES_DISPLAY_REQUIRED | ES_SYSTEM_REQUIRED;
+
+                    loop {
+                        unsafe {
+                            SetThreadExecutionState(flags);
+                        }
+                        if rx.recv_timeout(Duration::from_secs(15)).is_ok() {
+                            unsafe {
+                                SetThreadExecutionState(ES_CONTINUOUS);
+                            }
+                            break;
+                        }
+                    }
+                });
+            }
         } else {
-            ES_CONTINUOUS
-        };
-
-        unsafe {
-            SetThreadExecutionState(flags);
+            if let Some(tx) = tx_guard.take() {
+                let _ = tx.send(());
+            }
         }
     }
     Ok(())

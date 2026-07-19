@@ -17,10 +17,10 @@
 
 - **Hooks:** Business logic should be encapsulated in custom hooks (`useProjects`, `useTabs`).
 - **Components:** Functional components with TypeScript interfaces for props.
-- **Services:** Main process logic should be moved to `electron/services/` to keep `main.js` thin.
+- **Backend Commands:** Rust logic should be modularized in Rust files under `src-tauri/src/` (e.g., `terminal.rs`, `project.rs`, `settings.rs`).
 
 ## Persistence Guidelines
 
 - **Asynchronous Flow:** Renderer hooks MUST use the asynchronous `loadState` and `saveState` from `usePersistence.ts`.
-- **Electron-Side Store:** All application settings and workspace states are stored in `settings.json` within the user's data directory, managed by `settingsService.js`.
-- **Window State:** Window size, position, and maximization state are automatically managed by the main process.
+- **Backend Store:** All application settings and workspace states are stored in `settings.json` within the user's data directory, managed by `settings.rs`.
+- **Window State:** Window size, position, and maximization state are automatically managed by the backend process.

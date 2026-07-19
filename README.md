@@ -1,5 +1,7 @@
 # CmdGUI
 
+<a href="https://ko-fi.com/B0B21RXKG4"><img src="https://ko-fi.com/img/githubbutton_sm.svg" alt="ko-fi"></a>
+
 **CmdGUI** is a developer-focused workspace manager designed to streamline your command-line workflow. Built with **Tauri**, **React**, **Rust**, and **TypeScript**, it serves as a central hub for all your active projects, allowing you to manage multiple terminal sessions (PowerShell/Bash) with a persistent state that remembers your setup between launches.
 
 ## 📸 Gallery

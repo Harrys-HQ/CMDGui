@@ -298,6 +298,21 @@ const Terminal: React.FC<TerminalProps> = ({
         }
         return false;
       }
+      if (isKeyMatch(e, keymap.splitHorizontal)) {
+        e.preventDefault();
+        if (onSplitHorizontal) onSplitHorizontal();
+        return false;
+      }
+      if (isKeyMatch(e, keymap.splitVertical)) {
+        e.preventDefault();
+        if (onSplitVertical) onSplitVertical();
+        return false;
+      }
+      if (isKeyMatch(e, keymap.closePane)) {
+        e.preventDefault();
+        if (onClosePane) onClosePane();
+        return false;
+      }
       if (isKeyMatch(e, keymap.clearTerminal)) {
         e.preventDefault();
         if (pidRef.current !== null) {
@@ -446,6 +461,9 @@ const Terminal: React.FC<TerminalProps> = ({
       });
       } catch (e) {
         console.error('PTY setup failed:', e);
+        try {
+          term.write(`\r\n\x1b[31m[Error] PTY setup failed: ${e}\x1b[0m\r\n`);
+        } catch {}
       } finally {
         isSettingUpRef.current = false;
       }

@@ -4,16 +4,15 @@
 
 ### Prerequisites
 
-- Node.js (v16+)
+- Node.js (v18+)
 - npm
+- Rust toolchain (cargo, rustc)
 
 ### Commands
 
 - **Install Dependencies:** `npm install`
-- **Run Development:** `npm run dev` (Runs React dev server + Electron)
-  - `npm run dev:react`: Run Vite only.
-  - `npm run dev:electron`: Run Electron only (waits for Vite).
-- **Build Production:** `npm run dist` (Builds executable)
+- **Run Development:** `npm run dev` (Runs `tauri dev` which boots the Vite dev server and the Rust app)
+- **Build Production:** `npm run dist` (Runs `tauri build` to package the app)
 - **Lint:** `npm run lint`
 - **Format:** `npm run format`
 - **Test:** `npm run test`
@@ -32,16 +31,18 @@ After updating, run `npm run dist` to ensure the build matches.
 
 ## Project Structure
 
-- `electron/`: Main process code.
-  - `services/`: Core logic extracted from main.js.
-    - `projectService.js`: Logic for detecting project types.
-    - `terminalService.js`: Management of `node-pty` processes.
-    - `settingsService.js`: Robust file-based persistence for settings and window state.
-- `src/`: Renderer process code.
+- `src-tauri/`: Rust backend code.
+  - `src/`: Rust source files.
+    - `main.rs` & `lib.rs`: Tauri entry points and command registration.
+    - `terminal.rs`: Management of PTY processes.
+    - `project.rs`: Logic for detecting project types.
+    - `settings.rs`: Robust file-based persistence for settings and window state.
+    - `file_op.rs`: Custom file explorer operations.
+- `src/`: React frontend process code.
 
 ## Persistence
 
 The application uses a dual persistence strategy:
 
-- **Main Process Persistence:** `settingsService.js` stores data in the user's app data directory (`settings.json`). This includes window size, position, and maximization state.
-- **Renderer Hooks:** `useTabs`, `useProjects`, and `useSettings` hooks interact with the Main process asynchronously via `usePersistence.ts` to save and load application state.
+- **Backend Persistence:** `settings.rs` stores data in the user's app data directory (`settings.json`). This includes window size, position, maximization state, settings, and workspace state.
+- **Frontend Hooks:** `useTabs`, `useProjects`, and `useSettings` hooks interact with the Rust backend command handlers asynchronously via `usePersistence.ts` to save and load application state.

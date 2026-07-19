@@ -1,3 +1,11 @@
+## 🚀 Release: CmdGUI v2.1.0
+
+### 🛠️ Environment & Terminal Spawning Fix
+- **Process Environment Variable Inheritance:** Ensured that terminal shells (like PowerShell) and other spawned backend processes inherit the full user and system environment variables (including `PATH`, `SystemRoot`, etc.) even when the Tauri application is launched from the Windows Explorer GUI.
+- **Global Path Initialization on Startup:** Automatically checks and injects standard system directories (`System32`, `System32\Wbem`, `System32\WindowsPowerShell\v1.0`) into the application process `PATH` environment variable upon launch. This guarantees that all sub-commands (`git`, `powershell`, `cmd`, `net`, etc.) are resolved correctly in any launching environment.
+
+---
+
 ## 🚀 Release: CmdGUI v2.0.0
 
 ### ✨ UI/UX Master Overhaul

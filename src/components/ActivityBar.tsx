@@ -1,6 +1,6 @@
 import React from 'react';
 
-export type SidebarView = 'explorer' | 'git' | 'settings';
+export type SidebarView = 'explorer' | 'git' | 'ports' | 'settings';
 
 interface ActivityBarProps {
   activeView: SidebarView;
@@ -18,6 +18,7 @@ const ActivityBar: React.FC<ActivityBarProps> = ({
   const items: { id: SidebarView; icon: string; label: string }[] = [
     { id: 'explorer', icon: '📁', label: 'Explorer' },
     { id: 'git', icon: '🌿', label: 'Source Control' },
+    { id: 'ports', icon: '🔌', label: 'Active Ports' },
   ];
 
   return (

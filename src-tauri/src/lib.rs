@@ -7,8 +7,45 @@ use terminal::TerminalState;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+  #[cfg(target_os = "windows")]
+  {
+    let system_root = std::env::var("SystemRoot")
+        .or_else(|_| std::env::var("windir"))
+        .unwrap_or_else(|_| "C:\\Windows".to_string());
+    
+    let path_val = std::env::var("PATH").unwrap_or_default();
+    
+    let sys32 = format!(r"{}\System32", system_root);
+    let sys32_wbem = format!(r"{}\System32\Wbem", system_root);
+    let sys32_powershell = format!(r"{}\System32\WindowsPowerShell\v1.0", system_root);
+    
+    let paths_to_ensure = vec![
+        system_root,
+        sys32,
+        sys32_wbem,
+        sys32_powershell,
+    ];
+    
+    let mut paths: Vec<std::path::PathBuf> = std::env::split_paths(&path_val).collect();
+    let mut modified = false;
+    for p_str in paths_to_ensure {
+        let p = std::path::PathBuf::from(&p_str);
+        if !paths.iter().any(|existing| existing.to_string_lossy().eq_ignore_ascii_case(&p_str)) {
+            paths.push(p);
+            modified = true;
+        }
+    }
+    
+    if modified {
+        if let Ok(new_path) = std::env::join_paths(paths) {
+            std::env::set_var("PATH", new_path);
+        }
+    }
+  }
+
   tauri::Builder::default()
     .manage(TerminalState::default())
+    .manage(file_op::StayAwakeState::default())
     .setup(|app| {
       if cfg!(debug_assertions) {
         app.handle().plugin(
@@ -26,6 +63,12 @@ pub fn run() {
     .invoke_handler(tauri::generate_handler![
       project::get_project_info,
       project::get_project_details,
+      project::git_stage_all,
+      project::git_commit,
+      project::git_pull,
+      project::git_push,
+      project::get_active_ports,
+      project::kill_process_by_pid,
       terminal::create_terminal,
       terminal::write_terminal,
       terminal::resize_terminal,

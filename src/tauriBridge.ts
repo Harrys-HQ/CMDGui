@@ -181,6 +181,30 @@ export const tauriBridge = {
     return await invoke<any>('get_project_details', { projectPath: path });
   },
 
+  gitStageAll: async (projectPath: string) => {
+    return await invoke<string>('git_stage_all', { projectPath });
+  },
+
+  gitCommit: async (projectPath: string, message: string) => {
+    return await invoke<string>('git_commit', { projectPath, message });
+  },
+
+  gitPull: async (projectPath: string) => {
+    return await invoke<string>('git_pull', { projectPath });
+   },
+
+  gitPush: async (projectPath: string) => {
+    return await invoke<string>('git_push', { projectPath });
+  },
+
+  getActivePorts: async () => {
+    return await invoke<any[]>('get_active_ports');
+  },
+
+  killProcessByPid: async (pid: number) => {
+    return await invoke<string>('kill_process_by_pid', { pid });
+  },
+
   listDirectory: async (path: string) => {
     return await invoke<any[]>('fs_list_directory', { dirPath: path });
   },
@@ -285,7 +309,7 @@ export const tauriBridge = {
   },
 
   getVersion: async () => {
-    return '2.0.0';
+    return '2.1.0';
   },
 
   readClipboard: async () => {

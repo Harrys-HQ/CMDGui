@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
+import { Terminal } from 'lucide-react';
 
 const TitleBar: React.FC = () => {
   const [isMaximized, setIsMaximized] = useState(false);
@@ -32,12 +33,12 @@ const TitleBar: React.FC = () => {
         {
           height: '32px',
           width: '100%',
-          backgroundColor: '#1e1e1e',
+          backgroundColor: 'var(--bg-sidebar)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
           userSelect: 'none',
-          borderBottom: '1px solid #333',
+          borderBottom: '1px solid var(--border-color)',
           flexShrink: 0,
           zIndex: 9999,
         } as React.CSSProperties
@@ -48,14 +49,14 @@ const TitleBar: React.FC = () => {
         style={{
           fontSize: '12px',
           fontWeight: 600,
-          color: '#d4d4d4',
+          color: 'var(--fg-active)',
           paddingLeft: '16px',
           display: 'flex',
           alignItems: 'center',
         }}
       >
-        <span data-tauri-drag-region style={{ marginRight: '8px' }}>
-          ⚡
+        <span data-tauri-drag-region style={{ marginRight: '8px', display: 'flex', alignItems: 'center', color: 'var(--accent-primary)' }}>
+          <Terminal size={14} />
         </span>
         CmdGUI
       </div>
@@ -69,7 +70,7 @@ const TitleBar: React.FC = () => {
             height: '100%',
             background: 'transparent',
             border: 'none',
-            color: '#a0a0a0',
+            color: 'var(--fg-secondary)',
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
@@ -89,7 +90,7 @@ const TitleBar: React.FC = () => {
             height: '100%',
             background: 'transparent',
             border: 'none',
-            color: '#a0a0a0',
+            color: 'var(--fg-secondary)',
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
@@ -109,7 +110,7 @@ const TitleBar: React.FC = () => {
             height: '100%',
             background: 'transparent',
             border: 'none',
-            color: '#a0a0a0',
+            color: 'var(--fg-secondary)',
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
@@ -123,7 +124,7 @@ const TitleBar: React.FC = () => {
           }}
           onMouseLeave={(e) => {
             e.currentTarget.style.backgroundColor = 'transparent';
-            e.currentTarget.style.color = '#a0a0a0';
+            e.currentTarget.style.color = 'var(--fg-secondary)';
           }}
         >
           ×

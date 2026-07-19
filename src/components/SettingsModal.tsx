@@ -48,6 +48,9 @@ const ACTION_LABELS: Record<KeybindingAction, string> = {
   paste: 'Paste',
   find: 'Find in Terminal',
   newLine: 'Insert New Line (Terminal)',
+  splitHorizontal: 'Split Pane Horizontally',
+  splitVertical: 'Split Pane Vertically',
+  closePane: 'Close Active Pane',
 };
 
 const KeybindingRecorder: React.FC<{
@@ -140,7 +143,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   const [activeTab, setActiveTab] = useState<
     'project' | 'appearance' | 'keybindings' | 'cli' | 'workspaces' | 'history' | 'about'
   >('project');
-  const [appVersion, setAppVersion] = useState<string>('2.0.0');
+  const [appVersion, setAppVersion] = useState<string>('2.1.0');
   const [recordingAction, setRecordingAction] = useState<KeybindingAction | null>(null);
 
   // Update State
@@ -424,6 +427,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                     { id: 'dark', name: 'VS Code Dark' },
                     { id: 'light', name: 'Light' },
                     { id: 'amoled', name: 'Amoled Black' },
+                    { id: 'nord', name: 'Nord Frost' },
+                    { id: 'tokyonight', name: 'Tokyo Night' },
+                    { id: 'cyberpunk', name: 'Cyberpunk' },
                   ].map((theme) => (
                     <div
                       key={theme.id}

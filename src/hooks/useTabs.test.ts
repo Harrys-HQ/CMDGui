@@ -78,7 +78,7 @@ describe('useTabs Hook', () => {
     expect(result.current.tabs[0].id).toBe(tabToKeep);
   });
 
-  it('should create a new fresh tab if the last one is closed', async () => {
+  it('should allow closing the last tab', async () => {
     const { result } = renderHook(() => useTabs());
     await waitFor(() => expect(result.current.tabs).toHaveLength(1));
     const lastTabId = result.current.tabs[0].id;
@@ -88,8 +88,7 @@ describe('useTabs Hook', () => {
     });
 
     await waitFor(() => {
-      expect(result.current.tabs).toHaveLength(1);
-      expect(result.current.tabs[0].id).not.toBe(lastTabId);
+      expect(result.current.tabs).toHaveLength(0);
     });
   });
 

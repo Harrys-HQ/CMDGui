@@ -108,12 +108,15 @@ const QuickSwitcher: React.FC<QuickSwitcherProps> = ({
         style={{
           width: '600px',
           maxHeight: '400px',
-          background: '#252526',
-          border: '1px solid #454545',
-          boxShadow: '0 8px 16px rgba(0,0,0,0.4)',
+          background: 'var(--bg-modal)',
+          border: '1px solid var(--border-color)',
+          boxShadow: '0 12px 30px rgba(0,0,0,0.5)',
+          borderRadius: '8px',
+          overflow: 'hidden',
+          backdropFilter: 'blur(10px)',
         }}
       >
-        <div style={{ padding: '10px' }}>
+        <div style={{ padding: '12px', borderBottom: '1px solid var(--border-color)' }}>
           <input
             ref={inputRef}
             type="text"
@@ -128,17 +131,19 @@ const QuickSwitcher: React.FC<QuickSwitcherProps> = ({
             onKeyDown={handleKeyDown}
             style={{
               width: '100%',
-              background: '#3c3c3c',
-              border: '1px solid #007acc',
-              color: 'white',
-              padding: '8px 12px',
+              background: 'var(--bg-root)',
+              border: '1px solid var(--accent-primary)',
+              color: 'var(--fg-active)',
+              padding: '10px 14px',
               fontSize: '14px',
               outline: 'none',
-              borderRadius: '2px',
+              borderRadius: '6px',
+              fontFamily: 'var(--font-family-ui)',
+              boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.2)',
             }}
           />
         </div>
-        <div style={{ overflowY: 'auto', maxHeight: '330px' }}>
+        <div style={{ overflowY: 'auto', maxHeight: '310px', padding: '6px 0' }}>
           {filteredItems.map((item, index) => (
             <div
               key={`${item.type}-${item.id}`}
@@ -147,26 +152,39 @@ const QuickSwitcher: React.FC<QuickSwitcherProps> = ({
                 onClose();
               }}
               style={{
-                padding: '8px 12px',
+                margin: '2px 8px',
+                padding: '10px 12px',
                 cursor: 'pointer',
-                background: index === selectedIndex ? '#094771' : 'transparent',
+                background: index === selectedIndex ? 'var(--accent-primary)' : 'transparent',
+                borderRadius: '6px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
+                transition: 'background-color 0.1s ease',
               }}
             >
               <div style={{ display: 'flex', flexDirection: 'column' }}>
                 <div
-                  style={{ fontSize: '14px', color: index === selectedIndex ? 'white' : '#ccc' }}
+                  style={{
+                    fontSize: '13px',
+                    fontWeight: 500,
+                    color: index === selectedIndex ? 'var(--fg-active)' : 'var(--fg-primary)',
+                    display: 'flex',
+                    alignItems: 'center',
+                  }}
                 >
-                  <span style={{ marginRight: '8px' }}>{item.icon}</span>
+                  <span style={{ marginRight: '8px', display: 'inline-flex', alignItems: 'center' }}>
+                    {item.icon}
+                  </span>
                   {item.name}
                 </div>
                 <div
                   style={{
                     fontSize: '11px',
-                    color: index === selectedIndex ? '#add6ff' : '#888',
+                    color: index === selectedIndex ? 'var(--fg-active)' : 'var(--fg-secondary)',
+                    opacity: index === selectedIndex ? 0.9 : 0.7,
                     marginLeft: '24px',
+                    marginTop: '2px',
                   }}
                 >
                   {item.sub}
@@ -175,11 +193,14 @@ const QuickSwitcher: React.FC<QuickSwitcherProps> = ({
               {item.shortcut && (
                 <div
                   style={{
-                    fontSize: '11px',
-                    color: index === selectedIndex ? '#ccc' : '#666',
-                    background: index === selectedIndex ? '#1a5c8a' : '#333',
+                    fontSize: '10px',
+                    fontWeight: 600,
+                    color: 'var(--fg-active)',
+                    background: index === selectedIndex ? 'rgba(255,255,255,0.2)' : 'var(--bg-root)',
+                    border: '1px solid var(--border-color)',
                     padding: '2px 6px',
-                    borderRadius: '3px',
+                    borderRadius: '4px',
+                    fontFamily: 'var(--font-family-mono)',
                   }}
                 >
                   {item.shortcut}
@@ -188,7 +209,7 @@ const QuickSwitcher: React.FC<QuickSwitcherProps> = ({
             </div>
           ))}
           {filteredItems.length === 0 && (
-            <div style={{ padding: '20px', textAlign: 'center', color: '#888', fontSize: '13px' }}>
+            <div style={{ padding: '30px', textAlign: 'center', color: 'var(--fg-secondary)', fontSize: '13px' }}>
               No results found
             </div>
           )}

@@ -5,21 +5,21 @@
 - **Framework:** React 19
 - **Build Tool:** Vite
 - **Language:** TypeScript
-- **Styling:** CSS (PostCSS/Modules implied)
+- **Styling:** CSS
 
 ## Backend / Desktop Shell
 
-- **Runtime:** Electron
-- **Environment:** Node.js
+- **Framework:** Tauri v2
+- **Language:** Rust
 - **Terminal Emulation:**
   - `xterm.js` (Frontend display)
-  - `node-pty` (Backend process management)
+  - Custom Rust PTY/process management (implemented in `src-tauri/src/terminal.rs`)
   - `xterm-addon-fit`, `xterm-addon-search`, `xterm-addon-web-links`
 
 ## Build & Distribution
 
-- **Builder:** electron-builder
-- **Target:** Windows (NSIS), Linux (AppImage), Mac (DMG)
+- **Builder:** Tauri CLI (`tauri build`)
+- **Target:** Windows (MSI, NSIS exe), Linux (AppImage/deb), Mac (DMG/app)
 
 ## Testing
 

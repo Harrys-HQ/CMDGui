@@ -1,12 +1,12 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "cmd-gui",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "identifier": "com.harrya.cmdgui",
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://localhost:5173",
-    "beforeDevCommand": "npm run dev:react",
+    "beforeDevCommand": "npx vite",
     "beforeBuildCommand": "npm run build"
   },
   "app": {
@@ -27,7 +27,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEUxMjJDM0I3NDA3RTA2MkUKUldRdUJuNUF0OE1pNGU4ekhxRTJjODdWdUZCZXlKbFE2WDlTMFRLZi9LUk5Pemc1TWZhUUtxK1MK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDg5RkE1OTc0M0QwMTNDMEIKUldRTFBBRTlkRm42aVlMRzYwTWQ3cEpabFpScFR6VzYyaU1SVnVLRUgvQXd0SFZQRS9rckl1N1MK",
       "endpoints": [
         "https://github.com/Harrys-HQ/CMDGui/releases/latest/download/latest.json"
       ]
@@ -46,6 +46,12 @@
     ],
     "android": {
       "debugApplicationIdSuffix": ".debug"
+    },
+    "windows": {
+      "nsis": {
+        "template": "installer.nsi",
+        "languages": ["English"]
+      }
     }
   }
 }

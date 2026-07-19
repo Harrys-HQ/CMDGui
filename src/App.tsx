@@ -503,6 +503,10 @@ const App: React.FC = () => {
             const p = projects.find((p) => p.path === cwd);
             addTab(cwd, false, `npm run ${name}`, p?.envVars);
           }}
+          onRunCustomCommand={(cwd, command) => {
+            const p = cwd ? projects.find((p) => p.path === cwd) : undefined;
+            addTab(cwd, false, command, p?.envVars);
+          }}
           onReorderTabs={reorderTabs}
           onReorderProjects={reorderProjects}
           onRefreshGitStatus={refreshGitStatus}

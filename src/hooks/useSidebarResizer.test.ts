@@ -39,6 +39,12 @@ describe('useSidebarResizer Hook', () => {
       window.dispatchEvent(event);
     });
 
+    // Simulate mouse up to finish resizing and update state
+    act(() => {
+      const event = new MouseEvent('mouseup');
+      window.dispatchEvent(event);
+    });
+
     expect(result.current.sidebarWidth).toBe(300);
   });
 
