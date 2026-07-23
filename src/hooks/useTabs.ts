@@ -26,20 +26,9 @@ export const useTabs = () => {
   // Initial load
   useEffect(() => {
     const init = async () => {
-      const { pane, layout } = createTerminalPane();
-      const initialTab: Tab = {
-        id: '1',
-        title: 'Terminal',
-        layout,
-        panes: { [pane.id]: pane },
-      };
-
-      const savedTabsRaw = await loadState<Tab[]>('tabs', [initialTab]);
-      const savedTabs = Array.isArray(savedTabsRaw) ? savedTabsRaw : [initialTab];
-      const savedActiveId = await loadState<string>(
-        'activeTabId',
-        savedTabs.length > 0 ? savedTabs[0].id : initialTab.id
-      );
+      const savedTabsRaw = await loadState<Tab[]>('tabs', []);
+      const savedTabs = Array.isArray(savedTabsRaw) ? savedTabsRaw : [];
+      const savedActiveId = await loadState<string>('activeTabId', '');
       const savedWorkspacesRaw = await loadState<Workspace[]>('workspaces', []);
       const savedWorkspaces = Array.isArray(savedWorkspacesRaw) ? savedWorkspacesRaw : [];
       const savedActiveWorkspaceId = await loadState<string | null>('activeWorkspaceId', null);
@@ -49,10 +38,11 @@ export const useTabs = () => {
         .filter((tab) => tab && typeof tab === 'object')
         .map((tab) => {
           if (!tab.layout || !tab.panes) {
+            const { pane, layout } = createTerminalPane();
             return {
               ...tab,
-              layout: tab.layout || initialTab.layout,
-              panes: tab.panes || initialTab.panes,
+              layout: tab.layout || layout,
+              panes: tab.panes || { [pane.id]: pane },
             };
           }
           return tab;
@@ -64,11 +54,18 @@ export const useTabs = () => {
       );
 
       if (validatedTabs.length === 0) {
+        const { pane, layout } = createTerminalPane();
+        const initialTab: Tab = {
+          id: Date.now().toString(),
+          title: 'Terminal',
+          layout,
+          panes: { [pane.id]: pane },
+        };
         setTabs([initialTab]);
         setActiveTabId(initialTab.id);
       } else {
         setTabs(validatedTabs);
-        setActiveTabId(savedActiveId);
+        setActiveTabId(savedActiveId && validatedTabs.some((t) => t.id === savedActiveId) ? savedActiveId : validatedTabs[0].id);
       }
       setWorkspaces(validatedWorkspaces);
       setActiveWorkspaceId(savedActiveWorkspaceId);
@@ -312,5 +309,6 @@ export const useTabs = () => {
     updateTabStatus,
     clearTabNotifications,
     reorderTabs,
+    isLoaded,
   };
 };

@@ -1,12 +1,13 @@
 import React from 'react';
 
-export type SidebarView = 'explorer' | 'git' | 'ports' | 'settings';
+export type SidebarView = 'explorer' | 'git' | 'ports';
 
 interface ActivityBarProps {
   activeView: SidebarView;
   onViewChange: (view: SidebarView) => void;
   isSidebarVisible: boolean;
   onToggleSidebar: () => void;
+  onOpenSettings: () => void;
 }
 
 const ActivityBar: React.FC<ActivityBarProps> = ({
@@ -14,6 +15,7 @@ const ActivityBar: React.FC<ActivityBarProps> = ({
   onViewChange,
   isSidebarVisible,
   onToggleSidebar,
+  onOpenSettings,
 }) => {
   const items: { id: SidebarView; icon: string; label: string }[] = [
     { id: 'explorer', icon: '📁', label: 'Explorer' },
@@ -44,16 +46,9 @@ const ActivityBar: React.FC<ActivityBarProps> = ({
       </div>
       <div className="activity-bar-bottom">
         <div
-          className={`activity-bar-item ${activeView === 'settings' && isSidebarVisible ? 'active' : ''}`}
-          onClick={() => {
-            if (activeView === 'settings') {
-              onToggleSidebar();
-            } else {
-              onViewChange('settings');
-              if (!isSidebarVisible) onToggleSidebar();
-            }
-          }}
-          title="Settings"
+          className="activity-bar-item"
+          onClick={onOpenSettings}
+          title="Settings (Open Full Settings)"
         >
           <span className="activity-icon">⚙️</span>
         </div>

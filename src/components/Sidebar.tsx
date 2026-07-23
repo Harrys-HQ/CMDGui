@@ -104,6 +104,11 @@ const Sidebar: React.FC<SidebarProps> = ({
   const [ports, setPorts] = useState<any[]>([]);
   const [isRefreshingPorts, setIsRefreshingPorts] = useState(false);
   const [portSearchQuery, setPortSearchQuery] = useState('');
+  const [expandedPorts, setExpandedPorts] = useState({
+    user: true,
+    system: false,
+  });
+  const [hideSystemPorts, setHideSystemPorts] = useState(true);
 
   const [snippets, setSnippets] = useState<{ id: string; name: string; command: string }[]>([]);
 
@@ -116,7 +121,7 @@ const Sidebar: React.FC<SidebarProps> = ({
         { id: '3', name: 'Git Status', command: 'git status' },
       ]);
       if (mounted) {
-        setSnippets(saved || []);
+        setSnippets(Array.isArray(saved) ? saved : []);
       }
     };
     loadSnippets();
@@ -167,7 +172,9 @@ const Sidebar: React.FC<SidebarProps> = ({
     }
   }, [activeView, refreshPorts]);
 
-  const gitProjects = projects.filter((p) => p.gitBranch);
+  const gitProjects = (Array.isArray(projects) ? projects : []).filter(
+    (p) => p && typeof p === 'object' && (p.gitBranch !== undefined || (Array.isArray(p.gitFiles) && p.gitFiles.length > 0))
+  );
 
   useEffect(() => {
     if (gitProjects.length > 0 && !selectedGitPath) {
@@ -292,8 +299,8 @@ const Sidebar: React.FC<SidebarProps> = ({
                 />
               </div>
 
-              <div className="project-list">
-                {projects.map((p, index) => {
+              <div className="project-tree" style={{ padding: '4px 0' }}>
+                {(Array.isArray(projects) ? projects : []).map((p, index) => {
                   // Only show filtered projects if searching, otherwise show all for reordering
                   if (
                     searchQuery &&
@@ -389,8 +396,8 @@ const Sidebar: React.FC<SidebarProps> = ({
                 </div>
               }
             >
-              <div className="task-list">
-                {tabs.map((tab, index) => {
+              <div className="tab-list">
+                {(Array.isArray(tabs) ? tabs : []).map((tab, index) => {
                   // Only show filtered tabs if searching, otherwise show all for reordering
                   if (searchQuery && !tab.title.toLowerCase().includes(searchQuery.toLowerCase())) {
                     return null;
@@ -448,7 +455,7 @@ const Sidebar: React.FC<SidebarProps> = ({
               }
             >
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', padding: '6px 10px' }}>
-                {snippets.map((snippet) => (
+                {Array.isArray(snippets) && snippets.map((snippet) => (
                   <div
                     key={snippet.id}
                     className="project-item"
@@ -595,14 +602,45 @@ const Sidebar: React.FC<SidebarProps> = ({
                   
                   return (
                     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, fontSize: '12px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '12px', paddingBottom: '8px', borderBottom: '1px solid #333' }}>
-                        <span style={{ color: '#0dbc79' }}>ᚠ</span>
-                        <span style={{ fontWeight: 'bold', color: '#fff' }}>{activeProj.gitBranch}</span>
-                        {activeProj.gitDirty && <span style={{ color: 'var(--accent-primary)', fontSize: '10px', marginLeft: 'auto' }}>● Modified</span>}
+                      {/* Branch & Status Summary Header */}
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          marginBottom: '12px',
+                          padding: '10px 12px',
+                          background: 'var(--bg-root)',
+                          borderRadius: '6px',
+                          border: '1px solid var(--border-color)',
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span style={{ color: 'var(--accent-primary)', fontSize: '14px' }}>🌿</span>
+                          <div style={{ display: 'flex', flexDirection: 'column' }}>
+                            <span style={{ fontWeight: 'bold', color: 'var(--fg-active)', fontSize: '13px' }}>
+                              {activeProj.gitBranch || 'main'}
+                            </span>
+                            <span style={{ fontSize: '10px', color: 'var(--fg-secondary)' }}>Current Branch</span>
+                          </div>
+                        </div>
+                        <span
+                          style={{
+                            fontSize: '10px',
+                            fontWeight: 'bold',
+                            padding: '3px 8px',
+                            borderRadius: '10px',
+                            background: activeProj.gitDirty ? 'rgba(229, 192, 123, 0.15)' : 'rgba(35, 209, 139, 0.15)',
+                            color: activeProj.gitDirty ? '#e5c07b' : '#23d18b',
+                            border: `1px solid ${activeProj.gitDirty ? 'rgba(229, 192, 123, 0.3)' : 'rgba(35, 209, 139, 0.3)'}`,
+                          }}
+                        >
+                          {activeProj.gitDirty ? `${activeProj.gitFiles?.length || 0} Uncommitted` : 'Clean Tree'}
+                        </span>
                       </div>
 
                       {/* Git Action Toolbar */}
-                      <div style={{ display: 'flex', gap: '6px', marginBottom: '12px' }}>
+                      <div style={{ display: 'flex', gap: '6px', marginBottom: '14px' }}>
                         <button
                           disabled={isPending}
                           onClick={async () => {
@@ -620,15 +658,20 @@ const Sidebar: React.FC<SidebarProps> = ({
                           }}
                           style={{
                             flex: 1,
-                            padding: '6px 8px',
-                            background: '#2d2d2d',
-                            border: '1px solid #444',
-                            borderRadius: '4px',
-                            color: '#ccc',
+                            padding: '7px 8px',
+                            background: 'var(--bg-root)',
+                            border: '1px solid var(--border-color)',
+                            borderRadius: '6px',
+                            color: 'var(--fg-primary)',
                             fontSize: '11px',
+                            fontWeight: 500,
                             cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '4px',
                           }}
-                          title="Pull from Remote"
+                          title="Pull latest remote changes into local branch"
                         >
                           ⬇️ Pull
                         </button>
@@ -649,15 +692,20 @@ const Sidebar: React.FC<SidebarProps> = ({
                           }}
                           style={{
                             flex: 1,
-                            padding: '6px 8px',
-                            background: '#2d2d2d',
-                            border: '1px solid #444',
-                            borderRadius: '4px',
-                            color: '#ccc',
+                            padding: '7px 8px',
+                            background: 'var(--bg-root)',
+                            border: '1px solid var(--border-color)',
+                            borderRadius: '6px',
+                            color: 'var(--fg-primary)',
                             fontSize: '11px',
+                            fontWeight: 500,
                             cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '4px',
                           }}
-                          title="Push to Remote"
+                          title="Push local commits to remote origin"
                         >
                           ⬆️ Push
                         </button>
@@ -678,37 +726,54 @@ const Sidebar: React.FC<SidebarProps> = ({
                           }}
                           style={{
                             flex: 1,
-                            padding: '6px 8px',
-                            background: '#2d2d2d',
-                            border: '1px solid #444',
-                            borderRadius: '4px',
-                            color: activeProj.gitDirty ? '#ccc' : '#666',
+                            padding: '7px 8px',
+                            background: activeProj.gitDirty ? 'rgba(0, 122, 204, 0.2)' : 'var(--bg-root)',
+                            border: `1px solid ${activeProj.gitDirty ? 'var(--accent-primary)' : 'var(--border-color)'}`,
+                            borderRadius: '6px',
+                            color: activeProj.gitDirty ? 'var(--fg-active)' : 'var(--fg-secondary)',
                             fontSize: '11px',
+                            fontWeight: 600,
                             cursor: activeProj.gitDirty ? 'pointer' : 'not-allowed',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '4px',
                           }}
-                          title="Stage All Changes"
+                          title="Stage all modified and untracked files"
                         >
-                          ➕ Stage
+                          ➕ Stage All
                         </button>
                       </div>
 
                       {/* Commit Section */}
                       {activeProj.gitDirty && (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '16px', padding: '10px', background: 'rgba(255,255,255,0.02)', borderRadius: '4px', border: '1px solid #333' }}>
+                        <div
+                          style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '8px',
+                            marginBottom: '16px',
+                            padding: '12px',
+                            background: 'var(--bg-root)',
+                            borderRadius: '8px',
+                            border: '1px solid var(--border-color)',
+                          }}
+                        >
                           <input
                             type="text"
-                            placeholder="Commit message..."
+                            placeholder="Enter commit message..."
                             value={commitMessage}
                             onChange={(e) => setCommitMessage(e.target.value)}
                             disabled={isPending}
                             style={{
-                              background: '#1e1e1e',
-                              color: '#fff',
-                              border: '1px solid #444',
-                              padding: '6px',
-                              borderRadius: '4px',
-                              fontSize: '11px',
+                              background: 'var(--bg-sidebar)',
+                              color: 'var(--fg-active)',
+                              border: '1px solid var(--border-color)',
+                              padding: '8px 10px',
+                              borderRadius: '6px',
+                              fontSize: '12px',
                               outline: 'none',
+                              fontFamily: 'var(--font-family-ui)',
                             }}
                           />
                           <button
@@ -727,55 +792,124 @@ const Sidebar: React.FC<SidebarProps> = ({
                                 setIsPending(false);
                               }
                             }}
+                            className="primary-btn"
                             style={{
-                              padding: '6px 8px',
-                              background: 'var(--accent-primary, #007acc)',
-                              border: 'none',
-                              borderRadius: '4px',
-                              color: '#fff',
-                              fontSize: '11px',
+                              padding: '8px',
+                              borderRadius: '6px',
+                              fontSize: '12px',
                               fontWeight: 'bold',
                               cursor: commitMessage.trim() ? 'pointer' : 'not-allowed',
                               opacity: commitMessage.trim() ? 1 : 0.5,
                             }}
                           >
-                            Commit Changes
+                            ✓ Commit Changes
                           </button>
                         </div>
                       )}
 
-                      <div style={{ fontWeight: 'bold', color: '#888', marginBottom: '8px', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                        Changes ({activeProj.gitFiles?.length || 0})
+                      <div
+                        style={{
+                          fontWeight: 'bold',
+                          color: 'var(--fg-secondary)',
+                          marginBottom: '8px',
+                          fontSize: '11px',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.5px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                        }}
+                      >
+                        <span>Changed Files</span>
+                        <span style={{ fontSize: '10px', color: 'var(--accent-primary)' }}>
+                          {activeProj.gitFiles?.length || 0} items
+                        </span>
                       </div>
 
-                      {activeProj.gitFiles && activeProj.gitFiles.length > 0 ? (
-                        <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '4px', paddingRight: '4px' }}>
+                      {Array.isArray(activeProj.gitFiles) && activeProj.gitFiles.length > 0 ? (
+                        <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '6px', paddingRight: '4px' }}>
                           {activeProj.gitFiles.map((fileLine, idx) => {
                             const status = fileLine.substring(0, 2).trim();
                             const fileName = fileLine.substring(2).trim();
-                            
-                            let color = '#ccc';
-                            let indicator = status;
-                            if (status === 'M' || status.includes('M')) { color = '#e5c07b'; indicator = 'Modified'; }
-                            else if (status === 'A' || status.includes('A')) { color = '#98c379'; indicator = 'Added'; }
-                            else if (status === 'D' || status.includes('D')) { color = '#e06c75'; indicator = 'Deleted'; }
-                            else if (status === '??') { color = '#5c6370'; indicator = 'Untracked'; }
-                            
+
+                            let color = '#e5c07b';
+                            let bg = 'rgba(229, 192, 123, 0.1)';
+                            let label = 'MODIFIED';
+                            let icon = '📝';
+
+                            if (status === 'M' || status.includes('M')) {
+                              color = '#e5c07b'; bg = 'rgba(229, 192, 123, 0.1)'; label = 'MODIFIED'; icon = '✏️';
+                            } else if (status === 'A' || status.includes('A')) {
+                              color = '#98c379'; bg = 'rgba(152, 195, 121, 0.1)'; label = 'ADDED'; icon = '➕';
+                            } else if (status === 'D' || status.includes('D')) {
+                              color = '#e06c75'; bg = 'rgba(224, 108, 117, 0.1)'; label = 'DELETED'; icon = '🗑️';
+                            } else if (status === '??') {
+                              color = '#61afef'; bg = 'rgba(97, 175, 239, 0.1)'; label = 'UNTRACKED'; icon = '📄';
+                            }
+
                             return (
-                              <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 8px', background: 'rgba(255,255,255,0.03)', borderRadius: '3px' }}>
-                                <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', color: '#d4d4d4', maxWidth: '170px' }} title={fileName}>
-                                  {fileName}
-                                </span>
-                                <span style={{ color, fontSize: '9px', fontWeight: 'bold', textTransform: 'uppercase' }}>
-                                  {indicator}
+                              <div
+                                key={idx}
+                                style={{
+                                  display: 'flex',
+                                  justifyContent: 'space-between',
+                                  alignItems: 'center',
+                                  padding: '8px 10px',
+                                  background: 'var(--bg-root)',
+                                  borderRadius: '6px',
+                                  border: '1px solid var(--border-color)',
+                                }}
+                              >
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden' }}>
+                                  <span style={{ fontSize: '12px' }}>{icon}</span>
+                                  <span
+                                    style={{
+                                      textOverflow: 'ellipsis',
+                                      overflow: 'hidden',
+                                      whiteSpace: 'nowrap',
+                                      color: 'var(--fg-active)',
+                                      fontSize: '12px',
+                                      maxWidth: '160px',
+                                    }}
+                                    title={fileName}
+                                  >
+                                    {fileName}
+                                  </span>
+                                </div>
+                                <span
+                                  style={{
+                                    color,
+                                    background: bg,
+                                    fontSize: '9px',
+                                    fontWeight: 'bold',
+                                    padding: '2px 6px',
+                                    borderRadius: '4px',
+                                    letterSpacing: '0.5px',
+                                  }}
+                                >
+                                  {label}
                                 </span>
                               </div>
                             );
                           })}
                         </div>
                       ) : (
-                        <div style={{ color: '#666', fontStyle: 'italic', padding: '10px 0', textAlign: 'center' }}>
-                          No changes detected. Working tree clean.
+                        <div
+                          style={{
+                            color: 'var(--fg-secondary)',
+                            padding: '30px 10px',
+                            textAlign: 'center',
+                            fontSize: '12px',
+                            background: 'var(--bg-root)',
+                            borderRadius: '8px',
+                            border: '1px solid var(--border-color)',
+                          }}
+                        >
+                          <div style={{ fontSize: '24px', marginBottom: '8px' }}>🎉</div>
+                          <div style={{ fontWeight: 600, color: 'var(--fg-active)' }}>Working tree clean!</div>
+                          <div style={{ fontSize: '11px', marginTop: '4px', opacity: 0.7 }}>
+                            All changes have been committed.
+                          </div>
                         </div>
                       )}
                     </div>
@@ -821,102 +955,267 @@ const Sidebar: React.FC<SidebarProps> = ({
                 />
               </div>
 
-              {ports.length > 0 ? (
-                <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '6px', paddingRight: '4px' }}>
-                  {ports
-                    .filter((p) => {
-                      const q = portSearchQuery.toLowerCase();
-                      return (
-                        p.port.toString().includes(q) ||
-                        p.processName.toLowerCase().includes(q) ||
-                        p.pid.toString().includes(q)
-                      );
-                    })
-                    .map((p) => (
-                      <div
-                        key={p.port}
-                        style={{
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                          padding: '8px',
-                          background: 'rgba(255,255,255,0.03)',
-                          borderRadius: '4px',
-                          border: '1px solid rgba(255,255,255,0.05)',
-                        }}
-                      >
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', overflow: 'hidden' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <span style={{ color: 'var(--accent-primary, #007acc)', fontWeight: 'bold', fontSize: '12px' }}>
-                              :{p.port}
-                            </span>
-                            <span style={{ color: '#888', fontSize: '10px' }}>
-                              PID: {p.pid}
-                            </span>
-                          </div>
-                          <span
-                            style={{
-                              color: '#d4d4d4',
-                              fontSize: '11px',
-                              textOverflow: 'ellipsis',
-                              overflow: 'hidden',
-                              whiteSpace: 'nowrap',
-                            }}
-                            title={p.processName}
-                          >
-                            {p.processName}
-                          </span>
-                        </div>
-                        <button
-                          onClick={async (e) => {
-                            e.stopPropagation();
-                            if (!window.electron) return;
-                            if (window.confirm(`Are you sure you want to terminate ${p.processName} (PID: ${p.pid}) on port ${p.port}?`)) {
-                              try {
-                                const res = await window.electron.killProcessByPid(p.pid);
-                                showToast(res, 'success');
-                                refreshPorts();
-                              } catch (err) {
-                                showToast(`Failed to kill process: ${err}`, 'error');
-                              }
-                            }
-                          }}
-                          style={{
-                            padding: '4px 8px',
-                            background: '#3c1a1a',
-                            border: '1px solid #6c2a2a',
-                            borderRadius: '3px',
-                            color: '#ff6b6b',
-                            fontSize: '10px',
-                            cursor: 'pointer',
-                          }}
-                          title="Kill Process"
-                        >
-                          🛑 Kill
-                        </button>
-                      </div>
-                    ))}
+              {/* Safety toggle bar */}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  marginBottom: '10px',
+                  padding: '6px 8px',
+                  background: hideSystemPorts ? 'rgba(35, 209, 139, 0.08)' : 'rgba(241, 76, 76, 0.08)',
+                  border: `1px solid ${hideSystemPorts ? 'rgba(35, 209, 139, 0.2)' : 'rgba(241, 76, 76, 0.2)'}`,
+                  borderRadius: '4px',
+                  fontSize: '11px',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span>{hideSystemPorts ? '🛡️ Safe Mode' : '⚠️ Unsafe Mode'}</span>
                 </div>
-              ) : (
+                <label
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    cursor: 'pointer',
+                    fontSize: '10px',
+                    color: 'var(--fg-secondary)',
+                    userSelect: 'none',
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={hideSystemPorts}
+                    onChange={(e) => setHideSystemPorts(e.target.checked)}
+                    style={{ cursor: 'pointer' }}
+                  />
+                  Hide System Ports
+                </label>
+              </div>
+
+              {ports.length > 0 ? (() => {
+                const systemProcesses = [
+                  'system',
+                  'svchost.exe',
+                  'lsass.exe',
+                  'services.exe',
+                  'spoolsv.exe',
+                  'wininit.exe',
+                  'winlogon.exe',
+                  'csrss.exe',
+                  'smss.exe',
+                  'alg.exe',
+                  'dashost.exe',
+                  'sihost.exe',
+                  'searchindexer.exe',
+                  'explorer.exe',
+                  'dwm.exe',
+                  'fontdrvhost.exe',
+                  'ctfmon.exe',
+                  'securityhealthservice.exe',
+                  'tcpsvcs.exe',
+                  'nissrv.exe',
+                  'msmpeng.exe',
+                  'conhost.exe',
+                  'runtimebroker.exe',
+                  'smartscreen.exe',
+                  'taskhostw.exe',
+                  'dllhost.exe',
+                  'shellexperiencehost.exe',
+                  'searchapp.exe',
+                  'startmenuexperiencehost.exe',
+                  'wuaudt.exe',
+                  'registry',
+                ];
+
+                const safePorts = Array.isArray(ports) ? ports : [];
+                const filtered = safePorts.filter((p) => {
+                  const q = portSearchQuery.toLowerCase();
+                  return (
+                    p.port.toString().includes(q) ||
+                    p.processName.toLowerCase().includes(q) ||
+                    p.pid.toString().includes(q)
+                  );
+                });
+
+                const systemPorts = filtered.filter(
+                  (p) => systemProcesses.includes(p.processName.toLowerCase()) || p.pid <= 4
+                );
+                const appPorts = filtered.filter(
+                  (p) => !systemProcesses.includes(p.processName.toLowerCase()) && p.pid > 4
+                );
+
+                const renderPortItem = (p: any, isSystem: boolean = false) => (
+                  <div
+                    key={p.port}
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      padding: '8px',
+                      background: 'rgba(255,255,255,0.03)',
+                      borderRadius: '4px',
+                      border: '1px solid rgba(255,255,255,0.05)',
+                    }}
+                  >
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', overflow: 'hidden' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span style={{ color: 'var(--accent-primary, #007acc)', fontWeight: 'bold', fontSize: '12px' }}>
+                          :{p.port}
+                        </span>
+                        <span style={{ color: '#888', fontSize: '10px' }}>
+                          PID: {p.pid}
+                        </span>
+                      </div>
+                      <span
+                        style={{
+                          color: '#d4d4d4',
+                          fontSize: '11px',
+                          textOverflow: 'ellipsis',
+                          overflow: 'hidden',
+                          whiteSpace: 'nowrap',
+                        }}
+                        title={p.processName}
+                      >
+                        {p.processName}
+                      </span>
+                    </div>
+                    {!isSystem ? (
+                      <button
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          if (!window.electron) return;
+                          if (window.confirm(`Are you sure you want to terminate ${p.processName} (PID: ${p.pid}) on port ${p.port}?`)) {
+                            try {
+                              const res = await window.electron.killProcessByPid(p.pid);
+                              showToast(res, 'success');
+                              refreshPorts();
+                            } catch (err) {
+                              showToast(`Failed to kill process: ${err}`, 'error');
+                            }
+                          }
+                        }}
+                        style={{
+                          padding: '4px 8px',
+                          background: '#3c1a1a',
+                          border: '1px solid #6c2a2a',
+                          borderRadius: '3px',
+                          color: '#ff6b6b',
+                          fontSize: '10px',
+                          cursor: 'pointer',
+                        }}
+                        title="Kill Process"
+                      >
+                        🛑 Kill
+                      </button>
+                    ) : (
+                      <span
+                        style={{
+                          padding: '4px 8px',
+                          background: 'rgba(255,255,255,0.02)',
+                          border: '1px solid rgba(255,255,255,0.05)',
+                          borderRadius: '3px',
+                          color: '#666',
+                          fontSize: '10px',
+                          cursor: 'not-allowed',
+                          userSelect: 'none',
+                        }}
+                        title="System processes cannot be terminated to protect stability"
+                      >
+                        🔒 System
+                      </span>
+                    )}
+                  </div>
+                );
+
+                return (
+                  <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '6px', paddingRight: '4px' }}>
+                    {/* Application Ports Group */}
+                    <div
+                      onClick={() => setExpandedPorts(prev => ({ ...prev, user: !prev.user }))}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        padding: '6px 8px',
+                        background: 'rgba(255, 255, 255, 0.04)',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        fontSize: '11px',
+                        fontWeight: 'bold',
+                        color: '#aaa',
+                        marginTop: '4px',
+                        userSelect: 'none',
+                      }}
+                    >
+                      <span style={{
+                        marginRight: '6px',
+                        transform: expandedPorts.user ? 'rotate(90deg)' : 'rotate(0deg)',
+                        transition: 'transform 0.1s',
+                        display: 'inline-block',
+                        fontSize: '9px',
+                      }}>▶</span>
+                      <span>DEV & APP PORTS ({appPorts.length})</span>
+                    </div>
+                    {expandedPorts.user && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', paddingLeft: '4px' }}>
+                        {appPorts.length > 0 ? (
+                          appPorts.map(p => renderPortItem(p, false))
+                        ) : (
+                          <div style={{ color: '#555', fontStyle: 'italic', padding: '10px 0', fontSize: '11px', textAlign: 'center' }}>
+                            No active dev or user application ports.
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* System Ports Group (Hidden by default unless unchecked) */}
+                    {!hideSystemPorts && (
+                      <>
+                        <div
+                          onClick={() => setExpandedPorts(prev => ({ ...prev, system: !prev.system }))}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            padding: '6px 8px',
+                            background: 'rgba(241, 76, 76, 0.08)',
+                            borderRadius: '4px',
+                            cursor: 'pointer',
+                            fontSize: '11px',
+                            fontWeight: 'bold',
+                            color: '#ff6b6b',
+                            marginTop: '8px',
+                            userSelect: 'none',
+                          }}
+                        >
+                          <span style={{
+                            marginRight: '6px',
+                            transform: expandedPorts.system ? 'rotate(90deg)' : 'rotate(0deg)',
+                            transition: 'transform 0.1s',
+                            display: 'inline-block',
+                            fontSize: '9px',
+                          }}>▶</span>
+                          <span>SYSTEM SERVICES ({systemPorts.length})</span>
+                        </div>
+                        {expandedPorts.system && (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', paddingLeft: '4px' }}>
+                            {systemPorts.length > 0 ? (
+                              systemPorts.map(p => renderPortItem(p, true))
+                            ) : (
+                              <div style={{ color: '#555', fontStyle: 'italic', padding: '10px 0', fontSize: '11px', textAlign: 'center' }}>
+                                No active system ports.
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                );
+              })() : (
                 <div style={{ color: '#666', fontStyle: 'italic', padding: '20px 0', textAlign: 'center', fontSize: '12px' }}>
                   No active local ports detected.
                 </div>
               )}
-            </div>
-          </div>
-        )}
-
-        {activeView === 'settings' && (
-          <div style={{ padding: '0' }}>
-            <div className="sidebar-section-header" style={{ cursor: 'default' }}>
-              <span style={{ fontWeight: 'bold' }}>SETTINGS & CONFIGURATION</span>
-            </div>
-            <div
-              className="project-item"
-              onClick={onOpenSettings}
-              style={{ borderBottom: '1px solid var(--border-color)' }}
-            >
-              <span style={{ marginRight: '8px' }}>⚙️</span> Open Full Settings
             </div>
           </div>
         )}

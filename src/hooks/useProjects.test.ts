@@ -26,6 +26,7 @@ describe('useProjects Hook', () => {
       envVars: {},
       gitBranch: null,
       gitDirty: false,
+      gitFiles: [],
     });
 
     window.electron = {
@@ -90,6 +91,7 @@ describe('useProjects Hook', () => {
       envVars: {},
       gitBranch: 'main',
       gitDirty: false,
+      gitFiles: [],
     });
 
     const { result } = renderHook(() => useProjects());

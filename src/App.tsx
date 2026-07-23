@@ -8,6 +8,7 @@ import ActivityBar, { SidebarView } from './components/ActivityBar';
 import TopTabBar from './components/TopTabBar';
 import Breadcrumbs from './components/Breadcrumbs';
 import QuickSwitcher from './components/QuickSwitcher';
+import AiAssistantModal from './components/AiAssistantModal';
 import ToastContainer from './components/ToastContainer';
 import WelcomeDashboard from './components/WelcomeDashboard';
 import { useToast } from './hooks/useToast';
@@ -46,10 +47,11 @@ const App: React.FC = () => {
     updateTabStatus,
     clearTabNotifications,
     reorderTabs,
+    isLoaded: isTabsLoaded,
   } = useTabs();
 
   const { history, addHistory, toggleBookmark, clearHistory } = useCommandHistory();
-  const { projects, addProject, removeProject, reorderProjects, refreshGitStatus } = useProjects();
+  const { projects, addProject, removeProject, reorderProjects, refreshGitStatus, isLoaded: isProjectsLoaded } = useProjects();
   const { sidebarWidth, startResizing } = useSidebarResizer();
   const {
     terminalTheme,
@@ -74,7 +76,10 @@ const App: React.FC = () => {
     relaunchAdmin,
     showTopTabBar,
     setShowTopTabBar,
+    isLoaded: isSettingsLoaded,
   } = useSettings();
+
+  const isAppReady = isTabsLoaded && isProjectsLoaded && isSettingsLoaded;
 
   const { keymap, updateKeybinding, resetKeybindings } = useKeybindings();
 
@@ -82,7 +87,14 @@ const App: React.FC = () => {
 
   // Apply UI Theme
   useEffect(() => {
-    document.body.classList.remove('theme-dark', 'theme-light', 'theme-amoled');
+    document.body.classList.remove(
+      'theme-dark',
+      'theme-light',
+      'theme-amoled',
+      'theme-nord',
+      'theme-tokyonight',
+      'theme-cyberpunk'
+    );
     document.body.classList.add(`theme-${uiTheme}`);
   }, [uiTheme]);
 
@@ -174,6 +186,53 @@ const App: React.FC = () => {
       projectsCount: projects.length,
     });
   }, [tabs, activeTabId, projects, defaultShell]);
+
+  // Handle CLI launch arguments and single-instance events (AGY CLI integration)
+  useEffect(() => {
+    if (!window.electron || !window.electron.getLaunchArgs || !window.electron.onSingleInstance) return;
+
+    const processArgv = async (argv: string[], cwd?: string) => {
+      const pathArg = argv.find((arg, idx) => {
+        if (idx === 0) return false;
+        if (arg.startsWith('-')) return false;
+        if (arg.endsWith('.exe') || arg.includes('CmdGUI') || arg.includes('cmd-gui')) return false;
+        return true;
+      });
+
+      if (pathArg) {
+        let targetPath = pathArg;
+        if (cwd && !pathArg.includes(':') && !pathArg.startsWith('/') && !pathArg.startsWith('\\')) {
+          const separator = cwd.includes('/') ? '/' : '\\';
+          targetPath = `${cwd}${separator}${pathArg}`;
+        }
+        targetPath = targetPath.replace(/^"|"$/g, '');
+
+        try {
+          const info = await window.electron.getProjectInfo(targetPath);
+          if (info) {
+            await addProject(targetPath);
+            addTab(targetPath);
+            showToast(`Opened project: ${targetPath}`, 'info');
+          }
+        } catch (e) {
+          console.error('Failed to open project path from arguments:', e);
+        }
+      }
+    };
+
+    window.electron.getLaunchArgs().then((argv) => {
+      processArgv(argv);
+    }).catch(err => console.error('Failed to get launch args:', err));
+
+    const cleanup = window.electron.onSingleInstance((argv, cwd) => {
+      processArgv(argv, cwd);
+    });
+
+    return cleanup;
+  }, [addProject, addTab]);
+
+  // AI Assistant Modal State
+  const [isAiModalOpen, setIsAiModalOpen] = useState(false);
 
   // Modal States
   const [promptModal, setPromptModal] = useState<{
@@ -429,6 +488,17 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't intercept shortcuts when the user is typing inside input, textarea, or contentEditable elements
+      const target = e.target as HTMLElement | null;
+      if (
+        target &&
+        (target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.isContentEditable)
+      ) {
+        return;
+      }
+
       if (isKeyMatch(e, keymapRef.current.commandPalette)) {
         e.preventDefault();
         setIsQuickSwitcherOpen(true);
@@ -471,13 +541,14 @@ const App: React.FC = () => {
 
   return (
     <div className="app-root-layout">
-      <TitleBar />
+      <TitleBar onOpenAiAssistant={() => setIsAiModalOpen(true)} />
       <div className="workspace-layout">
         <ActivityBar
           activeView={activeSidebarView}
           onViewChange={setActiveSidebarView}
           isSidebarVisible={isSidebarVisible}
           onToggleSidebar={() => setIsSidebarVisible(!isSidebarVisible)}
+          onOpenSettings={() => setIsSettingsOpen(true)}
         />
         <Sidebar
           activeView={activeSidebarView}
@@ -522,9 +593,25 @@ const App: React.FC = () => {
               onCloseTab={handleCloseTab}
               onRenameTab={handleRenameTab}
               onReorderTabs={reorderTabs}
+              onDuplicateTab={(id) => {
+                const target = tabs.find((t) => t.id === id);
+                if (target && target.panes) {
+                  const firstPane = Object.values(target.panes)[0];
+                  addTab(firstPane?.cwd);
+                }
+              }}
+              onCloseOthers={(id) => {
+                tabs.forEach((t) => {
+                  if (t.id !== id) closeTab(t.id);
+                });
+              }}
             />
           )}
-          {tabs.length > 0 ? (
+          {!isAppReady ? (
+            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-root)', color: '#888' }}>
+              Loading workspace...
+            </div>
+          ) : tabs.length > 0 ? (
             <>
               <Breadcrumbs
                 path={
@@ -535,7 +622,7 @@ const App: React.FC = () => {
                 onNavigate={(path) => addTab(path)}
               />
               <div className="terminal-container">
-                {tabs.map((tab) => {
+                {(Array.isArray(tabs) ? tabs : []).map((tab) => {
                   if (activeTabId !== tab.id) return null;
                   return (
                     <div
@@ -557,13 +644,15 @@ const App: React.FC = () => {
             </>
           ) : (
             <WelcomeDashboard
-              onNewTerminal={() => addTab()}
+              onNewTerminal={addTab}
               onOpenProject={addProject}
               recentProjects={projects}
               onSelectProject={(path) => {
                 const p = projects.find((p) => p.path === path);
                 addTab(path, false, p?.startupCommand, p?.envVars);
               }}
+              onOpenAiAssistant={() => setIsAiModalOpen(true)}
+              onOpenQuickSwitcher={() => setIsQuickSwitcherOpen(true)}
             />
           )}
         </div>
@@ -627,6 +716,11 @@ const App: React.FC = () => {
           }}
         />
       )}
+      <AiAssistantModal
+        isOpen={isAiModalOpen}
+        onClose={() => setIsAiModalOpen(false)}
+        onRunCommand={(cmd) => addTab(undefined, false, cmd)}
+      />
       <PromptModal
         isOpen={promptModal.isOpen}
         title={promptModal.title}

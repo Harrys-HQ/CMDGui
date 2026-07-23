@@ -2,7 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { Terminal } from 'lucide-react';
 
-const TitleBar: React.FC = () => {
+interface TitleBarProps {
+  onOpenAiAssistant?: () => void;
+}
+
+const TitleBar: React.FC<TitleBarProps> = ({ onOpenAiAssistant }) => {
   const [isMaximized, setIsMaximized] = useState(false);
   const appWindow = getCurrentWindow();
 
@@ -53,12 +57,38 @@ const TitleBar: React.FC = () => {
           paddingLeft: '16px',
           display: 'flex',
           alignItems: 'center',
+          gap: '12px',
         }}
       >
-        <span data-tauri-drag-region style={{ marginRight: '8px', display: 'flex', alignItems: 'center', color: 'var(--accent-primary)' }}>
-          <Terminal size={14} />
-        </span>
-        CmdGUI
+        <div style={{ display: 'flex', alignItems: 'center' }} data-tauri-drag-region>
+          <span data-tauri-drag-region style={{ marginRight: '8px', display: 'flex', alignItems: 'center', color: 'var(--accent-primary)' }}>
+            <Terminal size={14} />
+          </span>
+          CmdGUI
+        </div>
+
+        {onOpenAiAssistant && (
+          <button
+            className="non-draggable"
+            onClick={onOpenAiAssistant}
+            title="Open AI Command Generator"
+            style={{
+              background: 'rgba(0, 122, 204, 0.15)',
+              border: '1px solid var(--accent-primary)',
+              color: 'var(--accent-primary)',
+              padding: '2px 8px',
+              borderRadius: '4px',
+              fontSize: '11px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              fontWeight: 500,
+            }}
+          >
+            ✨ AI Assistant
+          </button>
+        )}
       </div>
 
       {/* Custom Window Controls */}

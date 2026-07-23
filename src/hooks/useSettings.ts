@@ -174,5 +174,6 @@ export const useSettings = () => {
     relaunchAdmin,
     showTopTabBar,
     setShowTopTabBar,
+    isLoaded,
   };
 };

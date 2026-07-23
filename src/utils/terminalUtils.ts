@@ -36,7 +36,7 @@ export const cleanTerminalTitle = (
 export const globalPtyRegistry: Record<
   string,
   {
-    pid: number;
+    pid: string;
     cleanupData?: () => void;
     cleanupExit?: () => void;
     dataBuffer?: string[];

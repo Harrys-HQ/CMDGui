@@ -98,7 +98,7 @@ const Terminal: React.FC<TerminalProps> = ({
   const fitAddonRef = useRef<FitAddon | null>(null);
   const searchAddonRef = useRef<SearchAddon | null>(null);
   const serializeAddonRef = useRef<SerializeAddon | null>(null);
-  const pidRef = useRef<number | null>(null);
+  const pidRef = useRef<string | null>(null);
   const [isReady, setIsReady] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -112,6 +112,12 @@ const Terminal: React.FC<TerminalProps> = ({
   const onNotificationRef = useRef(onNotification);
   const onClearRef = useRef(onClear);
   const isActiveRef = useRef(isActive);
+  const activeCwdRef = useRef(cwd || '');
+
+  useEffect(() => {
+    activeCwdRef.current = cwd || '';
+  }, [cwd]);
+
   const envVarsString = JSON.stringify(envVars);
 
   const fitTimeoutRef = useRef<any>(null);
@@ -248,6 +254,170 @@ const Terminal: React.FC<TerminalProps> = ({
     term.loadAddon(webLinksAddon);
     term.loadAddon(searchAddon);
     term.loadAddon(serializeAddon);
+
+    // Track CWD via OSC 7 escape sequences
+    term.parser.registerOscHandler(7, (data) => {
+      try {
+        if (data.startsWith('file://')) {
+          const url = new URL(data);
+          let path = url.pathname;
+          if (path.startsWith('/') && path.charAt(2) === ':') {
+            path = path.slice(1);
+          }
+          activeCwdRef.current = decodeURIComponent(path);
+          return true;
+        }
+      } catch (e) {
+        console.error('Failed to parse OSC 7 directory:', e);
+      }
+      return false;
+    });
+
+    // 1. Register a synchronous provider for absolute file URLs and path links
+    term.registerLinkProvider({
+      provideLinks(bufferLineNumber, callback) {
+        const line = term.buffer.active.getLine(bufferLineNumber - 1);
+        if (!line) {
+          callback(undefined);
+          return;
+        }
+        const text = line.translateToString(true);
+        const links: any[] = [];
+
+        // Match file:/// links: e.g. file:///C:/path/to/file.ext or file:///C:\path\to\file.ext
+        const fileUriRegex = /file:\/\/\/[a-zA-Z]:[/\\][^ \t\r\n"']+|file:\/\/\/[^ \t\r\n"']+/g;
+        let match;
+        while ((match = fileUriRegex.exec(text)) !== null) {
+          let uri = match[0];
+          const startX = match.index;
+          uri = uri.replace(/[)\].,;:]+$/, '');
+          const endX = startX + uri.length;
+
+          links.push({
+            text: uri,
+            range: {
+              start: { x: startX + 1, y: bufferLineNumber },
+              end: { x: endX, y: bufferLineNumber }
+            },
+            activate(_: any, text: string) {
+              let filePath = text.replace(/[)\].,;:]+$/, '').replace(/^file:\/\/\//, '');
+              if (/^[a-zA-Z]:\//.test(filePath)) {
+                filePath = filePath.replace(/\//g, '\\');
+              }
+              if (window.electron && window.electron.openLocalPath) {
+                window.electron.openLocalPath(decodeURIComponent(filePath));
+              }
+            }
+          });
+        }
+
+        // Match Windows absolute paths: e.g. C:\path\to\file.ext or C:/path/to/file.ext
+        const winPathRegex = /[a-zA-Z]:[/\\][^ \t\r\n"']+/g;
+        while ((match = winPathRegex.exec(text)) !== null) {
+          let pathStr = match[0];
+          const startX = match.index;
+
+          // Avoid duplicate matching if it has file:/// prefix
+          const prevStr = text.substring(Math.max(0, startX - 8), startX);
+          if (prevStr.includes('file:///')) {
+            continue;
+          }
+
+          pathStr = pathStr.replace(/[)\].,;:]+$/, '');
+          const endX = startX + pathStr.length;
+
+          links.push({
+            text: pathStr,
+            range: {
+              start: { x: startX + 1, y: bufferLineNumber },
+              end: { x: endX, y: bufferLineNumber }
+            },
+            activate(_: any, text: string) {
+              const cleanPath = text.replace(/[)\].,;:]+$/, '');
+              if (window.electron && window.electron.openLocalPath) {
+                window.electron.openLocalPath(cleanPath);
+              }
+            }
+          });
+        }
+
+        callback(links.length > 0 ? links : undefined);
+      }
+    });
+
+    // 2. Register an asynchronous provider for active workspace relative files
+    term.registerLinkProvider({
+      provideLinks(bufferLineNumber, callback) {
+        const line = term.buffer.active.getLine(bufferLineNumber - 1);
+        if (!line) {
+          callback(undefined);
+          return;
+        }
+        const text = line.translateToString(true);
+        const links: any[] = [];
+
+        // Match possible relative paths: e.g. src/App.tsx, package.json, CmdGUI_2.1.1_x64-setup.exe, setup.exe
+        const relativePathRegex = /(?:[a-zA-Z0-9_\-\.\/\\]+)\.(?:exe|msi|bat|cmd|ps1|tsx|ts|jsx|js|json|md|txt|log|png|jpg|css|html)/gi;
+        const relativeMatches: { text: string; start: number }[] = [];
+        let match;
+        while ((match = relativePathRegex.exec(text)) !== null) {
+          let matchedStr = match[0];
+          const startX = match.index;
+          
+          // Avoid duplicate matching if it has file:/// prefix or C:\ prefix
+          const prevStr = text.substring(Math.max(0, startX - 8), startX);
+          if (prevStr.includes('file:///')) {
+            continue;
+          }
+          if (/[a-zA-Z]:\\/.test(text.substring(Math.max(0, startX - 3), startX + 3))) {
+            continue;
+          }
+          if (matchedStr.startsWith('file:///') || /^[a-zA-Z]:[/\\]/.test(matchedStr)) {
+            continue;
+          }
+          
+          matchedStr = matchedStr.replace(/[)\].,;:]+$/, '');
+          relativeMatches.push({ text: matchedStr, start: startX });
+        }
+
+        const currentCwd = activeCwdRef.current;
+        if (currentCwd && relativeMatches.length > 0) {
+          const promises = relativeMatches.map(async (m) => {
+            const separator = currentCwd.includes('/') ? '/' : '\\';
+            const cleanRel = m.text.replace(/[\/\\]/g, separator);
+            const fullPath = `${currentCwd}${separator}${cleanRel}`;
+            
+            try {
+              const info = await window.electron.getProjectInfo(fullPath);
+              if (info) {
+                const endX = m.start + m.text.length;
+                links.push({
+                  text: fullPath,
+                  range: {
+                    start: { x: m.start + 1, y: bufferLineNumber },
+                    end: { x: endX, y: bufferLineNumber }
+                  },
+                  activate(_: any, text: string) {
+                    if (window.electron && window.electron.openLocalPath) {
+                      window.electron.openLocalPath(text);
+                    }
+                  }
+                });
+              }
+            } catch (e) {
+              // Ignore folder check failure
+            }
+          });
+          
+          Promise.all(promises).then(() => {
+            callback(links.length > 0 ? links : undefined);
+          });
+        } else {
+          callback(undefined);
+        }
+      }
+    });
+
     xtermRef.current = term;
     fitAddonRef.current = fitAddon;
     searchAddonRef.current = searchAddon;
@@ -360,7 +530,7 @@ const Terminal: React.FC<TerminalProps> = ({
       if (isSettingUpRef.current) return;
       isSettingUpRef.current = true;
       try {
-        let pid: number;
+        let pid: string;
         if (globalPtyRegistry[paneId]) {
           pid = globalPtyRegistry[paneId].pid;
           if (globalPtyRegistry[paneId].cleanupData) globalPtyRegistry[paneId].cleanupData!();
@@ -404,6 +574,7 @@ const Terminal: React.FC<TerminalProps> = ({
       if (isUnmounted) return;
       pidRef.current = pid;
       setIsReady(true);
+      term.focus();
 
       // Restore buffered data if any
       if (globalPtyRegistry[paneId]?.dataBuffer?.length) {
@@ -452,8 +623,8 @@ const Terminal: React.FC<TerminalProps> = ({
       globalPtyRegistry[paneId].cleanupData = cleanupData;
       globalPtyRegistry[paneId].cleanupExit = cleanupExit;
       term.onData((data) => {
-        if (!isUnmounted && pidRef.current !== null)
-          window.electron.writeTerminal(pidRef.current, data);
+        if (!isUnmounted)
+          window.electron.writeTerminal(pid, data);
       });
       term.onResize((size) => {
         if (!isUnmounted && pidRef.current !== null)
@@ -536,9 +707,7 @@ const Terminal: React.FC<TerminalProps> = ({
           requestAnimationFrame(() => {
             if (isActiveRef.current) fitTerminal();
           });
-          if (pidRef.current !== null) {
-            xtermRef.current.focus();
-          }
+          xtermRef.current.focus();
         } catch (e) {
           console.error('Focus/Resize after activation failed:', e);
         }
@@ -663,6 +832,11 @@ const Terminal: React.FC<TerminalProps> = ({
       className={`terminal-wrapper ${isActive ? 'active' : ''}`}
       style={{ width: '100%', height: '100%', position: 'relative' }}
       onContextMenu={handleContextMenu}
+      onClick={() => {
+        if (xtermRef.current) {
+          xtermRef.current.focus();
+        }
+      }}
     >
       {showPaneControls && (
         <div

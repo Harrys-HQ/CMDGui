@@ -4,6 +4,12 @@ mod settings;
 mod file_op;
 
 use terminal::TerminalState;
+use tauri::{Emitter, Manager};
+
+#[tauri::command]
+fn get_launch_args() -> Vec<String> {
+  std::env::args().collect()
+}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -55,12 +61,20 @@ pub fn run() {
         )?;
       }
       #[cfg(desktop)]
+      app.handle().plugin(tauri_plugin_single_instance::init(|app_handle, argv, cwd| {
+        let _ = app_handle.emit("single-instance", (argv, cwd));
+        if let Some(window) = app_handle.get_webview_window("main") {
+          let _ = window.set_focus();
+        }
+      }))?;
+      #[cfg(desktop)]
       app.handle().plugin(tauri_plugin_updater::Builder::new().build())?;
       #[cfg(desktop)]
       app.handle().plugin(tauri_plugin_process::init())?;
       Ok(())
     })
     .invoke_handler(tauri::generate_handler![
+      get_launch_args,
       project::get_project_info,
       project::get_project_details,
       project::git_stage_all,

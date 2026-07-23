@@ -180,7 +180,9 @@ pub async fn get_project_details(project_path: String) -> ProjectDetails {
                 }
                 details.r#type = "node".to_string();
                 if let Some(deps) = get_all_deps(&pkg) {
-                    if deps.contains_key("react") || deps.contains_key("next") {
+                    if deps.contains_key("react-native") || deps.contains_key("expo") {
+                        details.r#type = "react-native".to_string();
+                    } else if deps.contains_key("react") || deps.contains_key("next") {
                         details.r#type = "react".to_string();
                     } else if deps.contains_key("vue") || deps.contains_key("nuxt") {
                         details.r#type = "vue".to_string();
@@ -225,7 +227,16 @@ pub async fn get_project_details(project_path: String) -> ProjectDetails {
         }
     } else if files.contains(&"gemfile".to_string()) || files.iter().any(|f| f.ends_with(".rb")) {
         details.r#type = "ruby".to_string();
-    } else if files.contains(&"pom.xml".to_string()) || files.contains(&"build.gradle".to_string()) || files.iter().any(|f| f.ends_with(".java")) {
+    } else if files.contains(&"androidmanifest.xml".to_string()) || files.contains(&"build.gradle".to_string()) || files.contains(&"build.gradle.kts".to_string()) || files.contains(&"gradlew".to_string()) {
+        details.r#type = "android".to_string();
+        details.scripts.insert("installDevRelease".to_string(), "./gradlew installDevRelease".to_string());
+        details.scripts.insert("assembleDevRelease".to_string(), "./gradlew assembleDevRelease".to_string());
+        details.scripts.insert("bundleDevRelease".to_string(), "./gradlew bundleDevRelease".to_string());
+    } else if files.contains(&"pubspec.yaml".to_string()) {
+        details.r#type = "flutter".to_string();
+        details.scripts.insert("run".to_string(), "flutter run".to_string());
+        details.scripts.insert("build apk".to_string(), "flutter build apk".to_string());
+    } else if files.contains(&"pom.xml".to_string()) || files.iter().any(|f| f.ends_with(".java")) {
         details.r#type = "java".to_string();
     } else if files.contains(&"dockerfile".to_string()) || files.contains(&"docker-compose.yml".to_string()) {
         details.r#type = "docker".to_string();

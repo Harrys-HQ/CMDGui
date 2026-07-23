@@ -118,6 +118,30 @@ const ProjectIcon: React.FC<{ type?: string }> = ({ type }) => {
           ☕
         </span>
       );
+    case 'android':
+      return (
+        <span className="project-icon" title="Android Project">
+          🤖
+        </span>
+      );
+    case 'react-native':
+      return (
+        <span className="project-icon" title="React Native Mobile Project">
+          📱
+        </span>
+      );
+    case 'flutter':
+      return (
+        <span className="project-icon" title="Flutter Mobile Project">
+          💙
+        </span>
+      );
+    case 'ios':
+      return (
+        <span className="project-icon" title="iOS Project">
+          🍎
+        </span>
+      );
     default:
       return <span className="project-icon">📂</span>;
   }
@@ -168,7 +192,7 @@ const ProjectItem: React.FC<ProjectItemProps> = React.memo(
     };
 
     const favoriteScripts = ['dev', 'start', 'build', 'test', 'watch', 'serve'];
-    const availableFavorites = project.scripts
+    const availableFavorites = project.scripts && typeof project.scripts === 'object'
       ? Object.keys(project.scripts).filter((s) => favoriteScripts.includes(s.toLowerCase()))
       : [];
 
@@ -223,7 +247,7 @@ const ProjectItem: React.FC<ProjectItemProps> = React.memo(
             >
               📂
             </span>
-            {project.scripts && Object.keys(project.scripts).length > 0 && (
+            {project.scripts && typeof project.scripts === 'object' && Object.keys(project.scripts).length > 0 && (
               <div style={{ position: 'static' }}>
                 <span
                   onClick={toggleScriptMenu}

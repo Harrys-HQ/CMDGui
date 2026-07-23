@@ -90,18 +90,28 @@ pub async fn fs_list_directory(dir_path: String) -> Result<Vec<FileEntry>, Strin
 
 #[tauri::command]
 pub async fn shell_open_path(file_path: String) -> Result<bool, String> {
-    let path = Path::new(&file_path);
     if cfg!(target_os = "windows") {
-        Command::new("cmd.exe")
-            .args(&["/c", "start", "", &path.to_string_lossy()])
-            .spawn()
-            .map_err(|e| e.to_string())?;
+        let path_str = file_path.trim().to_string();
+        if path_str.starts_with("http://") || path_str.starts_with("https://") {
+            Command::new("cmd.exe")
+                .args(&["/c", "start", "", &path_str])
+                .spawn()
+                .map_err(|e| e.to_string())?;
+        } else {
+            let formatted_path = path_str.replace("/", "\\");
+            Command::new("cmd.exe")
+                .args(&["/c", "start", "", &formatted_path])
+                .spawn()
+                .map_err(|e| e.to_string())?;
+        }
     } else if cfg!(target_os = "macos") {
+        let path = Path::new(&file_path);
         Command::new("open")
             .arg(path)
             .spawn()
             .map_err(|e| e.to_string())?;
     } else {
+        let path = Path::new(&file_path);
         Command::new("xdg-open")
             .arg(path)
             .spawn()

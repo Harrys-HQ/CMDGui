@@ -27,15 +27,15 @@ export const useProjects = () => {
   useEffect(() => {
     if (!isLoaded || !window.electron) return;
 
-    // Check if any project needs type detection to avoid redundant processing
-    const needsDetection = projects.some((p) => !p.type);
+    const safeProjects = Array.isArray(projects) ? projects : [];
+    const needsDetection = safeProjects.some((p) => p && !p.type);
     if (!needsDetection) return;
 
     const detectTypes = async () => {
       if (!window.electron) return;
       let changed = false;
       const updatedProjects = await Promise.all(
-        projects.map(async (p) => {
+        safeProjects.map(async (p) => {
           if (!p.type) {
             const details = await window.electron.getProjectDetails(p.path);
             changed = true;
@@ -46,6 +46,7 @@ export const useProjects = () => {
               envVars: details.envVars,
               gitBranch: details.gitBranch || undefined,
               gitDirty: details.gitDirty,
+              gitFiles: details.gitFiles,
             };
           }
           return p;
@@ -61,13 +62,15 @@ export const useProjects = () => {
 
   const refreshGitStatus = useCallback(async () => {
     if (!window.electron || !isLoaded) return;
+    const safeProjects = Array.isArray(projects) ? projects : [];
     const updatedProjects = await Promise.all(
-      projects.map(async (p) => {
+      safeProjects.map(async (p) => {
         const details = await window.electron.getProjectDetails(p.path);
         return {
           ...p,
           gitBranch: details.gitBranch || undefined,
           gitDirty: details.gitDirty,
+          gitFiles: details.gitFiles,
           // Update type and scripts as well while we're at it
           type: details.type,
           scripts: details.scripts,
@@ -88,11 +91,11 @@ export const useProjects = () => {
     return () => clearInterval(interval);
   }, [isLoaded, refreshGitStatus]);
 
-  const addProject = useCallback(async () => {
+  const addProject = useCallback(async (path?: string) => {
     if (!window.electron) return;
-    const folderPath = await window.electron.selectFolder();
+    const folderPath = path || await window.electron.selectFolder();
     if (folderPath) {
-      const name = folderPath.split('\\').pop() || folderPath;
+      const name = folderPath.split(/[\\/]/).pop() || folderPath;
       setProjects((prev) => {
         if (prev.some((p) => p.path === folderPath)) return prev;
         return [...prev, { name, path: folderPath }];
@@ -119,5 +122,6 @@ export const useProjects = () => {
     removeProject,
     reorderProjects,
     refreshGitStatus,
+    isLoaded,
   };
 };

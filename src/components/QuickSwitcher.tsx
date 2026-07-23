@@ -37,9 +37,20 @@ const QuickSwitcher: React.FC<QuickSwitcherProps> = ({
   const isCommandMode = query.startsWith('>');
   const searchText = isCommandMode ? query.slice(1).trim() : query;
 
+  const fuzzyMatch = (text: string, queryStr: string) => {
+    if (!queryStr) return true;
+    const cleanText = text.toLowerCase();
+    const cleanQuery = queryStr.toLowerCase();
+    let qIdx = 0;
+    for (let i = 0; i < cleanText.length && qIdx < cleanQuery.length; i++) {
+      if (cleanText[i] === cleanQuery[qIdx]) qIdx++;
+    }
+    return qIdx === cleanQuery.length;
+  };
+
   const filteredItems: QuickSwitcherItem[] = isCommandMode
     ? commands
-        .filter((c) => c.name.toLowerCase().includes(searchText.toLowerCase()))
+        .filter((c) => fuzzyMatch(c.name, searchText))
         .map((c) => ({
           id: c.id,
           name: c.name,
@@ -70,7 +81,7 @@ const QuickSwitcher: React.FC<QuickSwitcherProps> = ({
             icon: '📂',
             action: () => onSelectProject(p.path),
           })),
-      ].filter((item) => item.name.toLowerCase().includes(searchText.toLowerCase()));
+      ].filter((item) => fuzzyMatch(item.name, searchText));
 
   useEffect(() => {
     // Focus on mount
@@ -106,17 +117,17 @@ const QuickSwitcher: React.FC<QuickSwitcherProps> = ({
         className="modal-container"
         onClick={(e) => e.stopPropagation()}
         style={{
-          width: '600px',
-          maxHeight: '400px',
+          width: '640px',
+          maxHeight: '440px',
           background: 'var(--bg-modal)',
           border: '1px solid var(--border-color)',
-          boxShadow: '0 12px 30px rgba(0,0,0,0.5)',
-          borderRadius: '8px',
+          boxShadow: 'var(--shadow-lg), 0 0 0 1px rgba(255, 255, 255, 0.08)',
+          borderRadius: '12px',
           overflow: 'hidden',
-          backdropFilter: 'blur(10px)',
+          backdropFilter: 'blur(16px)',
         }}
       >
-        <div style={{ padding: '12px', borderBottom: '1px solid var(--border-color)' }}>
+        <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border-color)' }}>
           <input
             ref={inputRef}
             type="text"
@@ -132,18 +143,19 @@ const QuickSwitcher: React.FC<QuickSwitcherProps> = ({
             style={{
               width: '100%',
               background: 'var(--bg-root)',
-              border: '1px solid var(--accent-primary)',
+              border: '1px solid var(--border-color)',
               color: 'var(--fg-active)',
-              padding: '10px 14px',
+              padding: '12px 16px',
               fontSize: '14px',
               outline: 'none',
-              borderRadius: '6px',
+              borderRadius: '8px',
               fontFamily: 'var(--font-family-ui)',
-              boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.2)',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)',
+              boxSizing: 'border-box',
             }}
           />
         </div>
-        <div style={{ overflowY: 'auto', maxHeight: '310px', padding: '6px 0' }}>
+        <div style={{ overflowY: 'auto', maxHeight: '340px', padding: '8px' }}>
           {filteredItems.map((item, index) => (
             <div
               key={`${item.type}-${item.id}`}
@@ -152,28 +164,28 @@ const QuickSwitcher: React.FC<QuickSwitcherProps> = ({
                 onClose();
               }}
               style={{
-                margin: '2px 8px',
-                padding: '10px 12px',
+                margin: '2px 0',
+                padding: '10px 14px',
                 cursor: 'pointer',
                 background: index === selectedIndex ? 'var(--accent-primary)' : 'transparent',
-                borderRadius: '6px',
+                borderRadius: '8px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                transition: 'background-color 0.1s ease',
+                transition: 'all 0.15s ease',
               }}
             >
               <div style={{ display: 'flex', flexDirection: 'column' }}>
                 <div
                   style={{
                     fontSize: '13px',
-                    fontWeight: 500,
+                    fontWeight: 600,
                     color: index === selectedIndex ? 'var(--fg-active)' : 'var(--fg-primary)',
                     display: 'flex',
                     alignItems: 'center',
                   }}
                 >
-                  <span style={{ marginRight: '8px', display: 'inline-flex', alignItems: 'center' }}>
+                  <span style={{ marginRight: '10px', display: 'inline-flex', alignItems: 'center', fontSize: '15px' }}>
                     {item.icon}
                   </span>
                   {item.name}
@@ -181,9 +193,8 @@ const QuickSwitcher: React.FC<QuickSwitcherProps> = ({
                 <div
                   style={{
                     fontSize: '11px',
-                    color: index === selectedIndex ? 'var(--fg-active)' : 'var(--fg-secondary)',
-                    opacity: index === selectedIndex ? 0.9 : 0.7,
-                    marginLeft: '24px',
+                    color: index === selectedIndex ? 'rgba(255,255,255,0.85)' : 'var(--fg-secondary)',
+                    marginLeft: '25px',
                     marginTop: '2px',
                   }}
                 >
@@ -198,8 +209,8 @@ const QuickSwitcher: React.FC<QuickSwitcherProps> = ({
                     color: 'var(--fg-active)',
                     background: index === selectedIndex ? 'rgba(255,255,255,0.2)' : 'var(--bg-root)',
                     border: '1px solid var(--border-color)',
-                    padding: '2px 6px',
-                    borderRadius: '4px',
+                    padding: '3px 7px',
+                    borderRadius: '6px',
                     fontFamily: 'var(--font-family-mono)',
                   }}
                 >
@@ -209,8 +220,8 @@ const QuickSwitcher: React.FC<QuickSwitcherProps> = ({
             </div>
           ))}
           {filteredItems.length === 0 && (
-            <div style={{ padding: '30px', textAlign: 'center', color: 'var(--fg-secondary)', fontSize: '13px' }}>
-              No results found
+            <div style={{ padding: '36px', textAlign: 'center', color: 'var(--fg-secondary)', fontSize: '13px' }}>
+              No matching items found
             </div>
           )}
         </div>

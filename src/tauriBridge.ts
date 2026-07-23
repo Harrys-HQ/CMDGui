@@ -273,13 +273,14 @@ export const tauriBridge = {
               cb({ status: 'downloading', progress: { percent: 0 } })
             );
             break;
-          case 'Progress':
+          case 'Progress': {
             downloaded += event.data.chunkLength;
             const percent = totalLength ? Math.round((downloaded / totalLength) * 100) : 0;
             updateStatusCallbacks.forEach((cb) =>
               cb({ status: 'downloading', progress: { percent } })
             );
             break;
+          }
           case 'Finished':
             updateStatusCallbacks.forEach((cb) => cb({ status: 'downloaded' }));
             break;
@@ -309,7 +310,26 @@ export const tauriBridge = {
   },
 
   getVersion: async () => {
-    return '2.1.0';
+    return '2.2.0';
+  },
+
+  getLaunchArgs: async () => {
+    return await invoke<string[]>('get_launch_args');
+  },
+
+  onSingleInstance: (callback: (argv: string[], cwd: string) => void) => {
+    let unlistenFn: (() => void) | null = null;
+    listen<any>('single-instance', (event) => {
+      // payload in Tauri 2 contains tuple (argv, cwd)
+      if (Array.isArray(event.payload)) {
+        callback(event.payload[0], event.payload[1]);
+      }
+    }).then((unlisten) => {
+      unlistenFn = unlisten;
+    });
+    return () => {
+      if (unlistenFn) unlistenFn();
+    };
   },
 
   readClipboard: async () => {

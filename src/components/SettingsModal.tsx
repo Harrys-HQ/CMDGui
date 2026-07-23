@@ -141,9 +141,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   onShowTopTabBarChange,
 }) => {
   const [activeTab, setActiveTab] = useState<
-    'project' | 'appearance' | 'keybindings' | 'cli' | 'workspaces' | 'history' | 'about'
-  >('project');
-  const [appVersion, setAppVersion] = useState<string>('2.1.0');
+    'general' | 'keybindings' | 'workspaces' | 'about' | 'project' | 'appearance' | 'cli' | 'history'
+  >('general');
+  const [appVersion, setAppVersion] = useState<string>('2.2.0');
   const [recordingAction, setRecordingAction] = useState<KeybindingAction | null>(null);
 
   // Update State
@@ -153,6 +153,14 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
   const [downloadProgress, setDownloadProgress] = useState<number>(0);
   const [errorMessage, setErrorMessage] = useState<string>('');
+
+  useEffect(() => {
+    if (window.electron && window.electron.getVersion) {
+      window.electron.getVersion().then((v) => {
+        if (v) setAppVersion(v);
+      });
+    }
+  }, []);
 
   useEffect(() => {
     if (isOpen) {
@@ -223,201 +231,45 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
 
         <div className="modal-tabs">
           <div
-            className={`modal-tab ${activeTab === 'project' ? 'active' : ''}`}
-            onClick={() => setActiveTab('project')}
+            className={`modal-tab ${activeTab === 'general' ? 'active' : ''}`}
+            onClick={() => setActiveTab('general')}
           >
-            DOCS
-          </div>
-          <div
-            className={`modal-tab ${activeTab === 'appearance' ? 'active' : ''}`}
-            onClick={() => setActiveTab('appearance')}
-          >
-            APPEARANCE
+            🎨 Appearance & UI
           </div>
           <div
             className={`modal-tab ${activeTab === 'keybindings' ? 'active' : ''}`}
             onClick={() => setActiveTab('keybindings')}
           >
-            KEYBINDINGS
-          </div>
-          <div
-            className={`modal-tab ${activeTab === 'cli' ? 'active' : ''}`}
-            onClick={() => setActiveTab('cli')}
-          >
-            CLI
+            ⌨️ Shortcuts
           </div>
           <div
             className={`modal-tab ${activeTab === 'workspaces' ? 'active' : ''}`}
             onClick={() => setActiveTab('workspaces')}
           >
-            WORKSPACES
+            📁 Workspaces
           </div>
           <div
             className={`modal-tab ${activeTab === 'history' ? 'active' : ''}`}
             onClick={() => setActiveTab('history')}
           >
-            HISTORY
+            📜 History
+          </div>
+          <div
+            className={`modal-tab ${activeTab === 'cli' ? 'active' : ''}`}
+            onClick={() => setActiveTab('cli')}
+          >
+            ✨ AI & Commands
           </div>
           <div
             className={`modal-tab ${activeTab === 'about' ? 'active' : ''}`}
             onClick={() => setActiveTab('about')}
           >
-            ABOUT
+            ℹ️ About & Updates
           </div>
         </div>
 
         <div className="modal-content">
-          {activeTab === 'project' && (
-            <>
-              <section className="modal-section">
-                <h3 className="modal-section-title">Terminal & Keyboard Shortcuts</h3>
-                <h4 style={{ fontSize: '14px', marginBottom: '10px', color: '#888' }}>
-                  Workspace Navigation
-                </h4>
-                <div className="command-grid">
-                  <div className="command-item">
-                    <div className="command-name-col">
-                      <span className="command-pill">Ctrl + Shift + N</span>
-                    </div>
-                    <div className="command-desc-col">
-                      <div>New Tab</div>
-                    </div>
-                  </div>
-                  <div className="command-item">
-                    <div className="command-name-col">
-                      <span className="command-pill">Ctrl + Shift + W</span>
-                    </div>
-                    <div className="command-desc-col">
-                      <div>Close Active Tab</div>
-                    </div>
-                  </div>
-                  <div className="command-item">
-                    <div className="command-name-col">
-                      <span className="command-pill">Ctrl + Tab</span>
-                    </div>
-                    <div className="command-desc-col">
-                      <div>Next Tab</div>
-                    </div>
-                  </div>
-                  <div className="command-item">
-                    <div className="command-name-col">
-                      <span className="command-pill">Ctrl + Shift + Tab</span>
-                    </div>
-                    <div className="command-desc-col">
-                      <div>Previous Tab</div>
-                    </div>
-                  </div>
-                  <div className="command-item">
-                    <div className="command-name-col">
-                      <span className="command-pill">Ctrl + Shift + P</span>
-                    </div>
-                    <div className="command-desc-col">
-                      <div>Quick Switcher</div>
-                    </div>
-                  </div>
-                </div>
-              </section>
-
-              <section className="modal-section">
-                <h4 style={{ fontSize: '14px', marginBottom: '10px', color: '#888' }}>
-                  Terminal Interaction
-                </h4>
-                <div className="command-grid">
-                  <div className="command-item">
-                    <div className="command-name-col">
-                      <span className="command-pill">Ctrl + C</span>
-                    </div>
-                    <div className="command-desc-col">
-                      <div>Copy (if selection) / Interrupt.</div>
-                    </div>
-                  </div>
-                  <div className="command-item">
-                    <div className="command-name-col">
-                      <span className="command-pill">Ctrl + Shift + V</span>
-                    </div>
-                    <div className="command-desc-col">
-                      <div>Paste from clipboard.</div>
-                    </div>
-                  </div>
-                  <div className="command-item">
-                    <div className="command-name-col">
-                      <span className="command-pill">Ctrl + Shift + L</span>
-                    </div>
-                    <div className="command-desc-col">
-                      <div>Clear the screen and buffer.</div>
-                    </div>
-                  </div>
-                  <div className="command-item">
-                    <div className="command-name-col">
-                      <span className="command-pill">Ctrl + Shift + F</span>
-                    </div>
-                    <div className="command-desc-col">
-                      <div>Find in Terminal</div>
-                    </div>
-                  </div>
-                  <div className="command-item">
-                    <div className="command-name-col">
-                      <span className="command-pill">Ctrl + R</span>
-                    </div>
-                    <div className="command-desc-col">
-                      <div>Reverse search history.</div>
-                    </div>
-                  </div>
-                </div>
-              </section>
-            </>
-          )}
-
-          {activeTab === 'keybindings' && keymap && onUpdateKeybinding && (
-            <>
-              <section className="modal-section">
-                <div
-                  style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-                >
-                  <h3 className="modal-section-title">Customize Keybindings</h3>
-                  <button
-                    onClick={onResetKeybindings}
-                    className="secondary-btn"
-                    style={{ fontSize: '12px', padding: '4px 8px' }}
-                  >
-                    Reset to Default
-                  </button>
-                </div>
-
-                <div className="command-grid">
-                  {Object.entries(keymap).map(([action, binding]) => (
-                    <div
-                      key={action}
-                      className="command-item"
-                      onClick={() => setRecordingAction(action as KeybindingAction)}
-                      style={{ cursor: 'pointer' }}
-                      title="Click to record new keybinding"
-                    >
-                      <div className="command-name-col">
-                        <span className="command-pill">{formatKeybinding(binding)}</span>
-                      </div>
-                      <div className="command-desc-col">
-                        <div>{ACTION_LABELS[action as KeybindingAction]}</div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </section>
-
-              {recordingAction && (
-                <KeybindingRecorder
-                  action={recordingAction}
-                  onSave={(newBinding) => {
-                    onUpdateKeybinding(recordingAction, newBinding);
-                    setRecordingAction(null);
-                  }}
-                  onCancel={() => setRecordingAction(null)}
-                />
-              )}
-            </>
-          )}
-
-          {activeTab === 'appearance' && (
+          {activeTab === 'general' && (
             <>
               <section className="modal-section">
                 <h3 className="modal-section-title">Application UI Appearance</h3>
@@ -480,9 +332,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                 </div>
               </section>
 
-
               <section className="modal-section">
-                <h3 className="modal-section-title">Terminal Appearance</h3>
+                <h3 className="modal-section-title">Terminal Appearance & Engine</h3>
 
                 <h4 style={{ fontSize: '14px', marginBottom: '10px', color: '#888' }}>Theme</h4>
                 <div className="theme-grid">
@@ -691,16 +542,65 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                         outline: 'none',
                       }}
                     >
-                      <option value="">System Default</option>
-                      <option value="powershell.exe">PowerShell (Windows)</option>
-                      <option value="cmd.exe">Command Prompt (Windows)</option>
-                      <option value="bash">Bash</option>
-                      <option value="zsh">Zsh</option>
-                      <option value="wsl.exe">WSL (Windows)</option>
+                      <option value="">System Default (Windows PowerShell)</option>
+                      <option value="powershell.exe">Windows PowerShell (5.1)</option>
+                      <option value="pwsh.exe">PowerShell 7 Core (pwsh)</option>
+                      <option value="cmd.exe">Command Prompt (cmd)</option>
+                      <option value="git-bash">Git Bash</option>
+                      <option value="wsl.exe">WSL (Linux Subsystem)</option>
                     </select>
                   </div>
                 )}
               </section>
+            </>
+          )}
+
+          {activeTab === 'keybindings' && keymap && onUpdateKeybinding && (
+            <>
+              <section className="modal-section">
+                <div
+                  style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                >
+                  <h3 className="modal-section-title">Customize Keybindings</h3>
+                  <button
+                    onClick={onResetKeybindings}
+                    className="secondary-btn"
+                    style={{ fontSize: '12px', padding: '4px 8px' }}
+                  >
+                    Reset to Default
+                  </button>
+                </div>
+
+                <div className="command-grid">
+                  {Object.entries(keymap).map(([action, binding]) => (
+                    <div
+                      key={action}
+                      className="command-item"
+                      onClick={() => setRecordingAction(action as KeybindingAction)}
+                      style={{ cursor: 'pointer' }}
+                      title="Click to record new keybinding"
+                    >
+                      <div className="command-name-col">
+                        <span className="command-pill">{formatKeybinding(binding)}</span>
+                      </div>
+                      <div className="command-desc-col">
+                        <div>{ACTION_LABELS[action as KeybindingAction]}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+
+              {recordingAction && (
+                <KeybindingRecorder
+                  action={recordingAction}
+                  onSave={(newBinding) => {
+                    onUpdateKeybinding(recordingAction, newBinding);
+                    setRecordingAction(null);
+                  }}
+                  onCancel={() => setRecordingAction(null)}
+                />
+              )}
             </>
           )}
 
@@ -773,7 +673,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                   Manage your saved tab layouts and project configurations.
                 </p>
                 <div className="command-grid">
-                  {workspaces && workspaces.length > 0 ? (
+                  {Array.isArray(workspaces) && workspaces.length > 0 ? (
                     workspaces.map((w) => (
                       <div key={w.id} className="command-item" style={{ cursor: 'default' }}>
                         <div className="command-name-col">
@@ -848,7 +748,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                     borderRadius: '4px',
                   }}
                 >
-                  {history && history.length > 0 ? (
+                  {Array.isArray(history) && history.length > 0 ? (
                     history.map((h) => (
                       <div
                         key={h.id}

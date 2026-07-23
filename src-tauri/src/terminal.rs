@@ -54,10 +54,15 @@ pub async fn create_terminal(
         .map_err(|e| format!("Failed to open pty: {}", e))?;
 
     let default_shell = if cfg!(target_os = "windows") {
-        let system_root = std::env::var("SystemRoot")
-            .or_else(|_| std::env::var("windir"))
-            .unwrap_or_else(|_| "C:\\Windows".to_string());
-        format!(r"{}\System32\WindowsPowerShell\v1.0\powershell.exe", system_root)
+        let pwsh_7_path = r"C:\Program Files\PowerShell\7\pwsh.exe";
+        if std::path::Path::new(pwsh_7_path).exists() {
+            pwsh_7_path.to_string()
+        } else {
+            let system_root = std::env::var("SystemRoot")
+                .or_else(|_| std::env::var("windir"))
+                .unwrap_or_else(|_| "C:\\Windows".to_string());
+            format!(r"{}\System32\WindowsPowerShell\v1.0\powershell.exe", system_root)
+        }
     } else {
         "bash".to_string()
     };
@@ -71,11 +76,25 @@ pub async fn create_terminal(
                 .or_else(|_| std::env::var("windir"))
                 .unwrap_or_else(|_| "C:\\Windows".to_string());
             shell_cmd = format!(r"{}\System32\WindowsPowerShell\v1.0\powershell.exe", system_root);
+        } else if lower == "pwsh.exe" || lower == "pwsh" {
+            let pwsh_7_path = r"C:\Program Files\PowerShell\7\pwsh.exe";
+            if std::path::Path::new(pwsh_7_path).exists() {
+                shell_cmd = pwsh_7_path.to_string();
+            } else {
+                shell_cmd = "pwsh.exe".to_string();
+            }
         } else if lower == "cmd.exe" || lower == "cmd" {
             let system_root = std::env::var("SystemRoot")
                 .or_else(|_| std::env::var("windir"))
                 .unwrap_or_else(|_| "C:\\Windows".to_string());
             shell_cmd = format!(r"{}\System32\cmd.exe", system_root);
+        } else if lower == "bash.exe" || lower == "git-bash" {
+            let git_bash = r"C:\Program Files\Git\bin\bash.exe";
+            if std::path::Path::new(git_bash).exists() {
+                shell_cmd = git_bash.to_string();
+            } else {
+                shell_cmd = "bash.exe".to_string();
+            }
         }
     }
 

@@ -1,3 +1,21 @@
+## 🚀 Release: CmdGUI v2.2.0
+
+### ✨ UI/UX Master Overhaul
+- **Glassmorphic Surface Hierarchy:** Translucent acrylic backdrop blur system (`--bg-glass`, `--bg-modal`, `--bg-sidebar`) with elevated ambient border lighting and updated theme presets.
+- **Spotlight Command Palette (`Ctrl+P`):** Redesigned quick switcher modal with glass cards, monospaced shortcut pills, and smooth search filtering (`>` mode).
+- **Interactive Welcome Dashboard:** Modernized landing action cards with gradient glowing highlights and intuitive shortcut hints.
+- **AI Shell Assistant Enhancements:** Integrated quick-prompt suggestion chips for instant natural language terminal command generation.
+
+---
+
+## 🚀 Release: CmdGUI v2.1.1
+
+### 🛠️ Git & Port Terminate Safety Fixes
+- **Git Modified Files List:** Fixed a bug where modified/added/deleted files inside a Git repository were not visible in the source control changes list.
+- **Port Termination Safety Lock:** Hidden and disabled the `🛑 Kill` action button on standard System Services ports (under Active Ports tab) to prevent accidental system instability, replacing it with a `🔒 System` badge.
+
+---
+
 ## 🚀 Release: CmdGUI v2.1.0
 
 ### 🛠️ Environment & Terminal Spawning Fix

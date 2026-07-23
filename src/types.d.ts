@@ -131,12 +131,12 @@ export interface ElectronAPI {
     cwd?: string;
     shell?: string;
     envVars?: Record<string, string>;
-  }) => Promise<number>;
-  onTerminalData: (pid: number, callback: (data: string) => void) => () => void;
-  onTerminalExit: (pid: number, callback: () => void) => () => void;
-  writeTerminal: (pid: number, data: string) => void;
-  resizeTerminal: (pid: number, cols: number, rows: number) => void;
-  killTerminal: (pid: number) => void;
+  }) => Promise<string>;
+  onTerminalData: (pid: string, callback: (data: string) => void) => () => void;
+  onTerminalExit: (pid: string, callback: () => void) => () => void;
+  writeTerminal: (pid: string, data: string) => void;
+  resizeTerminal: (pid: string, cols: number, rows: number) => void;
+  killTerminal: (pid: string) => void;
   selectFolder: () => Promise<string | null>;
   getProjectInfo: (path: string) => Promise<string>;
   getProjectDetails: (path: string) => Promise<ProjectDetails>;
@@ -156,6 +156,8 @@ export interface ElectronAPI {
   quitAndInstall: () => Promise<void>;
   onUpdateStatus: (callback: (data: UpdateStatus) => void) => () => void;
   getVersion: () => Promise<string>;
+  getLaunchArgs: () => Promise<string[]>;
+  onSingleInstance: (callback: (argv: string[], cwd: string) => void) => () => void;
   readClipboard: () => Promise<string>;
   setQuakeMode: (enabled: boolean) => void;
   setStayAwake: (enabled: boolean) => void;

@@ -9,9 +9,10 @@ export interface HistoryItem {
 }
 
 export const useCommandHistory = () => {
-  const [history, setHistory] = useState<HistoryItem[]>(() =>
-    loadLocalState<HistoryItem[]>('commandHistory', [])
-  );
+  const [history, setHistory] = useState<HistoryItem[]>(() => {
+    const loaded = loadLocalState<HistoryItem[]>('commandHistory', []);
+    return Array.isArray(loaded) ? loaded : [];
+  });
 
   useEffect(() => {
     saveLocalState('commandHistory', history);
@@ -34,19 +35,31 @@ export const useCommandHistory = () => {
   }, []);
 
   const toggleBookmark = useCallback((id: string) => {
-    setHistory((prev) =>
-      prev.map((h) => (h.id === id ? { ...h, isBookmarked: !h.isBookmarked } : h))
-    );
+    setHistory((prev) => {
+      const arr = Array.isArray(prev) ? prev : [];
+      return arr.map((h) => (h.id === id ? { ...h, isBookmarked: !h.isBookmarked } : h));
+    });
+  }, []);
+
+  const removeHistory = useCallback((id: string) => {
+    setHistory((prev) => {
+      const arr = Array.isArray(prev) ? prev : [];
+      return arr.filter((h) => h.id !== id);
+    });
   }, []);
 
   const clearHistory = useCallback(() => {
-    setHistory((prev) => prev.filter((h) => h.isBookmarked));
+    setHistory((prev) => {
+      const arr = Array.isArray(prev) ? prev : [];
+      return arr.filter((h) => h.isBookmarked);
+    });
   }, []);
 
   return {
     history,
     addHistory,
     toggleBookmark,
+    removeHistory,
     clearHistory,
   };
 };
