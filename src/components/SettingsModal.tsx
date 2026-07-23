@@ -51,6 +51,7 @@ const ACTION_LABELS: Record<KeybindingAction, string> = {
   splitHorizontal: 'Split Pane Horizontally',
   splitVertical: 'Split Pane Vertically',
   closePane: 'Close Active Pane',
+  toggleSidebar: 'Toggle Sidebar / Activity Bar View',
 };
 
 const KeybindingRecorder: React.FC<{

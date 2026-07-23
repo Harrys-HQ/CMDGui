@@ -6,6 +6,10 @@
 - **Interactive Welcome Dashboard:** Modernized landing action cards with gradient glowing highlights and intuitive shortcut hints.
 - **AI Shell Assistant Enhancements:** Integrated quick-prompt suggestion chips for instant natural language terminal command generation.
 
+### 🛠️ Terminal Link Handling Fixes
+- **URL & Web Link Protocol Fix:** Preserved forward slashes in `http://`, `https://`, and `mailto:` links when invoked on Windows via `shell_open_path`.
+- **Multi-Line Wrapped Link Detection:** Enhanced terminal link detection to read across wrapped buffer line segments (`isWrapped`), allowing long web links, local file paths, and workspace paths to open completely when wrapped across lines in compact window mode.
+
 ---
 
 ## 🚀 Release: CmdGUI v2.1.1

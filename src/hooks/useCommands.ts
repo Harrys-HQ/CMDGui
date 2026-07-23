@@ -52,6 +52,7 @@ export const useCommands = ({
         name: 'Toggle Sidebar',
         category: 'UI',
         icon: '🪜',
+        shortcut: formatKeybinding(keymap.toggleSidebar),
         action: onToggleSidebar,
       },
       {

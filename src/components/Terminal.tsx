@@ -247,11 +247,9 @@ const Terminal: React.FC<TerminalProps> = ({
       allowProposedApi: true,
     });
     const fitAddon = new FitAddon();
-    const webLinksAddon = new WebLinksAddon((_, uri) => window.electron.openExternal(uri));
     const searchAddon = new SearchAddon();
     const serializeAddon = new SerializeAddon();
     term.loadAddon(fitAddon);
-    term.loadAddon(webLinksAddon);
     term.loadAddon(searchAddon);
     term.loadAddon(serializeAddon);
 
@@ -273,103 +271,196 @@ const Terminal: React.FC<TerminalProps> = ({
       return false;
     });
 
-    // 1. Register a synchronous provider for absolute file URLs and path links
+    // Helper to get full wrapped line range and text around bufferLineNumber
+    // Helper to get full wrapped line range and text around bufferLineNumber
+    const getWrappedLineText = (lineNum: number) => {
+      const buffer = term.buffer.active;
+      let startLineIdx = lineNum - 1;
+
+      // In xterm.js, line.isWrapped is TRUE on line N if line N is a continuation of line N-1.
+      while (startLineIdx > 0 && buffer.getLine(startLineIdx)?.isWrapped) {
+        startLineIdx--;
+      }
+
+      let endLineIdx = lineNum - 1;
+      while (endLineIdx + 1 < buffer.length && buffer.getLine(endLineIdx + 1)?.isWrapped) {
+        endLineIdx++;
+      }
+
+      let fullText = '';
+      const lineOffsets: { lineIdx: number; startChar: number; length: number }[] = [];
+      for (let i = startLineIdx; i <= endLineIdx; i++) {
+        const l = buffer.getLine(i);
+        if (l) {
+          // translateToString(true) trims trailing whitespace from each terminal row
+          const text = l.translateToString(true).replace(/[\r\n]+/g, '');
+          lineOffsets.push({ lineIdx: i, startChar: fullText.length, length: text.length });
+          fullText += text;
+        }
+      }
+
+      return { startLineIdx, endLineIdx, fullText, lineOffsets };
+    };
+
+    // Convert character offset in fullText to { x, y } xterm 1-indexed coordinates
+    const getCharPosition = (charIdx: number, lineOffsets: { lineIdx: number; startChar: number; length: number }[]) => {
+      for (let i = 0; i < lineOffsets.length; i++) {
+        const line = lineOffsets[i];
+        const nextStart = i + 1 < lineOffsets.length ? lineOffsets[i + 1].startChar : Infinity;
+        if (charIdx >= line.startChar && charIdx < nextStart) {
+          const localCol = charIdx - line.startChar;
+          return { x: localCol + 1, y: line.lineIdx + 1 };
+        }
+      }
+      const last = lineOffsets[lineOffsets.length - 1];
+      return { x: last.length + 1, y: last.lineIdx + 1 };
+    };
+
+    // 1. Register a provider for URLs, absolute file URLs, and path links across wrapped lines
     term.registerLinkProvider({
       provideLinks(bufferLineNumber, callback) {
-        const line = term.buffer.active.getLine(bufferLineNumber - 1);
-        if (!line) {
-          callback(undefined);
-          return;
-        }
-        const text = line.translateToString(true);
+        const lineIdx = bufferLineNumber - 1;
+        const { startLineIdx, endLineIdx, fullText, lineOffsets } = getWrappedLineText(bufferLineNumber);
         const links: any[] = [];
 
-        // Match file:/// links: e.g. file:///C:/path/to/file.ext or file:///C:\path\to\file.ext
-        const fileUriRegex = /file:\/\/\/[a-zA-Z]:[/\\][^ \t\r\n"']+|file:\/\/\/[^ \t\r\n"']+/g;
+        // Match http/https URLs: e.g. https://github.com/Harrys-HQ/CMDGui/releases/tag/v2.2.0
+        const httpUrlRegex = /https?:\/\/[^\s"'<>()]+/gi;
         let match;
-        while ((match = fileUriRegex.exec(text)) !== null) {
-          let uri = match[0];
-          const startX = match.index;
-          uri = uri.replace(/[)\].,;:]+$/, '');
-          const endX = startX + uri.length;
+        while ((match = httpUrlRegex.exec(fullText)) !== null) {
+          let url = match[0].replace(/[)\].,;:]+$/, '');
+          const matchStart = match.index;
+          const matchEnd = matchStart + url.length;
 
-          links.push({
-            text: uri,
-            range: {
-              start: { x: startX + 1, y: bufferLineNumber },
-              end: { x: endX, y: bufferLineNumber }
-            },
-            activate(_: any, text: string) {
-              let filePath = text.replace(/[)\].,;:]+$/, '').replace(/^file:\/\/\//, '');
-              if (/^[a-zA-Z]:\//.test(filePath)) {
-                filePath = filePath.replace(/\//g, '\\');
-              }
-              if (window.electron && window.electron.openLocalPath) {
-                window.electron.openLocalPath(decodeURIComponent(filePath));
-              }
+          const startPos = getCharPosition(matchStart, lineOffsets);
+          const endPos = getCharPosition(matchEnd - 1, lineOffsets);
+
+          if (lineIdx >= startPos.y - 1 && lineIdx <= endPos.y - 1) {
+            // For xterm.js multi-line link highlights on bufferLineNumber line:
+            // Calculate start and end columns for the current bufferLineNumber line segment
+            let segStartX = 1;
+            let segEndX = term.cols;
+
+            if (lineIdx === startPos.y - 1) {
+              segStartX = startPos.x;
             }
-          });
+            if (lineIdx === endPos.y - 1) {
+              segEndX = endPos.x;
+            }
+
+            links.push({
+              text: url,
+              range: {
+                start: { x: segStartX, y: bufferLineNumber },
+                end: { x: segEndX, y: bufferLineNumber }
+              },
+              activate() {
+                const cleanUrl = url.replace(/\s+/g, '');
+                if (window.electron && window.electron.openExternal) {
+                  window.electron.openExternal(cleanUrl);
+                }
+              }
+            });
+          }
+        }
+
+        // Match file:/// links: e.g. file:///C:/path/to/file.ext or file:///C:\path\to\file.ext
+        const fileUriRegex = /file:\/\/\/[a-zA-Z]:[/\\][^\s"'<>()]+|file:\/\/\/[^\s"'<>()]+/g;
+        while ((match = fileUriRegex.exec(fullText)) !== null) {
+          let uri = match[0].replace(/[)\].,;:]+$/, '');
+          const matchStart = match.index;
+          const matchEnd = matchStart + uri.length;
+
+          const startPos = getCharPosition(matchStart, lineOffsets);
+          const endPos = getCharPosition(matchEnd - 1, lineOffsets);
+
+          if (lineIdx >= startPos.y - 1 && lineIdx <= endPos.y - 1) {
+            let segStartX = 1;
+            let segEndX = term.cols;
+            if (lineIdx === startPos.y - 1) segStartX = startPos.x;
+            if (lineIdx === endPos.y - 1) segEndX = endPos.x;
+
+            links.push({
+              text: uri,
+              range: {
+                start: { x: segStartX, y: bufferLineNumber },
+                end: { x: segEndX, y: bufferLineNumber }
+              },
+              activate() {
+                let filePath = uri.replace(/^file:\/\/\//, '');
+                if (/^[a-zA-Z]:\//.test(filePath)) {
+                  filePath = filePath.replace(/\//g, '\\');
+                }
+                if (window.electron && window.electron.openLocalPath) {
+                  window.electron.openLocalPath(decodeURIComponent(filePath));
+                }
+              }
+            });
+          }
         }
 
         // Match Windows absolute paths: e.g. C:\path\to\file.ext or C:/path/to/file.ext
-        const winPathRegex = /[a-zA-Z]:[/\\][^ \t\r\n"']+/g;
-        while ((match = winPathRegex.exec(text)) !== null) {
+        const winPathRegex = /[a-zA-Z]:[/\\][^\s"'<>()]+/g;
+        while ((match = winPathRegex.exec(fullText)) !== null) {
           let pathStr = match[0];
-          const startX = match.index;
+          const matchStart = match.index;
 
-          // Avoid duplicate matching if it has file:/// prefix
-          const prevStr = text.substring(Math.max(0, startX - 8), startX);
+          const prevStr = fullText.substring(Math.max(0, matchStart - 8), matchStart);
           if (prevStr.includes('file:///')) {
             continue;
           }
 
           pathStr = pathStr.replace(/[)\].,;:]+$/, '');
-          const endX = startX + pathStr.length;
+          const matchEnd = matchStart + pathStr.length;
 
-          links.push({
-            text: pathStr,
-            range: {
-              start: { x: startX + 1, y: bufferLineNumber },
-              end: { x: endX, y: bufferLineNumber }
-            },
-            activate(_: any, text: string) {
-              const cleanPath = text.replace(/[)\].,;:]+$/, '');
-              if (window.electron && window.electron.openLocalPath) {
-                window.electron.openLocalPath(cleanPath);
+          const startPos = getCharPosition(matchStart, lineOffsets);
+          const endPos = getCharPosition(matchEnd - 1, lineOffsets);
+
+          if (lineIdx >= startPos.y - 1 && lineIdx <= endPos.y - 1) {
+            let segStartX = 1;
+            let segEndX = term.cols;
+            if (lineIdx === startPos.y - 1) segStartX = startPos.x;
+            if (lineIdx === endPos.y - 1) segEndX = endPos.x;
+
+            links.push({
+              text: pathStr,
+              range: {
+                start: { x: segStartX, y: bufferLineNumber },
+                end: { x: segEndX, y: bufferLineNumber }
+              },
+              activate() {
+                if (window.electron && window.electron.openLocalPath) {
+                  window.electron.openLocalPath(pathStr);
+                }
               }
-            }
-          });
+            });
+          }
         }
 
         callback(links.length > 0 ? links : undefined);
       }
     });
 
-    // 2. Register an asynchronous provider for active workspace relative files
+    // 2. Register an asynchronous provider for active workspace relative files across wrapped lines
     term.registerLinkProvider({
       provideLinks(bufferLineNumber, callback) {
-        const line = term.buffer.active.getLine(bufferLineNumber - 1);
-        if (!line) {
-          callback(undefined);
-          return;
-        }
-        const text = line.translateToString(true);
+        const lineIdx = bufferLineNumber - 1;
+        const { startLineIdx, endLineIdx, fullText, lineOffsets } = getWrappedLineText(bufferLineNumber);
         const links: any[] = [];
 
         // Match possible relative paths: e.g. src/App.tsx, package.json, CmdGUI_2.1.1_x64-setup.exe, setup.exe
         const relativePathRegex = /(?:[a-zA-Z0-9_\-\.\/\\]+)\.(?:exe|msi|bat|cmd|ps1|tsx|ts|jsx|js|json|md|txt|log|png|jpg|css|html)/gi;
-        const relativeMatches: { text: string; start: number }[] = [];
+        const relativeMatches: { text: string; matchStart: number }[] = [];
         let match;
-        while ((match = relativePathRegex.exec(text)) !== null) {
+        while ((match = relativePathRegex.exec(fullText)) !== null) {
           let matchedStr = match[0];
-          const startX = match.index;
+          const matchStart = match.index;
           
           // Avoid duplicate matching if it has file:/// prefix or C:\ prefix
-          const prevStr = text.substring(Math.max(0, startX - 8), startX);
+          const prevStr = fullText.substring(Math.max(0, matchStart - 8), matchStart);
           if (prevStr.includes('file:///')) {
             continue;
           }
-          if (/[a-zA-Z]:\\/.test(text.substring(Math.max(0, startX - 3), startX + 3))) {
+          if (/[a-zA-Z]:\\/.test(fullText.substring(Math.max(0, matchStart - 3), matchStart + 3))) {
             continue;
           }
           if (matchedStr.startsWith('file:///') || /^[a-zA-Z]:[/\\]/.test(matchedStr)) {
@@ -377,7 +468,7 @@ const Terminal: React.FC<TerminalProps> = ({
           }
           
           matchedStr = matchedStr.replace(/[)\].,;:]+$/, '');
-          relativeMatches.push({ text: matchedStr, start: startX });
+          relativeMatches.push({ text: matchedStr, matchStart });
         }
 
         const currentCwd = activeCwdRef.current;
@@ -390,19 +481,30 @@ const Terminal: React.FC<TerminalProps> = ({
             try {
               const info = await window.electron.getProjectInfo(fullPath);
               if (info) {
-                const endX = m.start + m.text.length;
-                links.push({
-                  text: fullPath,
-                  range: {
-                    start: { x: m.start + 1, y: bufferLineNumber },
-                    end: { x: endX, y: bufferLineNumber }
-                  },
-                  activate(_: any, text: string) {
-                    if (window.electron && window.electron.openLocalPath) {
-                      window.electron.openLocalPath(text);
+                const matchStart = m.matchStart;
+                const matchEnd = matchStart + m.text.length;
+                const startPos = getCharPosition(matchStart, lineOffsets);
+                const endPos = getCharPosition(matchEnd - 1, lineOffsets);
+
+                if (lineIdx >= startPos.y - 1 && lineIdx <= endPos.y - 1) {
+                  let segStartX = 1;
+                  let segEndX = term.cols;
+                  if (lineIdx === startPos.y - 1) segStartX = startPos.x;
+                  if (lineIdx === endPos.y - 1) segEndX = endPos.x;
+
+                  links.push({
+                    text: fullPath,
+                    range: {
+                      start: { x: segStartX, y: bufferLineNumber },
+                      end: { x: segEndX, y: bufferLineNumber }
+                    },
+                    activate() {
+                      if (window.electron && window.electron.openLocalPath) {
+                        window.electron.openLocalPath(fullPath);
+                      }
                     }
-                  }
-                });
+                  });
+                }
               }
             } catch (e) {
               // Ignore folder check failure
@@ -502,7 +604,8 @@ const Terminal: React.FC<TerminalProps> = ({
         isKeyMatch(e, keymap.closeTab) ||
         isKeyMatch(e, keymap.nextTab) ||
         isKeyMatch(e, keymap.prevTab) ||
-        isKeyMatch(e, keymap.commandPalette)
+        isKeyMatch(e, keymap.commandPalette) ||
+        isKeyMatch(e, keymap.toggleSidebar)
       ) {
         return false;
       }

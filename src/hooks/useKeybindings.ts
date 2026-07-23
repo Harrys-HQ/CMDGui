@@ -14,7 +14,8 @@ export type KeybindingAction =
   | 'newLine'
   | 'splitHorizontal'
   | 'splitVertical'
-  | 'closePane';
+  | 'closePane'
+  | 'toggleSidebar';
 
 export interface Keybinding {
   key: string; // e.g., 'p', 'c'
@@ -40,6 +41,7 @@ const DEFAULT_KEYMAP: Keymap = {
   splitHorizontal: { key: 'h', ctrlKey: true, altKey: true },
   splitVertical: { key: 'v', ctrlKey: true, altKey: true },
   closePane: { key: 'w', ctrlKey: true, altKey: true },
+  toggleSidebar: { key: 'b', ctrlKey: true },
 };
 
 export const formatKeybinding = (binding: Keybinding): string => {

@@ -523,6 +523,10 @@ const App: React.FC = () => {
         const idx = t.findIndex((tab) => tab.id === activeTabIdRef.current);
         if (idx !== -1) setActiveTabIdRef.current(t[(idx - 1 + t.length) % t.length].id);
       }
+      if (isKeyMatch(e, keymapRef.current.toggleSidebar)) {
+        e.preventDefault();
+        setIsSidebarVisible((prev) => !prev);
+      }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);

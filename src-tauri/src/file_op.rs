@@ -92,9 +92,11 @@ pub async fn fs_list_directory(dir_path: String) -> Result<Vec<FileEntry>, Strin
 pub async fn shell_open_path(file_path: String) -> Result<bool, String> {
     if cfg!(target_os = "windows") {
         let path_str = file_path.trim().to_string();
-        if path_str.starts_with("http://") || path_str.starts_with("https://") {
+        let lower_path = path_str.to_lowercase();
+        if lower_path.starts_with("http://") || lower_path.starts_with("https://") || lower_path.starts_with("mailto:") {
+            let escaped_url = path_str.replace("^", "^^").replace("&", "^&");
             Command::new("cmd.exe")
-                .args(&["/c", "start", "", &path_str])
+                .args(&["/c", "start", "", &escaped_url])
                 .spawn()
                 .map_err(|e| e.to_string())?;
         } else {
