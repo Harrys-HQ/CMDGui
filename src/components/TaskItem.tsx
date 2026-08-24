@@ -10,6 +10,8 @@ interface TaskItemProps {
   onClose: (e: React.MouseEvent) => void;
   onRename: (e: React.MouseEvent) => void;
   onContextMenu: (e: React.MouseEvent) => void;
+  onMoveUp?: (e: React.MouseEvent) => void;
+  onMoveDown?: (e: React.MouseEvent) => void;
   onDragStart: () => void;
   onDragEnd: () => void;
 }
@@ -43,6 +45,8 @@ const TaskItem: React.FC<TaskItemProps> = React.memo(
     onClose,
     onRename,
     onContextMenu,
+    onMoveUp,
+    onMoveDown,
     onDragStart,
     onDragEnd,
   }) => {
@@ -57,7 +61,11 @@ const TaskItem: React.FC<TaskItemProps> = React.memo(
         onDoubleClick={onRename}
         onContextMenu={onContextMenu}
         draggable
-        onDragStart={onDragStart}
+        onDragStart={(e) => {
+          e.dataTransfer.setData('text/plain', tab.id);
+          e.dataTransfer.effectAllowed = 'move';
+          onDragStart();
+        }}
         onDragEnd={onDragEnd}
         className={`project-item ${isActive ? 'active-task' : ''} ${tab.hasAlert ? 'alert-task' : ''} ${tab.hasConfirmation ? 'confirmation-task' : ''}`}
         title={cwd || 'Terminal'}
@@ -76,9 +84,38 @@ const TaskItem: React.FC<TaskItemProps> = React.memo(
         >
           {getHighlightedText(tab.title, searchQuery)}
         </span>
-        <span onClick={onClose} className="task-close-btn" title="Close Terminal">
-          ×
-        </span>
+        
+        <div style={{ display: 'flex', alignItems: 'center', gap: '2px', marginLeft: 'auto' }}>
+          {onMoveUp && (
+            <span
+              onClick={(e) => {
+                e.stopPropagation();
+                onMoveUp(e);
+              }}
+              className="task-close-btn"
+              title="Move Up"
+              style={{ fontSize: '11px' }}
+            >
+              ▲
+            </span>
+          )}
+          {onMoveDown && (
+            <span
+              onClick={(e) => {
+                e.stopPropagation();
+                onMoveDown(e);
+              }}
+              className="task-close-btn"
+              title="Move Down"
+              style={{ fontSize: '11px' }}
+            >
+              ▼
+            </span>
+          )}
+          <span onClick={onClose} className="task-close-btn" title="Close Terminal">
+            ×
+          </span>
+        </div>
       </div>
     );
   }

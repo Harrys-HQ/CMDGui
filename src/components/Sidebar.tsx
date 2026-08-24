@@ -5,6 +5,7 @@ import TaskItem from './TaskItem';
 import FileExplorer from './FileExplorer';
 import { loadState, saveState } from '../hooks/usePersistence';
 import { useToast } from '../hooks/useToast';
+import { Search } from 'lucide-react';
 
 import { SidebarView } from './ActivityBar';
 
@@ -209,14 +210,20 @@ const Sidebar: React.FC<SidebarProps> = ({
 
   const handleDragOver = (e: React.DragEvent, index: number) => {
     e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
     if (draggedTabIndex === null || draggedTabIndex === index) return;
     setDragOverTabIndex(index);
   };
 
-  const handleDrop = (e: React.DragEvent, index: number) => {
+  const handleDrop = (e: React.DragEvent, dropIndex: number) => {
     e.preventDefault();
-    if (draggedTabIndex !== null && draggedTabIndex !== index) {
-      onReorderTabs(draggedTabIndex, index);
+    const sourceTabId = e.dataTransfer.getData('text/plain');
+    let startIdx = draggedTabIndex;
+    if (startIdx === null && sourceTabId) {
+      startIdx = tabs.findIndex((t) => t.id === sourceTabId);
+    }
+    if (startIdx !== null && startIdx !== -1 && startIdx !== dropIndex) {
+      onReorderTabs(startIdx, dropIndex);
     }
     setDraggedTabIndex(null);
     setDragOverTabIndex(null);
@@ -269,6 +276,18 @@ const Sidebar: React.FC<SidebarProps> = ({
 
   return (
     <div className={`sidebar ${className}`} style={{ width: 'var(--sidebar-width)' }} onClick={onRefreshGitStatus}>
+      {activeView === 'explorer' && (
+        <div className="sidebar-search-container">
+          <Search size={14} style={{ color: 'var(--fg-secondary)', flexShrink: 0 }} />
+          <input
+            type="text"
+            className="sidebar-search-input"
+            placeholder="Filter projects & tasks..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
+      )}
       <div className="sidebar-content">
         {activeView === 'explorer' && (
           <>
@@ -289,16 +308,6 @@ const Sidebar: React.FC<SidebarProps> = ({
                 </div>
               }
             >
-              <div className="sidebar-search-container">
-                <input
-                  type="text"
-                  className="sidebar-search-input"
-                  placeholder="Search projects..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-              </div>
-
               <div className="project-tree" style={{ padding: '4px 0' }}>
                 {(Array.isArray(projects) ? projects : []).map((p, index) => {
                   // Only show filtered projects if searching, otherwise show all for reordering
@@ -327,6 +336,8 @@ const Sidebar: React.FC<SidebarProps> = ({
                         }
                         isExplorerOpen={openExplorerPath === p.path}
                         onContextMenu={(e) => handleProjectContextMenu(e, p)}
+                        onMoveUp={index > 0 ? () => onReorderProjects(index, index - 1) : undefined}
+                        onMoveDown={index < projects.length - 1 ? () => onReorderProjects(index, index + 1) : undefined}
                         onDragStart={() => handleProjectDragStart(index)}
                         onDragEnd={handleProjectDragEnd}
                       />
@@ -351,83 +362,6 @@ const Sidebar: React.FC<SidebarProps> = ({
                     No projects found.
                   </div>
                 )}
-              </div>
-            </CollapsibleSection>
-
-            <CollapsibleSection
-              title="ACTIVE TASKS"
-              isExpanded={expandedSections.tasks}
-              onToggle={() => toggleSection('tasks')}
-              action={
-                <div style={{ position: 'relative' }}>
-                  <div
-                    className="sidebar-action-btn"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setIsAddMenuOpen(!isAddMenuOpen);
-                    }}
-                    title="New Terminal..."
-                  >
-                    +
-                  </div>
-                  {isAddMenuOpen && (
-                    <div className="dropdown-menu" onMouseLeave={() => setIsAddMenuOpen(false)}>
-                      <div
-                        className="project-item"
-                        onClick={() => {
-                          onAddTerminal(false);
-                          setIsAddMenuOpen(false);
-                        }}
-                      >
-                        <span>New Terminal</span>
-                      </div>
-                      <div
-                        className="project-item"
-                        onClick={() => {
-                          onAddTerminal(true);
-                          setIsAddMenuOpen(false);
-                        }}
-                      >
-                        <span style={{ marginRight: '6px' }}>🛡️</span>
-                        <span>Run as Admin...</span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              }
-            >
-              <div className="tab-list">
-                {(Array.isArray(tabs) ? tabs : []).map((tab, index) => {
-                  // Only show filtered tabs if searching, otherwise show all for reordering
-                  if (searchQuery && !tab.title.toLowerCase().includes(searchQuery.toLowerCase())) {
-                    return null;
-                  }
-
-                  return (
-                    <div
-                      key={tab.id}
-                      onDragOver={(e) => handleDragOver(e, index)}
-                      onDrop={(e) => handleDrop(e, index)}
-                      className={dragOverTabIndex === index ? 'drag-over-indicator' : ''}
-                    >
-                      <TaskItem
-                        tab={tab}
-                        isActive={activeTabId === tab.id}
-                        searchQuery={searchQuery}
-                        onSelect={() => onSelectTab(tab.id)}
-                        onClose={(e) => onCloseTab(tab.id, e)}
-                        onRename={(e) => {
-                          e.stopPropagation();
-                          e.preventDefault();
-                          onRenameTab(tab.id, tab.title);
-                        }}
-                        onContextMenu={(e) => handleTabContextMenu(e, tab)}
-                        onDragStart={() => handleDragStart(index)}
-                        onDragEnd={handleDragEnd}
-                      />
-                    </div>
-                  );
-                })}
               </div>
             </CollapsibleSection>
 

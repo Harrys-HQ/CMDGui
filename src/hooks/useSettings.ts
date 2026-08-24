@@ -34,10 +34,11 @@ export const useSettings = () => {
   const [terminalScrollback, setTerminalScrollback] = useState(1000);
   const [isQuakeModeEnabled, setIsQuakeModeEnabled] = useState(false);
   const [isStayAwakeEnabled, setIsStayAwakeEnabled] = useState(false);
+  const [isYoloModeEnabled, setIsYoloModeEnabled] = useState(false);
   const [isGPUAccelerationEnabled, setIsGPUAccelerationEnabled] = useState(true);
   const [defaultShell, setDefaultShell] = useState('');
   const [isAdmin, setIsAdmin] = useState(false);
-  const [showTopTabBar, setShowTopTabBar] = useState(false);
+  const [showTopTabBar, setShowTopTabBar] = useState(true);
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
@@ -49,9 +50,10 @@ export const useSettings = () => {
       const savedScrollback = await loadState('terminalScrollback', 1000);
       const savedQuakeMode = await loadState('isQuakeModeEnabled', false);
       const savedStayAwake = await loadState('isStayAwakeEnabled', false);
+      const savedYoloMode = await loadState('isYoloModeEnabled', false);
       const savedGPU = await loadState('isGPUAccelerationEnabled', true);
       const savedShell = await loadState('defaultShell', '');
-      const savedShowTabs = await loadState('showTopTabBar', false);
+      const savedShowTabs = await loadState('showTopTabBar', true);
 
       setTerminalTheme(savedTheme);
       setUiTheme(savedUiTheme);
@@ -60,6 +62,7 @@ export const useSettings = () => {
       setTerminalScrollback(savedScrollback);
       setIsQuakeModeEnabled(savedQuakeMode);
       setIsStayAwakeEnabled(savedStayAwake);
+      setIsYoloModeEnabled(savedYoloMode);
       setIsGPUAccelerationEnabled(savedGPU);
       setDefaultShell(savedShell);
       setShowTopTabBar(savedShowTabs);
@@ -147,6 +150,12 @@ export const useSettings = () => {
     }
   }, [showTopTabBar, isLoaded]);
 
+  useEffect(() => {
+    if (isLoaded) {
+      saveState('isYoloModeEnabled', isYoloModeEnabled);
+    }
+  }, [isYoloModeEnabled, isLoaded]);
+
   const relaunchAdmin = () => {
     window.electron.relaunchAdmin();
   };
@@ -166,6 +175,8 @@ export const useSettings = () => {
     setIsQuakeModeEnabled,
     isStayAwakeEnabled,
     setIsStayAwakeEnabled,
+    isYoloModeEnabled,
+    setIsYoloModeEnabled,
     isGPUAccelerationEnabled,
     setIsGPUAccelerationEnabled,
     defaultShell,

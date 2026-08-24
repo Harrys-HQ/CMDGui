@@ -66,6 +66,8 @@ const App: React.FC = () => {
     setIsQuakeModeEnabled,
     isStayAwakeEnabled,
     setIsStayAwakeEnabled,
+    isYoloModeEnabled,
+    setIsYoloModeEnabled,
     isGPUAccelerationEnabled,
     setIsGPUAccelerationEnabled,
     uiTheme,
@@ -80,6 +82,9 @@ const App: React.FC = () => {
   } = useSettings();
 
   const isAppReady = isTabsLoaded && isProjectsLoaded && isSettingsLoaded;
+
+  const [zoomedPaneId, setZoomedPaneId] = useState<string | null>(null);
+  const [isBroadcastMode, setIsBroadcastMode] = useState<boolean>(false);
 
   const { keymap, updateKeybinding, resetKeybindings } = useKeybindings();
 
@@ -381,6 +386,8 @@ const App: React.FC = () => {
           showPaneControls={true}
           keymap={keymap}
           isGPUAccelerationEnabled={isGPUAccelerationEnabled}
+          isYoloModeEnabled={isYoloModeEnabled}
+          isAdmin={pane.isAdmin}
         />
       );
     }
@@ -527,10 +534,23 @@ const App: React.FC = () => {
         e.preventDefault();
         setIsSidebarVisible((prev) => !prev);
       }
+      if (e.ctrlKey && e.shiftKey && (e.key === 'Z' || e.key === 'z')) {
+        e.preventDefault();
+        setZoomedPaneId((prev) => (prev ? null : 'active'));
+        showToast(zoomedPaneId ? 'Exited Pane Zoom' : 'Zoomed Active Pane', 'info');
+      }
+      if (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'i')) {
+        e.preventDefault();
+        setIsBroadcastMode((prev) => {
+          const next = !prev;
+          showToast(next ? '⚠️ Broadcast Mode Enabled' : 'Broadcast Mode Disabled', next ? 'warning' : 'info');
+          return next;
+        });
+      }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [zoomedPaneId]);
 
   const activeTab = tabs.find((t) => t.id === activeTabId);
   useEffect(() => {
@@ -589,28 +609,27 @@ const App: React.FC = () => {
         />
         <div className={`resizer ${!isSidebarVisible ? 'collapsed' : ''}`} onMouseDown={startResizing} />
         <div className="main-content">
-          {showTopTabBar && (
-            <TopTabBar
-              tabs={tabs}
-              activeTabId={activeTabId}
-              onSelectTab={setActiveTabId}
-              onCloseTab={handleCloseTab}
-              onRenameTab={handleRenameTab}
-              onReorderTabs={reorderTabs}
-              onDuplicateTab={(id) => {
-                const target = tabs.find((t) => t.id === id);
-                if (target && target.panes) {
-                  const firstPane = Object.values(target.panes)[0];
-                  addTab(firstPane?.cwd);
-                }
-              }}
-              onCloseOthers={(id) => {
-                tabs.forEach((t) => {
-                  if (t.id !== id) closeTab(t.id);
-                });
-              }}
-            />
-          )}
+          <TopTabBar
+            tabs={tabs}
+            activeTabId={activeTabId}
+            onSelectTab={setActiveTabId}
+            onCloseTab={handleCloseTab}
+            onRenameTab={handleRenameTab}
+            onReorderTabs={reorderTabs}
+            onAddTab={() => handleAddTerminal(false)}
+            onDuplicateTab={(id) => {
+              const target = tabs.find((t) => t.id === id);
+              if (target && target.panes) {
+                const firstPane = Object.values(target.panes)[0];
+                addTab(firstPane?.cwd);
+              }
+            }}
+            onCloseOthers={(id) => {
+              tabs.forEach((t) => {
+                if (t.id !== id) closeTab(t.id);
+              });
+            }}
+          />
           {!isAppReady ? (
             <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-root)', color: '#888' }}>
               Loading workspace...
@@ -633,11 +652,8 @@ const App: React.FC = () => {
                       key={tab.id}
                       style={{
                         height: '100%',
-                        position: 'absolute',
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        bottom: 0,
+                        width: '100%',
+                        position: 'relative',
                       }}
                     >
                       {renderLayout(tab, tab.layout)}
@@ -666,6 +682,8 @@ const App: React.FC = () => {
         activeTabTitle={activeTab?.title}
         tabCount={tabs.length}
         isUpdateAvailable={isUpdateAvailable}
+        isBroadcastMode={isBroadcastMode}
+        isZoomed={!!zoomedPaneId}
         onShowUpdates={() => setIsSettingsOpen(true)}
         onToggleQuickSwitcher={() => setIsQuickSwitcherOpen(true)}
         onOpenSettings={() => setIsSettingsOpen(true)}
@@ -703,6 +721,8 @@ const App: React.FC = () => {
         keymap={keymap}
         onUpdateKeybinding={updateKeybinding}
         onResetKeybindings={resetKeybindings}
+        isYoloModeEnabled={isYoloModeEnabled}
+        onYoloModeChange={setIsYoloModeEnabled}
         showTopTabBar={showTopTabBar}
         onShowTopTabBarChange={setShowTopTabBar}
       />

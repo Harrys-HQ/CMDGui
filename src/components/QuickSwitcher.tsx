@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Tab, Project } from '../types';
 import { Command } from '../hooks/useCommands';
+import { Terminal, Folder, Command as CommandIcon, Search } from 'lucide-react';
 
 interface QuickSwitcherProps {
   isOpen: boolean;
@@ -17,7 +18,7 @@ interface QuickSwitcherItem {
   name: string;
   type: 'tab' | 'project' | 'command';
   sub: string;
-  icon: string;
+  icon: React.ReactNode;
   shortcut?: string;
   action: () => void;
 }
@@ -56,7 +57,7 @@ const QuickSwitcher: React.FC<QuickSwitcherProps> = ({
           name: c.name,
           type: 'command',
           sub: c.category,
-          icon: c.icon,
+          icon: <CommandIcon size={16} color="var(--accent-primary)" />,
           shortcut: c.shortcut,
           action: c.action,
         }))
@@ -68,7 +69,7 @@ const QuickSwitcher: React.FC<QuickSwitcherProps> = ({
             name: t.title,
             type: 'tab' as const,
             sub: 'Active Task',
-            icon: '💻',
+            icon: <Terminal size={16} color="var(--accent-primary)" />,
             action: () => onSelectTab(t.id),
           })),
         ...(projects || [])
@@ -78,7 +79,7 @@ const QuickSwitcher: React.FC<QuickSwitcherProps> = ({
             name: p.name,
             type: 'project' as const,
             sub: p.path,
-            icon: '📂',
+            icon: <Folder size={16} color="var(--accent-primary)" />,
             action: () => onSelectProject(p.path),
           })),
       ].filter((item) => fuzzyMatch(item.name, searchText));

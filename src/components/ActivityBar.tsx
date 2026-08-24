@@ -1,4 +1,5 @@
 import React from 'react';
+import { Folder, GitBranch, Network, Settings } from 'lucide-react';
 
 export type SidebarView = 'explorer' | 'git' | 'ports';
 
@@ -17,10 +18,10 @@ const ActivityBar: React.FC<ActivityBarProps> = ({
   onToggleSidebar,
   onOpenSettings,
 }) => {
-  const items: { id: SidebarView; icon: string; label: string }[] = [
-    { id: 'explorer', icon: '📁', label: 'Explorer' },
-    { id: 'git', icon: '🌿', label: 'Source Control' },
-    { id: 'ports', icon: '🔌', label: 'Active Ports' },
+  const items: { id: SidebarView; icon: React.ReactNode; label: string }[] = [
+    { id: 'explorer', icon: <Folder size={20} />, label: 'Explorer' },
+    { id: 'git', icon: <GitBranch size={20} />, label: 'Source Control' },
+    { id: 'ports', icon: <Network size={20} />, label: 'Active Ports' },
   ];
 
   return (
@@ -50,7 +51,7 @@ const ActivityBar: React.FC<ActivityBarProps> = ({
           onClick={onOpenSettings}
           title="Settings (Open Full Settings)"
         >
-          <span className="activity-icon">⚙️</span>
+          <span className="activity-icon"><Settings size={20} /></span>
         </div>
       </div>
     </div>

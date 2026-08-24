@@ -191,6 +191,16 @@ select,
   pointer-events: auto !important;
 }
 
+[draggable='true'] {
+  -webkit-user-drag: element !important;
+  user-select: none !important;
+  cursor: grab;
+}
+
+[draggable='true']:active {
+  cursor: grabbing;
+}
+
 /* Layout Classes */
 .app-container {
   display: flex;
@@ -304,31 +314,35 @@ select,
 }
 
 .project-item {
-  padding: 6px 15px;
+  padding: 8px 14px;
+  margin: 2px 6px;
+  border-radius: 6px;
   cursor: pointer;
   color: var(--fg-primary);
   display: flex;
   align-items: center;
-  transition:
-    background-color 0.1s ease,
-    color 0.1s ease;
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   font-size: 13px;
+  border: 1px solid transparent;
 }
 
 .project-item:hover {
   background-color: var(--bg-hover);
   color: var(--fg-active);
+  border-color: var(--border-subtle);
 }
 
 /* Active State for Tasks */
 .project-item.active-task {
-  background-color: var(--bg-activity); /* Slightly lighter background */
+  background-color: var(--bg-tab-inactive);
   color: var(--fg-active);
   border-left: 3px solid var(--accent-primary);
-  padding-left: 12px; /* Adjust for border */
+  border-color: var(--border-color);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  font-weight: 500;
 }
 
 /* Alert State for Tasks */
@@ -431,6 +445,8 @@ select,
   overflow: hidden;
   height: 100%;
   width: 100%;
+  padding: 8px 20px 12px 12px; /* Clean 20px right gap inset */
+  box-sizing: border-box;
 }
 
 .terminal-search-bar {
@@ -515,14 +531,16 @@ select,
 
 /* Status Bar */
 .status-bar {
-  height: 22px;
-  background-color: var(--accent-primary);
-  color: #ffffff;
+  height: 24px;
+  background-color: var(--bg-sidebar);
+  border-top: 1px solid var(--border-color);
+  color: var(--fg-secondary);
   display: flex;
   align-items: center;
   font-size: 11px;
   user-select: none;
   width: 100%;
+  padding: 0 4px;
 }
 
 .status-item {
@@ -531,36 +549,50 @@ select,
   align-items: center;
   height: 100%;
   cursor: pointer;
+  transition: background-color 0.15s, color 0.15s;
 }
 
 .status-item:hover {
-  background-color: rgba(255, 255, 255, 0.2);
+  background-color: var(--bg-hover);
+  color: var(--fg-active);
 }
 
 /* Sidebar Search */
 .sidebar-search-container {
-  padding: 8px 15px;
-  margin-bottom: 5px;
+  padding: 10px 12px;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background-color: var(--bg-sidebar);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .sidebar-search-input {
   width: 100%;
-  background-color: #3c3c3c;
-  border: 1px solid transparent;
-  color: #cccccc;
-  padding: 4px 6px;
+  background-color: var(--bg-root);
+  border: 1px solid var(--border-color);
+  color: var(--fg-active);
+  padding: 6px 10px;
   font-size: 12px;
-  border-radius: 2px;
+  border-radius: 6px;
   outline: none;
   box-sizing: border-box;
+  font-family: var(--font-family-ui);
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
 
 .sidebar-search-input:focus {
   border-color: var(--accent-primary);
+  box-shadow: 0 0 0 2px var(--accent-glow);
 }
 
 .sidebar-search-input::placeholder {
-  color: #858585;
+  color: var(--fg-secondary);
+  opacity: 0.7;
 }
 
 .git-badge {
@@ -954,15 +986,35 @@ select,
   opacity: 1;
 }
 
-/* Terminal Highlighting */
+/* Terminal Highlighting & Viewport Bounds */
 .terminal-wrapper {
   width: 100%;
   height: 100%;
-  border: 1px solid transparent;
+  border: 1px solid var(--border-subtle);
+  border-right: 2px solid var(--border-color);
   transition: border-color 0.2s;
   box-sizing: border-box;
   overflow: hidden;
   background-color: var(--bg-root);
+  padding: 8px 12px;
+  border-radius: 6px;
+  position: relative;
+}
+
+.terminal-wrapper .xterm {
+  height: 100% !important;
+  width: 100% !important;
+  padding: 0 !important;
+}
+
+.terminal-wrapper .xterm-screen {
+  width: 100% !important;
+}
+
+.terminal-wrapper .xterm-viewport {
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  background-color: transparent !important;
 }
 
 .terminal-wrapper:focus-within {
@@ -971,6 +1023,18 @@ select,
 
 .terminal-wrapper.active:focus-within {
   border-color: var(--accent-primary);
+}
+
+/* Admin / Elevated Terminal Session Styling */
+.terminal-wrapper.admin-session {
+  background-color: #160b0d !important; /* Tinted deep crimson */
+  border-color: rgba(239, 68, 68, 0.3) !important;
+}
+
+/* YOLO Mode Active Terminal Hazard Frame */
+.terminal-wrapper.yolo-active {
+  border: 1px solid #f59e0b !important;
+  box-shadow: 0 0 12px rgba(245, 158, 11, 0.35), inset 0 0 8px rgba(245, 158, 11, 0.15) !important;
 }
 
 /* Welcome Dashboard Styles */

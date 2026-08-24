@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { Terminal } from 'lucide-react';
+import { Terminal, Sparkles, Minus, Square, Copy, X } from 'lucide-react';
 
 interface TitleBarProps {
   onOpenAiAssistant?: () => void;
@@ -73,7 +73,7 @@ const TitleBar: React.FC<TitleBarProps> = ({ onOpenAiAssistant }) => {
             onClick={onOpenAiAssistant}
             title="Open AI Command Generator"
             style={{
-              background: 'rgba(0, 122, 204, 0.15)',
+              background: 'rgba(59, 130, 246, 0.15)',
               border: '1px solid var(--accent-primary)',
               color: 'var(--accent-primary)',
               padding: '2px 8px',
@@ -84,9 +84,10 @@ const TitleBar: React.FC<TitleBarProps> = ({ onOpenAiAssistant }) => {
               alignItems: 'center',
               gap: '4px',
               fontWeight: 500,
+              transition: 'all 0.15s ease',
             }}
           >
-            ✨ AI Assistant
+            <Sparkles size={12} /> AI Assistant
           </button>
         )}
       </div>
@@ -95,6 +96,7 @@ const TitleBar: React.FC<TitleBarProps> = ({ onOpenAiAssistant }) => {
       <div style={{ display: 'flex', height: '100%' }}>
         <button
           onClick={handleMinimize}
+          title="Minimize"
           style={{
             width: '46px',
             height: '100%',
@@ -105,16 +107,16 @@ const TitleBar: React.FC<TitleBarProps> = ({ onOpenAiAssistant }) => {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: '14px',
             transition: 'background 0.2s',
           }}
-          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)')}
+          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--bg-hover)')}
           onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
         >
-          ─
+          <Minus size={14} />
         </button>
         <button
           onClick={handleMaximize}
+          title={isMaximized ? "Restore Down" : "Maximize"}
           style={{
             width: '46px',
             height: '100%',
@@ -125,16 +127,16 @@ const TitleBar: React.FC<TitleBarProps> = ({ onOpenAiAssistant }) => {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: '12px',
             transition: 'background 0.2s',
           }}
-          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)')}
+          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--bg-hover)')}
           onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
         >
-          {isMaximized ? '❐' : '☐'}
+          {isMaximized ? <Copy size={12} /> : <Square size={12} />}
         </button>
         <button
           onClick={handleClose}
+          title="Close"
           style={{
             width: '46px',
             height: '100%',
@@ -145,7 +147,6 @@ const TitleBar: React.FC<TitleBarProps> = ({ onOpenAiAssistant }) => {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: '16px',
             transition: 'background 0.2s, color 0.2s',
           }}
           onMouseEnter={(e) => {
@@ -157,7 +158,7 @@ const TitleBar: React.FC<TitleBarProps> = ({ onOpenAiAssistant }) => {
             e.currentTarget.style.color = 'var(--fg-secondary)';
           }}
         >
-          ×
+          <X size={14} />
         </button>
       </div>
     </div>

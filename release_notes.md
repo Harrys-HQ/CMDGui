@@ -1,3 +1,15 @@
+## 🚀 Release: CmdGUI v2.2.2
+
+### ✨ Single-Source Navigation & Safety Visual Cues
+- **🎨 Glassmorphic Single-Source Navigation:** Primary task switching consolidated into top horizontal tabs with `(+)` quick tab creation button and clean drag-and-drop session reordering.
+- **🛡️ Admin & YOLO Mode Safety Cues:** Tinted crimson background canvas (`#160b0d`) for elevated Admin sessions and glowing amber hazard borders (`#f59e0b`) + `⚡ YOLO ACTIVE` badges for auto-approving sessions.
+- **🛑 Destructive Command Guardrails:** YOLO auto-approval automatically intercepts dangerous CLI patterns (`rm -rf`, `drop database`, `format`, `sudo rm`, `prod`) to prevent accidental automated deletion.
+- **📊 Dynamic Action Metrics Status Bar:** Replaced static labels with real-time RAM footprint metrics (`⚡ RAM: ~140MB`), active task badges, and single-click update alerts.
+- **🔍 Sticky Quick-Filter Sidebar:** Top-anchored sticky filter search bar filtering project folders and command snippets in real time as you type.
+- **📄 Portable Configuration File (`cmdgui.json`):** Export and import settings, keymaps, and workspace setups for backup across machines.
+
+---
+
 ## 🚀 Release: CmdGUI v2.2.1
 
 ### ✨ Interactive Task Management & Confirmation Features

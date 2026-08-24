@@ -35,6 +35,8 @@ interface SettingsModalProps {
   onResetKeybindings?: () => void;
   showTopTabBar?: boolean;
   onShowTopTabBarChange?: (show: boolean) => void;
+  isYoloModeEnabled?: boolean;
+  onYoloModeChange?: (enabled: boolean) => void;
 }
 
 const ACTION_LABELS: Record<KeybindingAction, string> = {
@@ -140,6 +142,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   onResetKeybindings,
   showTopTabBar = true,
   onShowTopTabBarChange,
+  isYoloModeEnabled = false,
+  onYoloModeChange,
 }) => {
   const [activeTab, setActiveTab] = useState<
     'general' | 'keybindings' | 'workspaces' | 'about' | 'project' | 'appearance' | 'cli' | 'history'
@@ -325,6 +329,43 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                         position: 'absolute',
                         top: '3px',
                         left: showTopTabBar ? '25px' : '3px',
+                        transition: 'left 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                        boxShadow: '0 1px 3px rgba(0,0,0,0.4)',
+                      }}
+                    />
+                  </button>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '15px', padding: '10px 0', borderTop: '1px solid var(--border-color)' }}>
+                  <div>
+                    <div style={{ fontWeight: '500', color: '#e5e5e5', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      ⚡ YOLO Mode (Auto-Approve Confirmations)
+                    </div>
+                    <div style={{ fontSize: '12px', color: '#888', marginTop: '4px' }}>Automatically auto-accept confirmation prompts ([y/N], proceed?, password prompts) in running terminal sessions.</div>
+                  </div>
+                  <button
+                    onClick={() => onYoloModeChange && onYoloModeChange(!isYoloModeEnabled)}
+                    style={{
+                      width: '46px',
+                      height: '24px',
+                      borderRadius: '12px',
+                      background: isYoloModeEnabled ? 'linear-gradient(135deg, #eab308, #ca8a04)' : '#444',
+                      border: 'none',
+                      position: 'relative',
+                      cursor: 'pointer',
+                      transition: 'background 0.2s ease',
+                      padding: 0,
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: '18px',
+                        height: '18px',
+                        borderRadius: '50%',
+                        background: '#fff',
+                        position: 'absolute',
+                        top: '3px',
+                        left: isYoloModeEnabled ? '25px' : '3px',
                         transition: 'left 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
                         boxShadow: '0 1px 3px rgba(0,0,0,0.4)',
                       }}
@@ -949,7 +990,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                         style={{
                           width: 'auto',
                           padding: '10px 20px',
-                          backgroundColor: '#007acc',
+                          backgroundColor: 'var(--accent-primary)',
                           color: 'white',
                           border: 'none',
                           borderRadius: '4px',
@@ -957,10 +998,82 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                         }}
                         onClick={handleCheckUpdate}
                       >
-                        Try Again
+                        Retry Check
                       </button>
                     </div>
                   )}
+                </div>
+
+                <div style={{ marginTop: '25px', paddingTop: '20px', borderTop: '1px solid var(--border-color)' }}>
+                  <h3 style={{ margin: '0 0 10px 0', fontSize: '14px', color: 'var(--fg-active)' }}>
+                    📄 Portable Configuration File (`cmdgui.json`)
+                  </h3>
+                  <p style={{ fontSize: '12px', color: 'var(--fg-secondary)', marginBottom: '14px' }}>
+                    Export your theme settings, shortcuts, and workspace layout configuration for backup or porting across machines.
+                  </p>
+                  <div style={{ display: 'flex', gap: '10px' }}>
+                    <button
+                      className="welcome-btn"
+                      style={{ padding: '8px 14px', fontSize: '12px' }}
+                      onClick={() => {
+                        const config = {
+                          version: appVersion,
+                          terminalTheme,
+                          uiTheme,
+                          terminalFontSize,
+                          terminalScrollback,
+                          isQuakeModeEnabled,
+                          isStayAwakeEnabled,
+                          isYoloModeEnabled,
+                          isGPUAccelerationEnabled,
+                          defaultShell,
+                          showTopTabBar,
+                          customTheme,
+                          keymap,
+                        };
+                        const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = 'cmdgui.json';
+                        a.click();
+                        URL.revokeObjectURL(url);
+                      }}
+                    >
+                      Export Portable Config (`cmdgui.json`)
+                    </button>
+                    <label
+                      className="welcome-btn"
+                      style={{ padding: '8px 14px', fontSize: '12px', cursor: 'pointer' }}
+                    >
+                      Import Config
+                      <input
+                        type="file"
+                        accept=".json"
+                        style={{ display: 'none' }}
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            const reader = new FileReader();
+                            reader.onload = (evt) => {
+                              try {
+                                const parsed = JSON.parse(evt.target?.result as string);
+                                if (parsed.terminalTheme) onThemeChange(parsed.terminalTheme);
+                                if (parsed.uiTheme && onUiThemeChange) onUiThemeChange(parsed.uiTheme);
+                                if (parsed.terminalFontSize) onFontSizeChange(parsed.terminalFontSize);
+                                if (parsed.terminalScrollback && onScrollbackChange) onScrollbackChange(parsed.terminalScrollback);
+                                if (parsed.customTheme && onCustomThemeChange) onCustomThemeChange(parsed.customTheme);
+                                alert('Configuration imported successfully!');
+                              } catch (err) {
+                                alert('Failed to parse config file.');
+                              }
+                            };
+                            reader.readAsText(file);
+                          }
+                        }}
+                      />
+                    </label>
+                  </div>
                 </div>
               </section>
             </>

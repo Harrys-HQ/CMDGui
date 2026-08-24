@@ -64,9 +64,16 @@ pub fn run() {
       app.handle().plugin(tauri_plugin_single_instance::init(|app_handle, argv, cwd| {
         let _ = app_handle.emit("single-instance", (argv, cwd));
         if let Some(window) = app_handle.get_webview_window("main") {
+          let _ = window.unminimize();
+          let _ = window.show();
           let _ = window.set_focus();
         }
       }))?;
+      if let Some(window) = app.get_webview_window("main") {
+        let _ = window.unminimize();
+        let _ = window.show();
+        let _ = window.set_focus();
+      }
       #[cfg(desktop)]
       app.handle().plugin(tauri_plugin_updater::Builder::new().build())?;
       #[cfg(desktop)]

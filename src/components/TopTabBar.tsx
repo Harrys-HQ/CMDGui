@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Tab } from '../types';
+import { Terminal, AlertCircle, HelpCircle, X, Edit3, Copy, Trash2, Plus } from 'lucide-react';
 
 interface TopTabBarProps {
   tabs: Tab[];
@@ -10,6 +11,7 @@ interface TopTabBarProps {
   onReorderTabs: (startIndex: number, endIndex: number) => void;
   onDuplicateTab?: (id: string) => void;
   onCloseOthers?: (id: string) => void;
+  onAddTab?: () => void;
 }
 
 const TopTabBar: React.FC<TopTabBarProps> = ({
@@ -21,6 +23,7 @@ const TopTabBar: React.FC<TopTabBarProps> = ({
   onReorderTabs,
   onDuplicateTab,
   onCloseOthers,
+  onAddTab,
 }) => {
   const [draggedIdx, setDraggedIdx] = useState<number | null>(null);
   const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
@@ -33,20 +36,30 @@ const TopTabBar: React.FC<TopTabBarProps> = ({
     setMenuPos({ x: e.clientX, y: e.clientY });
   };
 
-  const handleDragStart = (idx: number) => {
+  const handleDragStart = (e: React.DragEvent, tabId: string) => {
+    e.dataTransfer.setData('text/plain', tabId);
+    e.dataTransfer.effectAllowed = 'move';
+    const idx = tabs.findIndex((t) => t.id === tabId);
     setDraggedIdx(idx);
   };
 
   const handleDragOver = (e: React.DragEvent, idx: number) => {
     e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
     if (draggedIdx !== null && draggedIdx !== idx) {
       setDragOverIdx(idx);
     }
   };
 
-  const handleDrop = (idx: number) => {
-    if (draggedIdx !== null && draggedIdx !== idx) {
-      onReorderTabs(draggedIdx, idx);
+  const handleDrop = (e: React.DragEvent, dropIdx: number) => {
+    e.preventDefault();
+    const sourceTabId = e.dataTransfer.getData('text/plain');
+    let startIdx = draggedIdx;
+    if (startIdx === null && sourceTabId) {
+      startIdx = tabs.findIndex((t) => t.id === sourceTabId);
+    }
+    if (startIdx !== null && startIdx !== -1 && startIdx !== dropIdx) {
+      onReorderTabs(startIdx, dropIdx);
     }
     setDraggedIdx(null);
     setDragOverIdx(null);
@@ -58,9 +71,9 @@ const TopTabBar: React.FC<TopTabBarProps> = ({
         <div
           key={tab.id}
           draggable
-          onDragStart={() => handleDragStart(idx)}
+          onDragStart={(e) => handleDragStart(e, tab.id)}
           onDragOver={(e) => handleDragOver(e, idx)}
-          onDrop={() => handleDrop(idx)}
+          onDrop={(e) => handleDrop(e, idx)}
           onDragEnd={() => {
             setDraggedIdx(null);
             setDragOverIdx(null);
@@ -77,16 +90,40 @@ const TopTabBar: React.FC<TopTabBarProps> = ({
         >
           {tab.id === activeTabId && <div className="active-tab-indicator" />}
           <span className="tab-icon">
-            {tab.hasAlert ? '🔴' : tab.hasConfirmation ? '🟡' : '💻'}
+            {tab.hasAlert ? (
+              <AlertCircle size={14} color="#f14c4c" />
+            ) : tab.hasConfirmation ? (
+              <HelpCircle size={14} color="#cca700" />
+            ) : (
+              <Terminal size={14} />
+            )}
           </span>
           <span className="tab-title">{tab.title}</span>
           {tab.hasAlert && <span className="tab-status-dot alert" title="Activity alert" />}
           {tab.hasConfirmation && <span className="tab-status-dot confirmation" title="Requires input" />}
           <div className="tab-close" onClick={(e) => onCloseTab(tab.id, e)}>
-            ×
+            <X size={12} />
           </div>
         </div>
       ))}
+
+      {onAddTab && (
+        <div
+          onClick={onAddTab}
+          className="top-tab"
+          title="New Terminal Tab (Ctrl+T)"
+          style={{
+            width: '28px',
+            minWidth: '28px',
+            padding: 0,
+            justifyContent: 'center',
+            cursor: 'pointer',
+            opacity: 0.7,
+          }}
+        >
+          <Plus size={14} />
+        </div>
+      )}
 
       {contextMenuTabId && (
         <div
@@ -105,48 +142,48 @@ const TopTabBar: React.FC<TopTabBarProps> = ({
         >
           <div
             className="project-item"
-            style={{ fontSize: '12px', padding: '6px 14px' }}
+            style={{ fontSize: '12px', padding: '6px 14px', gap: '8px', display: 'flex', alignItems: 'center' }}
             onClick={() => {
               const target = tabs.find((t) => t.id === contextMenuTabId);
               if (target) onRenameTab(target.id, target.title);
               setContextMenuTabId(null);
             }}
           >
-            ✏️ Rename Tab
+            <Edit3 size={14} /> Rename Tab
           </div>
           {onDuplicateTab && (
             <div
               className="project-item"
-              style={{ fontSize: '12px', padding: '6px 14px' }}
+              style={{ fontSize: '12px', padding: '6px 14px', gap: '8px', display: 'flex', alignItems: 'center' }}
               onClick={() => {
                 onDuplicateTab(contextMenuTabId);
                 setContextMenuTabId(null);
               }}
             >
-              📑 Duplicate Session
+              <Copy size={14} /> Duplicate Session
             </div>
           )}
           {onCloseOthers && tabs.length > 1 && (
             <div
               className="project-item"
-              style={{ fontSize: '12px', padding: '6px 14px' }}
+              style={{ fontSize: '12px', padding: '6px 14px', gap: '8px', display: 'flex', alignItems: 'center' }}
               onClick={() => {
                 onCloseOthers(contextMenuTabId);
                 setContextMenuTabId(null);
               }}
             >
-              ❌ Close Other Tabs
+              <X size={14} /> Close Other Tabs
             </div>
           )}
           <div
             className="project-item"
-            style={{ fontSize: '12px', padding: '6px 14px', color: '#f14c4c' }}
+            style={{ fontSize: '12px', padding: '6px 14px', gap: '8px', display: 'flex', alignItems: 'center', color: '#f14c4c' }}
             onClick={(e) => {
               onCloseTab(contextMenuTabId, e as any);
               setContextMenuTabId(null);
             }}
           >
-            🗑️ Close Tab
+            <Trash2 size={14} /> Close Tab
           </div>
         </div>
       )}

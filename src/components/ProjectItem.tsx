@@ -10,6 +10,8 @@ interface ProjectItemProps {
   onToggleExplorer?: () => void;
   isExplorerOpen?: boolean;
   onContextMenu: (e: React.MouseEvent) => void;
+  onMoveUp?: (e: React.MouseEvent) => void;
+  onMoveDown?: (e: React.MouseEvent) => void;
   onDragStart: () => void;
   onDragEnd: () => void;
 }
@@ -176,6 +178,8 @@ const ProjectItem: React.FC<ProjectItemProps> = React.memo(
     onToggleExplorer,
     isExplorerOpen,
     onContextMenu,
+    onMoveUp,
+    onMoveDown,
     onDragStart,
     onDragEnd,
   }) => {
@@ -201,7 +205,11 @@ const ProjectItem: React.FC<ProjectItemProps> = React.memo(
         onClick={onSelect}
         onContextMenu={onContextMenu}
         draggable
-        onDragStart={onDragStart}
+        onDragStart={(e) => {
+          e.dataTransfer.setData('text/plain', project.path);
+          e.dataTransfer.effectAllowed = 'move';
+          onDragStart();
+        }}
         onDragEnd={onDragEnd}
         className="project-item"
         title={project.path}
@@ -234,13 +242,39 @@ const ProjectItem: React.FC<ProjectItemProps> = React.memo(
             )}
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            {onMoveUp && (
+              <span
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onMoveUp(e);
+                }}
+                className="task-close-btn"
+                title="Move Up"
+                style={{ fontSize: '11px', opacity: 0.7 }}
+              >
+                ▲
+              </span>
+            )}
+            {onMoveDown && (
+              <span
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onMoveDown(e);
+                }}
+                className="task-close-btn"
+                title="Move Down"
+                style={{ fontSize: '11px', opacity: 0.7 }}
+              >
+                ▼
+              </span>
+            )}
             <span
               onClick={handleToggleExplorer}
               title="Toggle File Explorer"
               style={{
                 fontSize: '12px',
-                marginRight: '8px',
+                marginRight: '4px',
                 cursor: 'pointer',
                 opacity: isExplorerOpen ? 1 : 0.5,
               }}

@@ -16,6 +16,7 @@ interface TerminalProps {
   shell?: string;
   initialCommand?: string;
   envVars?: Record<string, string>;
+  isAdmin?: boolean;
   isActive: boolean;
   theme?: string;
   customTheme?: TerminalTheme;
@@ -32,6 +33,7 @@ interface TerminalProps {
   showPaneControls?: boolean;
   keymap: Keymap;
   isGPUAccelerationEnabled?: boolean;
+  isYoloModeEnabled?: boolean;
 }
 
 const getTheme = (name: string = 'vscode', custom?: TerminalTheme) => {
@@ -76,6 +78,7 @@ const Terminal: React.FC<TerminalProps> = ({
   shell,
   initialCommand,
   envVars,
+  isAdmin = false,
   isActive,
   theme,
   customTheme,
@@ -92,6 +95,7 @@ const Terminal: React.FC<TerminalProps> = ({
   showPaneControls,
   keymap,
   isGPUAccelerationEnabled = true,
+  isYoloModeEnabled = false,
 }) => {
   const terminalRef = useRef<HTMLDivElement>(null);
   const xtermRef = useRef<Xterm | null>(null);
@@ -113,6 +117,11 @@ const Terminal: React.FC<TerminalProps> = ({
   const onClearRef = useRef(onClear);
   const isActiveRef = useRef(isActive);
   const activeCwdRef = useRef(cwd || '');
+  const isYoloModeRef = useRef(isYoloModeEnabled);
+
+  useEffect(() => {
+    isYoloModeRef.current = isYoloModeEnabled;
+  }, [isYoloModeEnabled]);
 
   useEffect(() => {
     activeCwdRef.current = cwd || '';
@@ -704,12 +713,35 @@ const Terminal: React.FC<TerminalProps> = ({
           }
           isDirtyRef.current = true;
         }
+
+        const lower = data.toLowerCase();
+        const confirmationPatterns = ['[y/n]', 'proceed?', 'confirm?', 'are you sure', 'continue?'];
+        const destructivePatterns = ['drop database', 'rm -rf', 'format', 'prod', 'production', 'delete all', 'truncate', 'sudo rm'];
+        
+        const isConfirmationPrompt = confirmationPatterns.some((p) => lower.includes(p));
+        const isDestructiveCommand = destructivePatterns.some((p) => lower.includes(p));
+
+        if (isConfirmationPrompt && isYoloModeRef.current && pidRef.current !== null) {
+          if (isDestructiveCommand) {
+            console.warn('[YOLO Guardrail] Automated approval blocked due to destructive command pattern match.');
+            if (onNotificationRef.current) {
+              onNotificationRef.current('confirmation');
+            }
+          } else {
+            // Auto-respond with 'y\n' safely
+            setTimeout(() => {
+              if (pidRef.current !== null) {
+                window.electron.writeTerminal(pidRef.current, 'y\n');
+              }
+            }, 100);
+          }
+        }
+
         if (!isActiveRef.current && onNotificationRef.current) {
-          const lower = data.toLowerCase();
-          const patterns = ['password', 'sudo', 'confirm', 'error:', 'failed', 'exception'];
+          const patterns = ['password', 'sudo', 'confirm', 'error:', 'failed', 'exception', '[y/n]'];
           const match = patterns.find((p) => lower.includes(p));
           if (match) {
-            if (['password', 'sudo', 'confirm'].includes(match))
+            if (['password', 'sudo', 'confirm', '[y/n]'].includes(match))
               onNotificationRef.current('confirmation');
             else onNotificationRef.current('alert');
           }
@@ -932,7 +964,7 @@ const Terminal: React.FC<TerminalProps> = ({
 
   return (
     <div
-      className={`terminal-wrapper ${isActive ? 'active' : ''}`}
+      className={`terminal-wrapper ${isActive ? 'active' : ''} ${isAdmin ? 'admin-session' : ''} ${isYoloModeEnabled ? 'yolo-active' : ''}`}
       style={{ width: '100%', height: '100%', position: 'relative' }}
       onContextMenu={handleContextMenu}
       onClick={() => {
@@ -941,60 +973,112 @@ const Terminal: React.FC<TerminalProps> = ({
         }
       }}
     >
-      {showPaneControls && (
-        <div
-          className="pane-controls"
-          style={{
-            position: 'absolute',
-            top: '5px',
-            right: '10px',
-            zIndex: 100,
-            display: 'flex',
-            gap: '4px',
-            opacity: 0.3,
-          }}
-        >
-          <button
-            onClick={onSplitHorizontal}
+      <div
+        style={{
+          position: 'absolute',
+          top: '6px',
+          right: '8px',
+          zIndex: 100,
+          display: 'flex',
+          alignItems: 'center',
+          gap: '6px',
+        }}
+      >
+        {isAdmin && (
+          <span
             style={{
-              background: '#333',
-              color: '#ccc',
-              border: '1px solid #444',
-              cursor: 'pointer',
-              padding: '2px 6px',
               fontSize: '10px',
+              fontWeight: 700,
+              backgroundColor: 'rgba(239, 68, 68, 0.25)',
+              color: '#f87171',
+              padding: '2px 6px',
+              borderRadius: '4px',
+              border: '1px solid rgba(239, 68, 68, 0.4)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              pointerEvents: 'none',
             }}
           >
-            ━
-          </button>
-          <button
-            onClick={onSplitVertical}
+            🛡️ ELEVATED
+          </span>
+        )}
+        {isYoloModeEnabled && (
+          <span
             style={{
-              background: '#333',
-              color: '#ccc',
-              border: '1px solid #444',
-              cursor: 'pointer',
-              padding: '2px 6px',
               fontSize: '10px',
+              fontWeight: 700,
+              backgroundColor: 'rgba(245, 158, 11, 0.25)',
+              color: '#fbbf24',
+              padding: '2px 6px',
+              borderRadius: '4px',
+              border: '1px solid rgba(245, 158, 11, 0.4)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              pointerEvents: 'none',
             }}
           >
-            ┃
-          </button>
-          <button
-            onClick={onClosePane}
+            ⚡ YOLO ACTIVE
+          </span>
+        )}
+        {showPaneControls && (
+          <div
+            className="pane-controls"
             style={{
-              background: '#333',
-              color: '#ccc',
-              border: '1px solid #444',
-              cursor: 'pointer',
-              padding: '2px 6px',
-              fontSize: '10px',
+              display: 'flex',
+              gap: '4px',
+              opacity: 0.7,
             }}
           >
-            ×
-          </button>
-        </div>
-      )}
+            <button
+              onClick={onSplitHorizontal}
+              title="Split Horizontal"
+              style={{
+                background: '#222',
+                color: '#ccc',
+                border: '1px solid #444',
+                cursor: 'pointer',
+                padding: '2px 6px',
+                fontSize: '10px',
+                borderRadius: '3px',
+              }}
+            >
+              ━
+            </button>
+            <button
+              onClick={onSplitVertical}
+              title="Split Vertical"
+              style={{
+                background: '#222',
+                color: '#ccc',
+                border: '1px solid #444',
+                cursor: 'pointer',
+                padding: '2px 6px',
+                fontSize: '10px',
+                borderRadius: '3px',
+              }}
+            >
+              ┃
+            </button>
+            <button
+              onClick={onClosePane}
+              title="Close Pane"
+              style={{
+                background: '#222',
+                color: '#ccc',
+                border: '1px solid #444',
+                cursor: 'pointer',
+                padding: '2px 6px',
+                fontSize: '10px',
+                borderRadius: '3px',
+              }}
+            >
+              ×
+            </button>
+          </div>
+        )}
+      </div>
       {isSearchOpen && (
         <div className="terminal-search-bar" onClick={(e) => e.stopPropagation()}>
           <input
