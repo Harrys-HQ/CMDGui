@@ -1015,7 +1015,6 @@ select,
   overflow-y: auto !important;
   overflow-x: hidden !important;
   background-color: transparent !important;
-  padding-bottom: 8px !important;
 }
 
 .terminal-wrapper:focus-within {
