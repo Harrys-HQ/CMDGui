@@ -1,0 +1,11 @@
+{
+  "version": "2.2.2",
+  "notes": "CmdGUI v2.2.2: Single-Source Navigation, Admin & YOLO Visual Safety Cues, Dynamic Status Bar, Portable Config",
+  "pub_date": "2026-08-24T17:52:00.000Z",
+  "platforms": {
+    "windows-x86_64": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRTFBBRTlkRm42aWVHSTV0czBXQWE4M0lwSTBOYVNBNDJ5VVpLNnVOZ1dOSHFUcklPYkIrNTBGUXJGRzk0RDN5c0Fza3lLc0x0MGtBT0xyQXM0RXVlNFZNQkxOT0NBdVFjPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg3NTY0OTQ0CWZpbGU6Q21kR1VJXzIuMi4yX3g2NC1zZXR1cC5leGUKek9KdFV1MVBMYU9TbkRwWVpWTzlzeWVPWjVxNEg5VkgyaU9GdWxBN0Q5QVAyVU1TUVJjQWltWm1jNllYd3lmMDlHdzFxb1NNTndIVW05OUZHN2R4Qmc9PQo=",
+      "url": "https://github.com/Harrys-HQ/CMDGui/releases/download/v2.2.2/CmdGUI_2.2.2_x64-setup.exe"
+    }
+  }
+}
