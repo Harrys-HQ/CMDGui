@@ -185,7 +185,7 @@ const Terminal: React.FC<TerminalProps> = ({
   };
 
   const fitTerminal = () => {
-    if (!xtermRef.current || !fitAddonRef.current || !terminalRef.current) return;
+    if (!xtermRef.current || !terminalRef.current) return;
     if (!xtermRef.current.element || !xtermRef.current.textarea) return;
     if (!isActiveRef.current) return;
 
@@ -197,19 +197,40 @@ const Terminal: React.FC<TerminalProps> = ({
     }
 
     fitTimeoutRef.current = setTimeout(() => {
-      if (!xtermRef.current || !fitAddonRef.current || !isActiveRef.current) return;
+      if (!xtermRef.current || !isActiveRef.current) return;
       try {
-        const oldCols = xtermRef.current.cols;
-        const oldRows = xtermRef.current.rows;
+        const core = (xtermRef.current as any)._core;
+        const dims = core?._renderService?.dimensions;
+        
+        let newCols: number | undefined;
+        let newRows: number | undefined;
 
-        fitAddonRef.current.fit();
+        if (dims && dims.css.cell.width > 0 && dims.css.cell.height > 0) {
+          const scrollBarWidth = xtermRef.current.options.scrollback === 0 ? 0 : (core.viewport?.scrollBarWidth || 12);
+          const availableWidth = el.clientWidth - scrollBarWidth;
+          // Subtract a 6px safety offset so the bottom status line and descenders are never clipped
+          const availableHeight = Math.max(0, el.clientHeight - 6);
+          
+          newCols = Math.max(2, Math.floor(availableWidth / dims.css.cell.width));
+          newRows = Math.max(1, Math.floor(availableHeight / dims.css.cell.height));
+        } else if (fitAddonRef.current) {
+          const proposed = fitAddonRef.current.proposeDimensions();
+          if (proposed) {
+            newCols = proposed.cols;
+            newRows = Math.max(1, proposed.rows - 1);
+          }
+        }
 
-        const newCols = xtermRef.current.cols;
-        const newRows = xtermRef.current.rows;
+        if (newCols !== undefined && newRows !== undefined) {
+          const oldCols = xtermRef.current.cols;
+          const oldRows = xtermRef.current.rows;
 
-        // Only IPC if dimensions actually changed
-        if ((oldCols !== newCols || oldRows !== newRows) && pidRef.current !== null) {
-          window.electron.resizeTerminal(pidRef.current, newCols, newRows);
+          if (oldCols !== newCols || oldRows !== newRows) {
+            xtermRef.current.resize(newCols, newRows);
+            if (pidRef.current !== null) {
+              window.electron.resizeTerminal(pidRef.current, newCols, newRows);
+            }
+          }
         }
       } catch (e) {
         console.warn('Terminal fit skipped:', e);
@@ -656,18 +677,31 @@ const Terminal: React.FC<TerminalProps> = ({
 
           if (isUnmounted) return;
 
-        // Try to fit before creating PTY if element is already open
-        if (term.element) {
+        // Try to calculate safe fit dimensions before creating PTY
+        let initCols = term.cols || 80;
+        let initRows = term.rows || 24;
+        if (term.element && terminalRef.current) {
           try {
-            fitAddon.fit();
+            const core = (term as any)._core;
+            const dims = core?._renderService?.dimensions;
+            if (dims && dims.css.cell.width > 0 && dims.css.cell.height > 0) {
+              const scrollBarWidth = term.options.scrollback === 0 ? 0 : (core.viewport?.scrollBarWidth || 12);
+              initCols = Math.max(2, Math.floor((terminalRef.current.clientWidth - scrollBarWidth) / dims.css.cell.width));
+              initRows = Math.max(1, Math.floor(Math.max(0, terminalRef.current.clientHeight - 6) / dims.css.cell.height));
+              term.resize(initCols, initRows);
+            } else {
+              fitAddon.fit();
+              initCols = term.cols;
+              initRows = term.rows;
+            }
           } catch {
             // Ignore
           }
         }
 
         pid = await window.electron.createTerminal({
-          cols: term.cols || 80,
-          rows: term.rows || 24,
+          cols: initCols,
+          rows: initRows,
           cwd,
           shell,
           envVars,
