@@ -1,10 +1,10 @@
 {
   "version": "2.2.3",
-  "notes": "CmdGUI v2.2.3: Comprehensive YOLO Security Blacklist, Inset Viewport & 20px Right Gap Alignment, Unified Pane Header",
-  "pub_date": "2026-08-24T18:02:00.000Z",
+  "notes": "CmdGUI v2.2.3: Rolling Buffer YOLO Mode (Multi-Chunk & CLI Option Prompts), Inset Viewport & 20px Right Gap Alignment, Unconditional Pending Confirmation Notifications",
+  "pub_date": "2026-08-24T20:40:00.000Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRTFBBRTlkRm42aWNzcjFFbWJIM05rbk9EOXZCVmNCME5uY2U3R2lHem5yTTBtOGVoUDh4V0RQRzYrWjFqb2Qxa0FaLzk0TVliOTRSZXNpSUo3Tm9GSHBLcXN0NllJZGdFPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg3NTY1NzMwCWZpbGU6Q21kR1VJXzIuMi4zX3g2NC1zZXR1cC5leGUKK0wyZUd5WGViZ0x6dGRUSStwaFZOWHplcEF4VVFadEhmMnd5ZXVxRlBkblovWlhxc0NjYW9kUk5aSnNPMmxiOEVJa3V3TzlrQkp3cHVqeDZ4S1g4Qmc9PQo=",
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRTFBBRTlkRm42aWVQSE9GYVBNMlZTWmJvRVZjZnIydFduK2MxbjFSYUkzYkdObCtlbkE4TWRLbTkwNENTemNQd0Z4T3RSZFc2SW50aHV4MC9zaGFKWmwwK1pMU2lnbFFNPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg3NTc1MTg1CWZpbGU6Q21kR1VJXzIuMi4zX3g2NC1zZXR1cC5leGUKWVpNVkM1cDByYW45RjJFTmxHRFZmdGZqWHMrOFE0L29ROVhRRzFxQ1R3ak02SzJENkV3djdFMUNUcUJJcHFEN09GK1ZCWUNvVVIwY3VaRGhBMW9JRFE9PQo=",
       "url": "https://github.com/Harrys-HQ/CMDGui/releases/download/v2.2.3/CmdGUI_2.2.3_x64-setup.exe"
     }
   }

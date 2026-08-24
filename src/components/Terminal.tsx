@@ -132,6 +132,8 @@ const Terminal: React.FC<TerminalProps> = ({
   const fitTimeoutRef = useRef<any>(null);
   const isSettingUpRef = useRef(false);
   const writeRafId = useRef<number | null>(null);
+  const lastAutoResponseTimeRef = useRef<number>(0);
+  const lastAutoRespondedPromptRef = useRef<string>('');
   const rendererAddonRef = useRef<any>(null);
 
   const loadHighPerformanceRenderer = useCallback(
@@ -753,30 +755,41 @@ const Terminal: React.FC<TerminalProps> = ({
         const isConfirmationPrompt = confirmationPatterns.some((p) => combinedText.includes(p));
         const isDestructiveCommand = destructivePatterns.some((p) => combinedText.includes(p));
 
-        if (isConfirmationPrompt && isYoloModeRef.current && pidRef.current !== null) {
-          if (isDestructiveCommand) {
-            console.warn('[YOLO Guardrail] Automated approval blocked due to destructive command pattern match.');
-            if (onNotificationRef.current) {
+        const now = Date.now();
+        const matchedPattern = confirmationPatterns.find((p) => combinedText.includes(p)) || '';
+        const isDuplicateTrigger = (now - lastAutoResponseTimeRef.current < 2000) && (lastAutoRespondedPromptRef.current === matchedPattern);
+
+        if (isConfirmationPrompt && onNotificationRef.current) {
+          if (isYoloModeRef.current && pidRef.current !== null && !isDuplicateTrigger) {
+            if (isDestructiveCommand) {
+              console.warn('[YOLO Guardrail] Automated approval blocked due to destructive command pattern match.');
               onNotificationRef.current('confirmation');
+            } else {
+              // Determine response key: Shift+Tab ANSI sequence '\x1b[Z', option '1\n', or 'y\n'
+              const isShiftTabPrompt = combinedText.includes('shift+tab');
+              const isNumberedOption = combinedText.includes('1. yes') || combinedText.includes('1.');
+              const responseKey = isShiftTabPrompt ? '\x1b[Z' : isNumberedOption ? '1\n' : 'y\n';
+              
+              lastAutoResponseTimeRef.current = now;
+              lastAutoRespondedPromptRef.current = matchedPattern;
+
+              setTimeout(() => {
+                if (pidRef.current !== null) {
+                  window.electron.writeTerminal(pidRef.current, responseKey);
+                }
+              }, 150);
             }
-          } else {
-            // Determine response key: Shift+Tab ANSI sequence '\x1b[Z', option '1\n', or 'y\n'
-            const isShiftTabPrompt = combinedText.includes('shift+tab');
-            const isNumberedOption = combinedText.includes('1. yes') || combinedText.includes('1.');
-            const responseKey = isShiftTabPrompt ? '\x1b[Z' : isNumberedOption ? '1\n' : 'y\n';
-            setTimeout(() => {
-              if (pidRef.current !== null) {
-                window.electron.writeTerminal(pidRef.current, responseKey);
-              }
-            }, 150);
+          } else if (!isYoloModeRef.current || isDestructiveCommand) {
+            // Standard confirmation notification when YOLO is disabled or destructive command requires manual review
+            onNotificationRef.current('confirmation');
           }
         }
 
         if (!isActiveRef.current && onNotificationRef.current) {
-          const patterns = ['password', 'sudo', 'confirm', 'error:', 'failed', 'exception', '[y/n]'];
+          const patterns = ['password', 'sudo', 'confirm', 'error:', 'failed', 'exception', '[y/n]', 'proceed?', 'are you sure'];
           const match = patterns.find((p) => combinedText.includes(p));
           if (match) {
-            if (['password', 'sudo', 'confirm', '[y/n]'].includes(match))
+            if (['password', 'sudo', 'confirm', '[y/n]', 'proceed?', 'are you sure'].includes(match))
               onNotificationRef.current('confirmation');
             else onNotificationRef.current('alert');
           }
