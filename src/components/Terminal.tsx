@@ -715,8 +715,29 @@ const Terminal: React.FC<TerminalProps> = ({
         }
 
         const lower = data.toLowerCase();
-        const confirmationPatterns = ['[y/n]', 'proceed?', 'confirm?', 'are you sure', 'continue?'];
-        const destructivePatterns = ['drop database', 'rm -rf', 'format', 'prod', 'production', 'delete all', 'truncate', 'sudo rm'];
+        const confirmationPatterns = [
+          '[y/n]',
+          '(y/n)',
+          'proceed?',
+          'confirm?',
+          'are you sure',
+          'continue?',
+          'do you want to continue',
+          'override?',
+          'overwrite?',
+        ];
+        const destructivePatterns = [
+          // File system & OS destruction
+          'drop database', 'rm -rf', 'format', 'prod', 'production', 'delete all', 'truncate', 'sudo rm', 'del /s', 'rd /s', 'remove-item -recurse', 'force',
+          // Git destructive actions
+          'hard reset', 'reset --hard', 'push --force', 'push -f', 'clean -fd', 'branch -d', 'branch -D',
+          // Package Manager destructive / publish actions
+          'npm publish', 'yarn publish', 'pnpm publish', 'cargo publish', 'pip uninstall', 'npm un', 'yarn remove',
+          // Cloud & Infrastructure
+          'terraform destroy', 'docker system prune', 'docker rm -f', 'docker rmi -f', 'kubectl delete', 'aws s3 rm --recursive',
+          // DB Operations
+          'drop table', 'schema drop', 'migrate:reset', 'db:drop', 'db:reset'
+        ];
         
         const isConfirmationPrompt = confirmationPatterns.some((p) => lower.includes(p));
         const isDestructiveCommand = destructivePatterns.some((p) => lower.includes(p));
