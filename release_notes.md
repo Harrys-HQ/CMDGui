@@ -1,3 +1,12 @@
+## 🚀 Release: CmdGUI v2.2.1
+
+### ✨ Interactive Task Management & Confirmation Features
+- **⚡ YOLO Mode (Auto-Approve Confirmations):** Persistent toggle setting to automatically approve prompts (`[y/N]`, `password:`, `confirm`, `proceed?`) on running terminal commands for frictionless multi-tasking.
+- **🔑 Active Task Pending Confirmation Alerts:** Pulsing yellow badge indicator added on active task tabs and sidebar list whenever a task requires user input or confirmation.
+- **↕️ Drag-and-Drop Task Reordering:** Reorder running tasks seamlessly across the top tab bar and sidebar task list with mouse drag controls.
+
+---
+
 ## 🚀 Release: CmdGUI v2.2.0
 
 ### ✨ UI/UX Master Overhaul
