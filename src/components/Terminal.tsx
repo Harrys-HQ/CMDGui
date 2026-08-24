@@ -714,7 +714,10 @@ const Terminal: React.FC<TerminalProps> = ({
           isDirtyRef.current = true;
         }
 
-        const lower = data.toLowerCase();
+        const recentBuffer = (globalPtyRegistry[paneId]?.dataBuffer || []).slice(-10).join('').toLowerCase();
+        const currentData = data.toLowerCase();
+        const combinedText = recentBuffer + ' ' + currentData;
+
         const confirmationPatterns = [
           '[y/n]',
           '(y/n)',
@@ -725,6 +728,14 @@ const Terminal: React.FC<TerminalProps> = ({
           'do you want to continue',
           'override?',
           'overwrite?',
+          'accept this file edit?',
+          'accept this edit',
+          '1. yes',
+          '1. yes, accept',
+          'shift+tab to auto-approve',
+          'shift+tab to approve',
+          'accept this',
+          'reject this',
         ];
         const destructivePatterns = [
           // File system & OS destruction
@@ -739,8 +750,8 @@ const Terminal: React.FC<TerminalProps> = ({
           'drop table', 'schema drop', 'migrate:reset', 'db:drop', 'db:reset'
         ];
         
-        const isConfirmationPrompt = confirmationPatterns.some((p) => lower.includes(p));
-        const isDestructiveCommand = destructivePatterns.some((p) => lower.includes(p));
+        const isConfirmationPrompt = confirmationPatterns.some((p) => combinedText.includes(p));
+        const isDestructiveCommand = destructivePatterns.some((p) => combinedText.includes(p));
 
         if (isConfirmationPrompt && isYoloModeRef.current && pidRef.current !== null) {
           if (isDestructiveCommand) {
@@ -749,18 +760,21 @@ const Terminal: React.FC<TerminalProps> = ({
               onNotificationRef.current('confirmation');
             }
           } else {
-            // Auto-respond with 'y\n' safely
+            // Determine response key: Shift+Tab ANSI sequence '\x1b[Z', option '1\n', or 'y\n'
+            const isShiftTabPrompt = combinedText.includes('shift+tab');
+            const isNumberedOption = combinedText.includes('1. yes') || combinedText.includes('1.');
+            const responseKey = isShiftTabPrompt ? '\x1b[Z' : isNumberedOption ? '1\n' : 'y\n';
             setTimeout(() => {
               if (pidRef.current !== null) {
-                window.electron.writeTerminal(pidRef.current, 'y\n');
+                window.electron.writeTerminal(pidRef.current, responseKey);
               }
-            }, 100);
+            }, 150);
           }
         }
 
         if (!isActiveRef.current && onNotificationRef.current) {
           const patterns = ['password', 'sudo', 'confirm', 'error:', 'failed', 'exception', '[y/n]'];
-          const match = patterns.find((p) => lower.includes(p));
+          const match = patterns.find((p) => combinedText.includes(p));
           if (match) {
             if (['password', 'sudo', 'confirm', '[y/n]'].includes(match))
               onNotificationRef.current('confirmation');
