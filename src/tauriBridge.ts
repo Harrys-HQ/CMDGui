@@ -310,7 +310,7 @@ export const tauriBridge = {
   },
 
   getVersion: async () => {
-    return '2.2.2';
+    return '2.2.3';
   },
 
   getLaunchArgs: async () => {

@@ -1,3 +1,12 @@
+## 🚀 Release: CmdGUI v2.2.3
+
+### 🛡️ Extended Security Guardrails & Viewport Polish
+- **🛑 Comprehensive YOLO Security Blacklist:** Expanded automated prompt safety engine across file system, Git (`push -f`, `reset --hard`), package managers (`npm publish`, `cargo publish`), Docker/K8s (`docker rm -f`, `kubectl delete`), and DB ORMs (`drop table`, `schema drop`).
+- **📐 Inset Viewport & 20px Right Gap Alignment:** Refined terminal pane spacing to add clean outer margins (`20px`) and rounded card corners (`6px`) around terminal viewports.
+- **Unified Pane Header:** Consolidated status badges (`🛡️ ELEVATED` / `⚡ YOLO ACTIVE`) and split pane controls into a single header flex strip in the top right corner.
+
+---
+
 ## 🚀 Release: CmdGUI v2.2.2
 
 ### ✨ Single-Source Navigation & Safety Visual Cues
