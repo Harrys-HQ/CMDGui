@@ -996,15 +996,15 @@ select,
   box-sizing: border-box;
   overflow: hidden;
   background-color: var(--bg-root);
-  padding: 8px 12px 14px 12px;
+  padding: 6px 10px 10px 10px;
   border-radius: 6px;
   position: relative;
 }
 
 .terminal-wrapper .xterm {
-  height: calc(100% - 6px) !important;
+  height: 100% !important;
   width: 100% !important;
-  padding: 0 0 6px 0 !important;
+  padding: 0 !important;
 }
 
 .terminal-wrapper .xterm-screen {
@@ -1015,6 +1015,7 @@ select,
   overflow-y: auto !important;
   overflow-x: hidden !important;
   background-color: transparent !important;
+  padding-bottom: 8px !important;
 }
 
 .terminal-wrapper:focus-within {

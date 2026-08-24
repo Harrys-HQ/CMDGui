@@ -1,6 +1,6 @@
 {
   "name": "cmd-gui",
-  "version": "2.2.3",
+  "version": "2.2.4",
   "description": "A modern, persistent workspace manager and terminal emulator built with Tauri and React.",
   "scripts": {
     "dev": "tauri dev",

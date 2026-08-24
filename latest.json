@@ -1,11 +1,11 @@
 {
-  "version": "2.2.3",
-  "notes": "CmdGUI v2.2.3: Rolling Buffer YOLO Mode (Multi-Chunk & CLI Option Prompts), Inset Viewport & 20px Right Gap Alignment, Unconditional Pending Confirmation Notifications",
-  "pub_date": "2026-08-24T20:40:00.000Z",
+  "version": "2.2.4",
+  "notes": "CmdGUI v2.2.4: Interactive CLI YOLO Auto-Approval Engine (ANSI Stripping, Multi-Option Selection, Enter Key Dispatch), Viewport Grid Geometry & Status Line Padding Fix",
+  "pub_date": "2026-08-24T20:57:00.000Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRTFBBRTlkRm42aWVQSE9GYVBNMlZTWmJvRVZjZnIydFduK2MxbjFSYUkzYkdObCtlbkE4TWRLbTkwNENTemNQd0Z4T3RSZFc2SW50aHV4MC9zaGFKWmwwK1pMU2lnbFFNPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg3NTc1MTg1CWZpbGU6Q21kR1VJXzIuMi4zX3g2NC1zZXR1cC5leGUKWVpNVkM1cDByYW45RjJFTmxHRFZmdGZqWHMrOFE0L29ROVhRRzFxQ1R3ak02SzJENkV3djdFMUNUcUJJcHFEN09GK1ZCWUNvVVIwY3VaRGhBMW9JRFE9PQo=",
-      "url": "https://github.com/Harrys-HQ/CMDGui/releases/download/v2.2.3/CmdGUI_2.2.3_x64-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRTFBBRTlkRm42aVI5TnBISU1HUXU2VUF6WjFyUVFBV092SHB3Yk94dUtYSFVkaTJybEcvWGh3cFczL2V5T3VpT1cwUllwdTR2RGNrRU8yVUFwT2ZhMWdrU3ltUEZNOVFVPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg3NTc2MjYwCWZpbGU6Q21kR1VJXzIuMi40X3g2NC1zZXR1cC5leGUKTU15aXRHWSs4eTNzZW9hYWZQQnMxTnR0OCtnUW5VdUpqTUFQeUNRN2VZSXFXcDdrSkxJUTFZSEtGNTlFOE5kTjMvRWVOdjlURXJNc2VZcFRVb2dWREE9PQo=",
+      "url": "https://github.com/Harrys-HQ/CMDGui/releases/download/v2.2.4/CmdGUI_2.2.4_x64-setup.exe"
     }
   }
 }

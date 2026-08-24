@@ -1,3 +1,12 @@
+## 🚀 Release: CmdGUI v2.2.4
+
+### ⚡ Interactive CLI YOLO Engine & Viewport Cutoff Fix
+- **✨ Robust ANSI Code Stripper:** Strips terminal styling/cursor escape codes before matching confirmation prompts, ensuring multi-line and colored CLI tools evaluate accurately.
+- **🎯 Full Interactive Multi-Option Menu Auto-Approval:** Automatically confirms interactive CLI permission requests (`Do you want to proceed? > 1. Yes`, `Requesting permission for:...`, `1. Yes, and always allow...`) with instant carriage returns (`\r`), Shift+Tab (`\x1b[Z`), or option keys.
+- **📐 Complete Viewport Visibility:** Fixed terminal container padding and grid sizing calculations, completely eliminating character and status line clipping at the bottom of the viewport.
+
+---
+
 ## 🚀 Release: CmdGUI v2.2.3
 
 ### 🛡️ Extended Security Guardrails & Viewport Polish

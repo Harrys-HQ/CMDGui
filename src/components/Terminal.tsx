@@ -716,9 +716,13 @@ const Terminal: React.FC<TerminalProps> = ({
           isDirtyRef.current = true;
         }
 
-        const recentBuffer = (globalPtyRegistry[paneId]?.dataBuffer || []).slice(-10).join('').toLowerCase();
-        const currentData = data.toLowerCase();
-        const combinedText = recentBuffer + ' ' + currentData;
+        // Clean ANSI escape sequences for robust pattern matching across interactive terminals
+        const stripAnsi = (str: string) =>
+          // eslint-disable-next-line no-control-regex
+          str.replace(/[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g, '');
+
+        const rawRecent = (globalPtyRegistry[paneId]?.dataBuffer || []).slice(-10).join('');
+        const combinedClean = (stripAnsi(rawRecent) + ' ' + stripAnsi(data)).toLowerCase();
 
         const confirmationPatterns = [
           '[y/n]',
@@ -730,9 +734,12 @@ const Terminal: React.FC<TerminalProps> = ({
           'do you want to continue',
           'override?',
           'overwrite?',
-          'accept this file edit?',
+          'requesting permission for',
+          'do you want to proceed',
+          'accept this file edit',
           'accept this edit',
           '1. yes',
+          '> 1. yes',
           '1. yes, accept',
           'shift+tab to auto-approve',
           'shift+tab to approve',
@@ -752,11 +759,11 @@ const Terminal: React.FC<TerminalProps> = ({
           'drop table', 'schema drop', 'migrate:reset', 'db:drop', 'db:reset'
         ];
         
-        const isConfirmationPrompt = confirmationPatterns.some((p) => combinedText.includes(p));
-        const isDestructiveCommand = destructivePatterns.some((p) => combinedText.includes(p));
+        const isConfirmationPrompt = confirmationPatterns.some((p) => combinedClean.includes(p));
+        const isDestructiveCommand = destructivePatterns.some((p) => combinedClean.includes(p));
 
         const now = Date.now();
-        const matchedPattern = confirmationPatterns.find((p) => combinedText.includes(p)) || '';
+        const matchedPattern = confirmationPatterns.find((p) => combinedClean.includes(p)) || '';
         const isDuplicateTrigger = (now - lastAutoResponseTimeRef.current < 2000) && (lastAutoRespondedPromptRef.current === matchedPattern);
 
         if (isConfirmationPrompt && onNotificationRef.current) {
@@ -765,10 +772,21 @@ const Terminal: React.FC<TerminalProps> = ({
               console.warn('[YOLO Guardrail] Automated approval blocked due to destructive command pattern match.');
               onNotificationRef.current('confirmation');
             } else {
-              // Determine response key: Shift+Tab ANSI sequence '\x1b[Z', option '1\n', or 'y\n'
-              const isShiftTabPrompt = combinedText.includes('shift+tab');
-              const isNumberedOption = combinedText.includes('1. yes') || combinedText.includes('1.');
-              const responseKey = isShiftTabPrompt ? '\x1b[Z' : isNumberedOption ? '1\n' : 'y\n';
+              // Determine response key:
+              // 1. Shift+Tab sequence '\x1b[Z' for AI auto-approve prompts
+              // 2. Carriage Return / Enter '\r' for highlighted menu options (e.g. '> 1. Yes', 'Do you want to proceed?')
+              // 3. Option '1\r' or standard 'y\r'
+              const isShiftTabPrompt = combinedClean.includes('shift+tab');
+              const isHighlightedMenu = combinedClean.includes('> 1. yes') || combinedClean.includes('do you want to proceed');
+              const isNumberedOption = combinedClean.includes('1. yes') || combinedClean.includes('1.');
+              
+              const responseKey = isShiftTabPrompt 
+                ? '\x1b[Z' 
+                : isHighlightedMenu 
+                  ? '\r' 
+                  : isNumberedOption 
+                    ? '1\r' 
+                    : 'y\r';
               
               lastAutoResponseTimeRef.current = now;
               lastAutoRespondedPromptRef.current = matchedPattern;
@@ -786,10 +804,10 @@ const Terminal: React.FC<TerminalProps> = ({
         }
 
         if (!isActiveRef.current && onNotificationRef.current) {
-          const patterns = ['password', 'sudo', 'confirm', 'error:', 'failed', 'exception', '[y/n]', 'proceed?', 'are you sure'];
-          const match = patterns.find((p) => combinedText.includes(p));
+          const patterns = ['password', 'sudo', 'confirm', 'error:', 'failed', 'exception', '[y/n]', 'proceed?', 'are you sure', 'requesting permission'];
+          const match = patterns.find((p) => combinedClean.includes(p));
           if (match) {
-            if (['password', 'sudo', 'confirm', '[y/n]', 'proceed?', 'are you sure'].includes(match))
+            if (['password', 'sudo', 'confirm', '[y/n]', 'proceed?', 'are you sure', 'requesting permission'].includes(match))
               onNotificationRef.current('confirmation');
             else onNotificationRef.current('alert');
           }
