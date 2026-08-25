@@ -1,11 +1,11 @@
 {
-  "version": "2.2.4",
-  "notes": "CmdGUI v2.2.4: Named Binary CmdGUI.exe, Interactive CLI YOLO Auto-Approval (ANSI Stripping, Multi-Option Selection, Enter Key Dispatch), Viewport Grid Geometry & Status Line Padding Fix",
-  "pub_date": "2026-08-24T21:28:00.000Z",
+  "version": "2.3.0",
+  "notes": "CmdGUI v2.3.0: YOLO Mode Upgrade (Persistent Rolling PTY Buffer, Full Interactive CLI Prompt & Select Menu Auto-Dispatch, Strict Word-Boundary Regex Guardrails)",
+  "pub_date": "2026-08-25T03:45:00.000Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRTFBBRTlkRm42aVFNRktXb0dqYnh5T2VGNnFwVmh4ajF2bytBdVpsazVZTFJBTEVkSklSTkN6YUYrOUhWS21KZkg1RktpVXJqMUQ2QlhhYS9QMVBmNzlLU1ZKSEE2bFFzPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg3NTc4MDg2CWZpbGU6Q21kR1VJXzIuMi40X3g2NC1zZXR1cC5leGUKQTJheVRiZDJkS1FiSVRCVXFnVGduQ2xtSGpWeUttaXJNT1YwcGVOYU1iOTN3enE0ZFAvM0R1Mm9YU3FGQTMxMStqODUrL2pDcnMxK0o0VG1XdG9lREE9PQo=",
-      "url": "https://github.com/Harrys-HQ/CMDGui/releases/download/v2.2.4/CmdGUI_2.2.4_x64-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRTFBBRTlkRm42aVN5UnErMTNXL1VyZExDcVZpdEVzWXJ3VEQyeUVNeU9CRkNGMXQ3alk1aDF5bi9sUWlOZTE3bldCWXppU25qdHdCbmlIY2F2RG13NkdpT05vbmxMU1FVPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg3NjMwMTEyCWZpbGU6Q21kR1VJXzIuMy4wX3g2NC1zZXR1cC5leGUKamFiSndQSHduOEp2TUtDa05ZY3JQRzB0Umo5NUJiWFBuazFyOHFvQ3BwSFg4TVdGY2ZDUzFMTDJ5dUpoUjFrMEtZU3Nkdk8zbG5yVFdvV2dWWXlmQkE9PQo=",
+      "url": "https://github.com/Harrys-HQ/CMDGui/releases/download/v2.3.0/CmdGUI_2.3.0_x64-setup.exe"
     }
   }
 }

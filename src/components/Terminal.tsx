@@ -132,6 +132,7 @@ const Terminal: React.FC<TerminalProps> = ({
   const fitTimeoutRef = useRef<any>(null);
   const isSettingUpRef = useRef(false);
   const writeRafId = useRef<number | null>(null);
+  const rollingPtyBufferRef = useRef<string>('');
   const lastAutoResponseTimeRef = useRef<number>(0);
   const lastAutoRespondedPromptRef = useRef<string>('');
   const rendererAddonRef = useRef<any>(null);
@@ -750,55 +751,100 @@ const Terminal: React.FC<TerminalProps> = ({
           isDirtyRef.current = true;
         }
 
-        // Clean ANSI escape sequences for robust pattern matching across interactive terminals
+        // Maintain rolling recent PTY output buffer for robust prompt detection
+        rollingPtyBufferRef.current = (rollingPtyBufferRef.current + data).slice(-4096);
+
+        // Clean ANSI escape sequences (CSI, OSC, control characters) across interactive terminals
         const stripAnsi = (str: string) =>
           // eslint-disable-next-line no-control-regex
-          str.replace(/[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g, '');
+          str.replace(/\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~]|\].*?(?:\x07|\x1B\\))/g, '');
 
-        const rawRecent = (globalPtyRegistry[paneId]?.dataBuffer || []).slice(-10).join('');
-        const combinedClean = (stripAnsi(rawRecent) + ' ' + stripAnsi(data)).toLowerCase();
+        const combinedClean = stripAnsi(rollingPtyBufferRef.current).toLowerCase();
 
         const confirmationPatterns = [
           '[y/n]',
           '(y/n)',
+          '[y/n/a]',
+          '[y/n/d]',
+          '[y/n/q]',
+          '[y/n/always]',
+          '(y/n/always)',
           'proceed?',
           'confirm?',
           'are you sure',
           'continue?',
           'do you want to continue',
+          'do you want to proceed',
           'override?',
           'overwrite?',
-          'requesting permission for',
-          'do you want to proceed',
+          'requesting permission',
           'accept this file edit',
           'accept this edit',
+          'accept this change',
+          'apply this change',
+          'apply these changes',
+          'allow this tool',
+          'allow this command',
+          'allow [a]lways',
+          'always allow',
           '1. yes',
           '> 1. yes',
+          '❯ 1. yes',
+          '› 1. yes',
           '1. yes, accept',
+          '1. accept',
+          '1. allow',
+          '1. continue',
+          '1. proceed',
+          '❯ 1.',
+          '› 1.',
+          '> 1.',
           'shift+tab to auto-approve',
           'shift+tab to approve',
           'accept this',
           'reject this',
+          'press enter to continue',
+          'press any key to continue',
+          '(use arrow keys)',
+          '(press <enter> to select)'
         ];
-        const destructivePatterns = [
+
+        const destructiveRegexes = [
           // File system & OS destruction
-          'drop database', 'rm -rf', 'format', 'prod', 'production', 'delete all', 'truncate', 'sudo rm', 'del /s', 'rd /s', 'remove-item -recurse', 'force',
+          /\bdrop\s+database\b/i,
+          /\brm\s+-[a-z]*r[a-z]*f\b/i,
+          /\bformat\s+[a-z]:/i,
+          /\bdelete\s+all\b/i,
+          /\btruncate\s+table\b/i,
+          /\bsudo\s+rm\b/i,
+          /\bdel\s+\/[sfa-z\s]*\b/i,
+          /\brd\s+\/[sqa-z\s]*\b/i,
+          /\bremove-item\s+.*-recurse\b/i,
           // Git destructive actions
-          'hard reset', 'reset --hard', 'push --force', 'push -f', 'clean -fd', 'branch -d', 'branch -D',
+          /\b(git\s+)?reset\s+--hard\b/i,
+          /\b(git\s+)?push\s+.*(--force|-f)\b/i,
+          /\b(git\s+)?clean\s+-[a-z]*f\b/i,
+          /\b(git\s+)?branch\s+-[dD]\b/i,
           // Package Manager destructive / publish actions
-          'npm publish', 'yarn publish', 'pnpm publish', 'cargo publish', 'pip uninstall', 'npm un', 'yarn remove',
+          /\b(npm|yarn|pnpm|cargo)\s+publish\b/i,
+          /\b(pip\s+uninstall|npm\s+un|yarn\s+remove)\b/i,
           // Cloud & Infrastructure
-          'terraform destroy', 'docker system prune', 'docker rm -f', 'docker rmi -f', 'kubectl delete', 'aws s3 rm --recursive',
+          /\bterraform\s+destroy\b/i,
+          /\bdocker\s+system\s+prune\b/i,
+          /\bdocker\s+rm\s+-[a-z]*f\b/i,
+          /\bdocker\s+rmi\s+-[a-z]*f\b/i,
+          /\bkubectl\s+delete\b/i,
+          /\baws\s+s3\s+rm\s+.*--recursive\b/i,
           // DB Operations
-          'drop table', 'schema drop', 'migrate:reset', 'db:drop', 'db:reset'
+          /\b(drop\s+table|schema\s+drop|migrate:reset|db:drop|db:reset)\b/i
         ];
         
         const isConfirmationPrompt = confirmationPatterns.some((p) => combinedClean.includes(p));
-        const isDestructiveCommand = destructivePatterns.some((p) => combinedClean.includes(p));
+        const isDestructiveCommand = destructiveRegexes.some((regex) => regex.test(combinedClean));
 
         const now = Date.now();
         const matchedPattern = confirmationPatterns.find((p) => combinedClean.includes(p)) || '';
-        const isDuplicateTrigger = (now - lastAutoResponseTimeRef.current < 2000) && (lastAutoRespondedPromptRef.current === matchedPattern);
+        const isDuplicateTrigger = (now - lastAutoResponseTimeRef.current < 1500) && (lastAutoRespondedPromptRef.current === matchedPattern);
 
         if (isConfirmationPrompt && onNotificationRef.current) {
           if (isYoloModeRef.current && pidRef.current !== null && !isDuplicateTrigger) {
@@ -808,15 +854,25 @@ const Terminal: React.FC<TerminalProps> = ({
             } else {
               // Determine response key:
               // 1. Shift+Tab sequence '\x1b[Z' for AI auto-approve prompts
-              // 2. Carriage Return / Enter '\r' for highlighted menu options (e.g. '> 1. Yes', 'Do you want to proceed?')
-              // 3. Option '1\r' or standard 'y\r'
+              // 2. Carriage Return / Enter '\r' for highlighted interactive menus / select lists
+              // 3. Option '1\r' for numbered choice prompts
+              // 4. Standard 'y\r' for yes/no confirmations
               const isShiftTabPrompt = combinedClean.includes('shift+tab');
-              const isHighlightedMenu = combinedClean.includes('> 1. yes') || combinedClean.includes('do you want to proceed');
-              const isNumberedOption = combinedClean.includes('1. yes') || combinedClean.includes('1.');
+              const isInteractiveMenu = combinedClean.includes('❯ 1.') || 
+                                        combinedClean.includes('› 1.') || 
+                                        combinedClean.includes('> 1.') || 
+                                        combinedClean.includes('(use arrow keys)') || 
+                                        combinedClean.includes('(press <enter> to select)') || 
+                                        combinedClean.includes('press enter to continue');
+              const isNumberedOption = combinedClean.includes('1. yes') || 
+                                       combinedClean.includes('1. accept') || 
+                                       combinedClean.includes('1. allow') || 
+                                       combinedClean.includes('1. proceed') || 
+                                       combinedClean.includes('1.');
               
               const responseKey = isShiftTabPrompt 
                 ? '\x1b[Z' 
-                : isHighlightedMenu 
+                : isInteractiveMenu 
                   ? '\r' 
                   : isNumberedOption 
                     ? '1\r' 
@@ -829,7 +885,7 @@ const Terminal: React.FC<TerminalProps> = ({
                 if (pidRef.current !== null) {
                   window.electron.writeTerminal(pidRef.current, responseKey);
                 }
-              }, 150);
+              }, 120);
             }
           } else if (!isYoloModeRef.current || isDestructiveCommand) {
             // Standard confirmation notification when YOLO is disabled or destructive command requires manual review

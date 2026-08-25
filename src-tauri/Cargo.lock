@@ -665,7 +665,7 @@ dependencies = [
 
 [[package]]
 name = "cmdgui"
-version = "2.2.4"
+version = "2.3.0"
 dependencies = [
  "arboard",
  "log",

@@ -1,3 +1,12 @@
+## 🚀 Release: CmdGUI v2.3.0
+
+### ⚡ Comprehensive YOLO Engine Upgrade & Regex Guardrails
+- **🔄 Persistent Rolling PTY Buffer:** Added a continuous 4KB rolling buffer for terminal data streams, ensuring multi-packet CLI prompts (`? Do you want to proceed` ... `[y/N]`) are captured accurately without dropped state across focused and hibernated tabs.
+- **🛡️ Strict Word-Boundary Safety Regexes:** Replaced broad keyword matches with precise word-boundary regexes, eliminating false alarms on standard outputs containing words like `production`, `formatter`, or `enforce`.
+- **🎯 Full Interactive CLI & Select Menu Auto-Approval:** Expanded prompt detection to handle `[y/n/a]`, `allow [a]lways`, `always allow`, `1. yes`, `1. accept`, `1. allow`, `❯ 1.`, `› 1.`, `(use arrow keys)`, and `(press <enter> to select)`. Automatically dispatches `\r` (Enter) for highlighted lists, `1\r` for numbered options, and `y\r` for confirmations.
+
+---
+
 ## 🚀 Release: CmdGUI v2.2.4
 
 ### ⚡ Interactive CLI YOLO Engine & Viewport Cutoff Fix
