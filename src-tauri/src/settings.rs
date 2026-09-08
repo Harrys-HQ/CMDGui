@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::PathBuf;
 
-fn get_settings_path() -> PathBuf {
+pub(crate) fn get_settings_path() -> PathBuf {
     let base_dir = if let Ok(appdata) = std::env::var("APPDATA") {
         PathBuf::from(appdata).join("CmdGUI")
     } else if let Ok(home) = std::env::var("HOME") {

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { loadState, saveState } from './usePersistence';
-import { TerminalTheme } from '../types';
+import { TerminalTheme, TerminalRendererType } from '../types';
 
 const DEFAULT_CUSTOM_THEME: TerminalTheme = {
   background: '#1e1e1e',
@@ -36,6 +36,7 @@ export const useSettings = () => {
   const [isStayAwakeEnabled, setIsStayAwakeEnabled] = useState(false);
   const [isYoloModeEnabled, setIsYoloModeEnabled] = useState(false);
   const [isGPUAccelerationEnabled, setIsGPUAccelerationEnabled] = useState(true);
+  const [terminalRendererType, setTerminalRendererType] = useState<TerminalRendererType>('canvas');
   const [defaultShell, setDefaultShell] = useState('');
   const [isAdmin, setIsAdmin] = useState(false);
   const [showTopTabBar, setShowTopTabBar] = useState(true);
@@ -52,6 +53,7 @@ export const useSettings = () => {
       const savedStayAwake = await loadState('isStayAwakeEnabled', false);
       const savedYoloMode = await loadState('isYoloModeEnabled', false);
       const savedGPU = await loadState('isGPUAccelerationEnabled', true);
+      const savedRenderer = await loadState<TerminalRendererType>('terminalRendererType', 'canvas');
       const savedShell = await loadState('defaultShell', '');
       const savedShowTabs = await loadState('showTopTabBar', true);
 
@@ -64,6 +66,7 @@ export const useSettings = () => {
       setIsStayAwakeEnabled(savedStayAwake);
       setIsYoloModeEnabled(savedYoloMode);
       setIsGPUAccelerationEnabled(savedGPU);
+      setTerminalRendererType(savedRenderer);
       setDefaultShell(savedShell);
       setShowTopTabBar(savedShowTabs);
       setIsLoaded(true);
@@ -76,6 +79,12 @@ export const useSettings = () => {
       saveState('isGPUAccelerationEnabled', isGPUAccelerationEnabled);
     }
   }, [isGPUAccelerationEnabled, isLoaded]);
+
+  useEffect(() => {
+    if (isLoaded) {
+      saveState('terminalRendererType', terminalRendererType);
+    }
+  }, [terminalRendererType, isLoaded]);
 
   useEffect(() => {
     if (isLoaded) {
@@ -179,6 +188,8 @@ export const useSettings = () => {
     setIsYoloModeEnabled,
     isGPUAccelerationEnabled,
     setIsGPUAccelerationEnabled,
+    terminalRendererType,
+    setTerminalRendererType,
     defaultShell,
     setDefaultShell,
     isAdmin,

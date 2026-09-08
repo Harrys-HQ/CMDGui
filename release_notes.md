@@ -1,3 +1,17 @@
+## 🚀 Release: CmdGUI v2.4.0
+
+### 🖥️ Display Stability, Glitch Elimination & Enhanced Graphics Engine
+- **🎨 Canvas 2D Rendering Engine (Default):** Transitioned to HTML5 2D Canvas as the default terminal rendering engine. Delivers smooth 60 FPS performance while completely eliminating WebGL font atlas corruption, inverted characters, and visual tearing on Windows.
+- **🔄 Resilient WebGL Auto-Recovery:** If WebGL rendering is selected and suffers a GPU context loss or driver stall, the engine immediately disposes the crashed context, falls back seamlessly to Canvas 2D, and repaints all active rows without freezing.
+- **⚙️ Graphics & Rendering Settings:** Added a dedicated Graphics & Display section in Settings allowing users to choose between Canvas 2D (Recommended), WebGL (High Throughput), and DOM (Compatibility Safe Mode).
+- **🛡️ WebView2 Occlusion Bug Fix:** Automatically injects `--disable-features=CalculateNativeWinOcclusion` to `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS` on Windows startup, resolving Chromium swapchain freezes and dirty rectangle artifacts.
+- **🔌 True Hardware Acceleration Backend Integration:** Wired the "Enable Hardware Acceleration" setting directly into the Tauri WebView2 initialization pipeline, passing `--disable-gpu --disable-gpu-compositing` when toggled off.
+- **🪟 Frameless Window DWM Shadow:** Enabled native window drop-shadows on frameless windows to maintain synchronization with Desktop Window Manager (DWM) composition.
+- **⚡ Instant Display Repair Action & Shortcut:** Added a dedicated "Refresh Display" button in the TitleBar and Settings modal, a Command Palette action, and a keyboard shortcut (<kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>R</kbd>) to instantly redraw and re-fit all open terminals without having to minimize and maximize the window.
+- **👁️ Focus & Window State Auto-Repaint:** Automatically repaints active terminal buffers whenever the application window regains focus or monitor scaling changes.
+
+---
+
 ## 🚀 Release: CmdGUI v2.3.0
 
 ### ⚡ Comprehensive YOLO Engine Upgrade & Regex Guardrails

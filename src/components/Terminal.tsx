@@ -6,7 +6,7 @@ import { SearchAddon } from 'xterm-addon-search';
 import { SerializeAddon } from '@xterm/addon-serialize';
 import { WebglAddon } from '@xterm/addon-webgl';
 import { CanvasAddon } from '@xterm/addon-canvas';
-import { TerminalTheme } from '../types';
+import { TerminalTheme, TerminalRendererType } from '../types';
 import { Keymap, isKeyMatch } from '../hooks/useKeybindings';
 import { globalPtyRegistry, isPaneKilled, cleanupKilledPane } from '../utils/terminalUtils';
 
@@ -33,6 +33,7 @@ interface TerminalProps {
   showPaneControls?: boolean;
   keymap: Keymap;
   isGPUAccelerationEnabled?: boolean;
+  terminalRendererType?: TerminalRendererType;
   isYoloModeEnabled?: boolean;
 }
 
@@ -95,6 +96,7 @@ const Terminal: React.FC<TerminalProps> = ({
   showPaneControls,
   keymap,
   isGPUAccelerationEnabled = true,
+  terminalRendererType = 'canvas',
   isYoloModeEnabled = false,
 }) => {
   const terminalRef = useRef<HTMLDivElement>(null);
@@ -139,37 +141,66 @@ const Terminal: React.FC<TerminalProps> = ({
 
   const loadHighPerformanceRenderer = useCallback(
     (term: Xterm) => {
-      if (!isGPUAccelerationEnabled || !term.element) return;
+      if (!isGPUAccelerationEnabled || terminalRendererType === 'dom' || !term.element) {
+        if (rendererAddonRef.current) {
+          try {
+            rendererAddonRef.current.dispose();
+          } catch {}
+          rendererAddonRef.current = null;
+        }
+        return;
+      }
+
       if (rendererAddonRef.current) {
         try {
           rendererAddonRef.current.dispose();
         } catch {}
         rendererAddonRef.current = null;
       }
-      try {
-        const webglAddon = new WebglAddon();
-        webglAddon.onContextLoss(() => {
-          webglAddon.dispose();
-          if (rendererAddonRef.current === webglAddon) {
-            rendererAddonRef.current = null;
-          }
-        });
-        term.loadAddon(webglAddon);
-        rendererAddonRef.current = webglAddon;
-        console.log(`[Terminal ${paneId}] WebGL renderer loaded.`);
-      } catch (e) {
-        console.warn(`[Terminal ${paneId}] WebGL failed, falling back to Canvas:`, e);
+
+      const attachCanvas = () => {
         try {
           const canvasAddon = new CanvasAddon();
           term.loadAddon(canvasAddon);
           rendererAddonRef.current = canvasAddon;
           console.log(`[Terminal ${paneId}] Canvas renderer loaded.`);
-        } catch (e2) {
-          console.warn(`[Terminal ${paneId}] Canvas failed, using DOM renderer:`, e2);
+          return true;
+        } catch (e) {
+          console.warn(`[Terminal ${paneId}] Canvas renderer failed, using DOM renderer:`, e);
+          return false;
+        }
+      };
+
+      if (terminalRendererType === 'canvas') {
+        attachCanvas();
+      } else if (terminalRendererType === 'webgl') {
+        try {
+          const webglAddon = new WebglAddon();
+          webglAddon.onContextLoss(() => {
+            console.warn(`[Terminal ${paneId}] WebGL context lost. Auto-falling back to Canvas renderer to avoid visual glitches.`);
+            try {
+              webglAddon.dispose();
+            } catch {
+              /* ignore */
+            }
+            if (rendererAddonRef.current === webglAddon) {
+              rendererAddonRef.current = null;
+            }
+            // Auto-recover immediately using CanvasAddon to avoid screen freezing or glitching
+            if (attachCanvas()) {
+              term.refresh(0, term.rows - 1);
+            }
+          });
+          term.loadAddon(webglAddon);
+          rendererAddonRef.current = webglAddon;
+          console.log(`[Terminal ${paneId}] WebGL renderer loaded.`);
+        } catch (e) {
+          console.warn(`[Terminal ${paneId}] WebGL failed, falling back to Canvas:`, e);
+          attachCanvas();
         }
       }
     },
-    [paneId, isGPUAccelerationEnabled]
+    [paneId, isGPUAccelerationEnabled, terminalRendererType]
   );
 
   const flushWriteBuffer = () => {
@@ -943,12 +974,21 @@ const Terminal: React.FC<TerminalProps> = ({
     const handleResize = () => {
       if (!isActiveRef.current || !terminalRef.current || !term.element) return;
       fitTerminal();
+      term.refresh(0, term.rows - 1);
+    };
+    const handleFocus = () => {
+      if (!isActiveRef.current || !terminalRef.current || !term.element) return;
+      requestAnimationFrame(() => {
+        term.refresh(0, term.rows - 1);
+      });
     };
     window.addEventListener('resize', handleResize);
+    window.addEventListener('focus', handleFocus);
     return () => {
       isUnmounted = true;
       if (fitTimeoutRef.current) clearTimeout(fitTimeoutRef.current);
       window.removeEventListener('resize', handleResize);
+      window.removeEventListener('focus', handleFocus);
       resizeObserver.disconnect();
       try {
         term.dispose();
@@ -1025,6 +1065,37 @@ const Terminal: React.FC<TerminalProps> = ({
       if (timerId) clearTimeout(timerId);
     };
   }, [isActive, isReady, loadHighPerformanceRenderer]);
+
+  // Handle dynamic renderer switches
+  useEffect(() => {
+    if (xtermRef.current && isActive && isReady && xtermRef.current.element) {
+      loadHighPerformanceRenderer(xtermRef.current);
+      xtermRef.current.refresh(0, xtermRef.current.rows - 1);
+    }
+  }, [terminalRendererType, isGPUAccelerationEnabled, isActive, isReady, loadHighPerformanceRenderer]);
+
+  // Global display refresh listener (for manual repair and focus triggers)
+  useEffect(() => {
+    const handleRefreshDisplay = () => {
+      if (!xtermRef.current || !terminalRef.current) return;
+      try {
+        if (isActiveRef.current) {
+          fitTerminal();
+          if (xtermRef.current.element) {
+            loadHighPerformanceRenderer(xtermRef.current);
+            xtermRef.current.refresh(0, xtermRef.current.rows - 1);
+          }
+        }
+      } catch (err) {
+        console.warn(`[Terminal ${paneId}] Display refresh failed:`, err);
+      }
+    };
+
+    window.addEventListener('cmdgui-refresh-display', handleRefreshDisplay);
+    return () => {
+      window.removeEventListener('cmdgui-refresh-display', handleRefreshDisplay);
+    };
+  }, [loadHighPerformanceRenderer, paneId]);
   useEffect(() => {
     // Periodic buffer persistence (every 30 seconds)
     const interval = setInterval(() => {

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { UpdateInfo, Workspace, TerminalTheme } from '../types';
+import { UpdateInfo, Workspace, TerminalTheme, TerminalRendererType } from '../types';
 import { HistoryItem } from '../hooks/useCommandHistory';
 import { Keymap, KeybindingAction, Keybinding, formatKeybinding } from '../hooks/useKeybindings';
 
@@ -22,6 +22,9 @@ interface SettingsModalProps {
   onStayAwakeChange?: (enabled: boolean) => void;
   isGPUAccelerationEnabled?: boolean;
   onGPUAccelerationChange?: (enabled: boolean) => void;
+  terminalRendererType?: TerminalRendererType;
+  onTerminalRendererTypeChange?: (renderer: TerminalRendererType) => void;
+  onRefreshDisplay?: () => void;
   workspaces?: Workspace[];
   onDeleteWorkspace?: (id: string) => void;
   history?: HistoryItem[];
@@ -54,6 +57,7 @@ const ACTION_LABELS: Record<KeybindingAction, string> = {
   splitVertical: 'Split Pane Vertically',
   closePane: 'Close Active Pane',
   toggleSidebar: 'Toggle Sidebar / Activity Bar View',
+  refreshDisplay: 'Repair / Refresh Display (Fix Visual Glitches)',
 };
 
 const KeybindingRecorder: React.FC<{
@@ -129,6 +133,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   onStayAwakeChange,
   isGPUAccelerationEnabled,
   onGPUAccelerationChange,
+  terminalRendererType = 'canvas',
+  onTerminalRendererTypeChange,
+  onRefreshDisplay,
   workspaces,
   onDeleteWorkspace,
   history,
@@ -148,7 +155,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   const [activeTab, setActiveTab] = useState<
     'general' | 'keybindings' | 'workspaces' | 'about' | 'project' | 'appearance' | 'cli' | 'history'
   >('general');
-  const [appVersion, setAppVersion] = useState<string>('2.3.0');
+  const [appVersion, setAppVersion] = useState<string>('2.4.0');
   const [recordingAction, setRecordingAction] = useState<KeybindingAction | null>(null);
 
   // Update State
@@ -536,35 +543,101 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                   </div>
                 )}
 
-                {onGPUAccelerationChange && (
-                  <div style={{ marginTop: '15px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center' }}>
-                      <input
-                        type="checkbox"
-                        id="gpu-toggle"
-                        checked={isGPUAccelerationEnabled}
-                        onChange={(e) => onGPUAccelerationChange(e.target.checked)}
-                        style={{ cursor: 'pointer' }}
-                      />
-                      <label
-                        htmlFor="gpu-toggle"
+                {/* Graphics & Rendering Settings */}
+                <div style={{ marginTop: '20px', padding: '14px', background: 'rgba(255, 255, 255, 0.03)', borderRadius: '6px', border: '1px solid var(--border-subtle)' }}>
+                  <h4 style={{ fontSize: '14px', margin: '0 0 12px 0', color: '#ccc' }}>
+                    🖥️ Graphics & Display
+                  </h4>
+
+                  {onTerminalRendererTypeChange && (
+                    <div style={{ marginBottom: '14px' }}>
+                      <label htmlFor="terminal-renderer-select" style={{ fontSize: '13px', color: '#aaa', display: 'block', marginBottom: '6px' }}>
+                        Terminal Rendering Engine
+                      </label>
+                      <select
+                        id="terminal-renderer-select"
+                        value={terminalRendererType}
+                        onChange={(e) => onTerminalRendererTypeChange(e.target.value as TerminalRendererType)}
                         style={{
-                          cursor: 'pointer',
-                          fontSize: '14px',
-                          color: '#ccc',
-                          marginLeft: '10px',
+                          width: '100%',
+                          padding: '8px',
+                          background: '#3c3c3c',
+                          color: '#fff',
+                          border: '1px solid #555',
+                          borderRadius: '4px',
+                          outline: 'none',
+                          fontSize: '13px',
                         }}
                       >
-                        Enable Hardware Acceleration (Requires Restart)
-                      </label>
-                    </div>
-                    {!isGPUAccelerationEnabled && (
-                      <p style={{ fontSize: '11px', color: '#888', marginLeft: '25px', marginTop: '4px' }}>
-                        Disabling this can fix graphical glitches on some systems.
+                        <option value="canvas">Canvas 2D (Recommended - Avoids visual glitches)</option>
+                        <option value="webgl">WebGL (High Throughput GPU with Auto-Recovery)</option>
+                        <option value="dom">DOM (Safe Mode / Maximum Compatibility)</option>
+                      </select>
+                      <p style={{ fontSize: '11px', color: '#888', margin: '5px 0 0 0' }}>
+                        Canvas 2D provides smooth 60 FPS performance without WebGL glyph atlas corruption on Windows.
                       </p>
-                    )}
-                  </div>
-                )}
+                    </div>
+                  )}
+
+                  {onGPUAccelerationChange && (
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center' }}>
+                        <input
+                          type="checkbox"
+                          id="gpu-toggle"
+                          checked={isGPUAccelerationEnabled}
+                          onChange={(e) => onGPUAccelerationChange(e.target.checked)}
+                          style={{ cursor: 'pointer' }}
+                        />
+                        <label
+                          htmlFor="gpu-toggle"
+                          style={{
+                            cursor: 'pointer',
+                            fontSize: '13px',
+                            color: '#ccc',
+                            marginLeft: '10px',
+                          }}
+                        >
+                          WebView2 Hardware Acceleration (Requires Restart)
+                        </label>
+                      </div>
+                      <p style={{ fontSize: '11px', color: '#888', marginLeft: '24px', marginTop: '4px', marginBottom: 0 }}>
+                        {isGPUAccelerationEnabled
+                          ? 'Chromium GPU rasterization active. Turn off if experiencing GPU driver artifacts or black boxes.'
+                          : 'Software rendering mode enabled for WebView2 backend. Fixes GPU driver conflicts.'}
+                      </p>
+                    </div>
+                  )}
+
+                  {onRefreshDisplay && (
+                    <div style={{ marginTop: '14px', paddingTop: '12px', borderTop: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <div>
+                        <div style={{ fontSize: '13px', color: '#ccc', fontWeight: 500 }}>
+                          Visual Glitch Repair
+                        </div>
+                        <div style={{ fontSize: '11px', color: '#888' }}>
+                          Forces an immediate redraw of all terminals and window buffers (Shortcut: Ctrl+Alt+R)
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={onRefreshDisplay}
+                        style={{
+                          background: 'var(--accent-primary)',
+                          border: 'none',
+                          color: '#fff',
+                          padding: '6px 12px',
+                          borderRadius: '4px',
+                          fontSize: '12px',
+                          fontWeight: 500,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Refresh Display Now
+                      </button>
+                    </div>
+                  )}
+                </div>
 
                 {onShellChange && (
                   <div style={{ marginTop: '20px' }}>

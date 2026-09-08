@@ -87,6 +87,8 @@ export interface TerminalTheme {
   brightWhite: string;
 }
 
+export type TerminalRendererType = 'canvas' | 'webgl' | 'dom';
+
 export type SidebarAction =
   | { action: 'close-tab'; id: string }
   | { action: 'rename-tab'; id: string }

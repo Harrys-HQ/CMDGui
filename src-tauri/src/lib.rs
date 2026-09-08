@@ -47,6 +47,46 @@ pub fn run() {
             std::env::set_var("PATH", new_path);
         }
     }
+
+    // Configure WebView2 arguments to avoid graphical glitching on Windows
+    let settings_path = settings::get_settings_path();
+    let mut gpu_enabled = true;
+    if settings_path.exists() {
+        if let Ok(content) = std::fs::read_to_string(&settings_path) {
+            if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&content) {
+                if let Some(gpu_val) = parsed.get("isGPUAccelerationEnabled").and_then(|v| v.as_bool()) {
+                    gpu_enabled = gpu_val;
+                }
+            }
+        }
+    }
+
+    let existing_args = std::env::var("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS").unwrap_or_default();
+    let mut args_to_add: Vec<&str> = Vec::new();
+
+    // Prevent Chromium native window occlusion bug which causes rendering freezing/glitches on Windows 10/11
+    if !existing_args.contains("CalculateNativeWinOcclusion") {
+        args_to_add.push("--disable-features=CalculateNativeWinOcclusion");
+    }
+
+    // If hardware acceleration is disabled in settings, actually disable it in WebView2
+    if !gpu_enabled {
+        if !existing_args.contains("--disable-gpu") {
+            args_to_add.push("--disable-gpu");
+        }
+        if !existing_args.contains("--disable-gpu-compositing") {
+            args_to_add.push("--disable-gpu-compositing");
+        }
+    }
+
+    if !args_to_add.is_empty() {
+        let combined = if existing_args.trim().is_empty() {
+            args_to_add.join(" ")
+        } else {
+            format!("{} {}", existing_args.trim(), args_to_add.join(" "))
+        };
+        std::env::set_var("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS", combined);
+    }
   }
 
   tauri::Builder::default()

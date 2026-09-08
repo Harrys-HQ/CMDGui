@@ -23,6 +23,9 @@ describe('useKeybindings Hook', () => {
 
     expect(result.current.keymap.commandPalette.key).toBe('p');
     expect(result.current.keymap.commandPalette.ctrlKey).toBe(true);
+    expect(result.current.keymap.refreshDisplay.key).toBe('r');
+    expect(result.current.keymap.refreshDisplay.ctrlKey).toBe(true);
+    expect(result.current.keymap.refreshDisplay.altKey).toBe(true);
   });
 
   it('should update a keybinding', async () => {

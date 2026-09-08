@@ -23,6 +23,7 @@ interface UseCommandsProps {
   onSetSidebarView: (view: string) => void;
   onSaveWorkspace: (name: string) => void;
   onLoadWorkspace: (id: string) => void;
+  onRefreshDisplay: () => void;
   workspaces: Workspace[];
   activeTabId: string | null;
   keymap: Keymap;
@@ -41,12 +42,21 @@ export const useCommands = ({
   onSetSidebarView,
   onSaveWorkspace,
   onLoadWorkspace,
+  onRefreshDisplay,
   workspaces,
   activeTabId,
   keymap,
 }: UseCommandsProps) => {
   const commands: Command[] = useMemo(() => {
     const list: Command[] = [
+      {
+        id: 'refresh-display',
+        name: 'Repair / Refresh Display (Fix Visual Glitches)',
+        category: 'Display',
+        icon: '🖥️',
+        shortcut: formatKeybinding(keymap.refreshDisplay),
+        action: onRefreshDisplay,
+      },
       {
         id: 'toggle-sidebar',
         name: 'Toggle Sidebar',
@@ -196,6 +206,7 @@ export const useCommands = ({
     onSetSidebarView,
     onSetUiTheme,
     onToggleSidebar,
+    onRefreshDisplay,
     workspaces,
     activeTabId,
     keymap,

@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { Terminal, Sparkles, Minus, Square, Copy, X } from 'lucide-react';
+import { Terminal, Sparkles, RotateCw, Minus, Square, Copy, X } from 'lucide-react';
 
 interface TitleBarProps {
   onOpenAiAssistant?: () => void;
+  onRefreshDisplay?: () => void;
 }
 
-const TitleBar: React.FC<TitleBarProps> = ({ onOpenAiAssistant }) => {
+const TitleBar: React.FC<TitleBarProps> = ({ onOpenAiAssistant, onRefreshDisplay }) => {
   const [isMaximized, setIsMaximized] = useState(false);
   const appWindow = getCurrentWindow();
 
@@ -88,6 +89,38 @@ const TitleBar: React.FC<TitleBarProps> = ({ onOpenAiAssistant }) => {
             }}
           >
             <Sparkles size={12} /> AI Assistant
+          </button>
+        )}
+
+        {onRefreshDisplay && (
+          <button
+            className="non-draggable"
+            onClick={onRefreshDisplay}
+            title="Refresh Display (Ctrl+Alt+R) - Fix visual artifacts"
+            style={{
+              background: 'transparent',
+              border: '1px solid var(--border-subtle)',
+              color: 'var(--fg-secondary)',
+              padding: '2px 8px',
+              borderRadius: '4px',
+              fontSize: '11px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              fontWeight: 500,
+              transition: 'all 0.15s ease',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = 'var(--bg-hover)';
+              e.currentTarget.style.color = 'var(--fg-active)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'transparent';
+              e.currentTarget.style.color = 'var(--fg-secondary)';
+            }}
+          >
+            <RotateCw size={11} /> Refresh Display
           </button>
         )}
       </div>

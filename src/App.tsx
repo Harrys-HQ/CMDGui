@@ -70,6 +70,8 @@ const App: React.FC = () => {
     setIsYoloModeEnabled,
     isGPUAccelerationEnabled,
     setIsGPUAccelerationEnabled,
+    terminalRendererType,
+    setTerminalRendererType,
     uiTheme,
     setUiTheme,
     defaultShell,
@@ -89,6 +91,22 @@ const App: React.FC = () => {
   const { keymap, updateKeybinding, resetKeybindings } = useKeybindings();
 
   const { showToast } = useToast();
+
+  const handleRefreshDisplay = useCallback(() => {
+    window.dispatchEvent(new CustomEvent('cmdgui-refresh-display'));
+    showToast('Display refreshed (terminals redrawn)', 'info');
+  }, [showToast]);
+
+  // Redraw buffers when window regains focus to eliminate stale or occluded frame artifacts
+  useEffect(() => {
+    const handleFocus = () => {
+      window.dispatchEvent(new CustomEvent('cmdgui-refresh-display'));
+    };
+    window.addEventListener('focus', handleFocus);
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, []);
 
   // Apply UI Theme
   useEffect(() => {
@@ -386,6 +404,7 @@ const App: React.FC = () => {
           showPaneControls={true}
           keymap={keymap}
           isGPUAccelerationEnabled={isGPUAccelerationEnabled}
+          terminalRendererType={terminalRendererType}
           isYoloModeEnabled={isYoloModeEnabled}
           isAdmin={pane.isAdmin}
         />
@@ -437,6 +456,7 @@ const App: React.FC = () => {
     },
     onSaveWorkspace: saveWorkspace,
     onLoadWorkspace: loadWorkspace,
+    onRefreshDisplay: handleRefreshDisplay,
     workspaces,
     activeTabId,
     keymap,
@@ -534,6 +554,10 @@ const App: React.FC = () => {
         e.preventDefault();
         setIsSidebarVisible((prev) => !prev);
       }
+      if (isKeyMatch(e, keymapRef.current.refreshDisplay)) {
+        e.preventDefault();
+        handleRefreshDisplay();
+      }
       if (e.ctrlKey && e.shiftKey && (e.key === 'Z' || e.key === 'z')) {
         e.preventDefault();
         setZoomedPaneId((prev) => (prev ? null : 'active'));
@@ -565,7 +589,10 @@ const App: React.FC = () => {
 
   return (
     <div className="app-root-layout">
-      <TitleBar onOpenAiAssistant={() => setIsAiModalOpen(true)} />
+      <TitleBar
+        onOpenAiAssistant={() => setIsAiModalOpen(true)}
+        onRefreshDisplay={handleRefreshDisplay}
+      />
       <div className="workspace-layout">
         <ActivityBar
           activeView={activeSidebarView}
@@ -707,6 +734,9 @@ const App: React.FC = () => {
         onStayAwakeChange={setIsStayAwakeEnabled}
         isGPUAccelerationEnabled={isGPUAccelerationEnabled}
         onGPUAccelerationChange={setIsGPUAccelerationEnabled}
+        terminalRendererType={terminalRendererType}
+        onTerminalRendererTypeChange={setTerminalRendererType}
+        onRefreshDisplay={handleRefreshDisplay}
         workspaces={workspaces}
         onDeleteWorkspace={deleteWorkspace}
         history={history}
