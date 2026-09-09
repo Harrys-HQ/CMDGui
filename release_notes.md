@@ -1,3 +1,13 @@
+## 🚀 Release: CmdGUI v2.4.1
+
+### 🛡️ Vertical Task Management & Direct Admin Tab Execution
+- **🛡️ Direct Admin Tab Launching:** Added a dedicated "Run as Admin..." launcher to the vertical **ACTIVE TASKS** section in the sidebar, providing one-click access to elevated terminal sessions with UAC safety checks, shield icons, and crimson canvas tints.
+- **📑 Vertical Sidebar Task Management:** Restored active task list in the sidebar Explorer view, complete with drag-and-drop session reordering, search filtering, quick rename, and close controls.
+- **➕ Top Tab Bar Admin Quick Access:** Right-clicking the `+` button in the horizontal top tab bar now opens a context menu with "New Terminal" and "🛡️ Run as Admin...".
+- **🎛️ Dynamic Tab Layout Sync:** Fully synchronized the "Horizontal Top Tab Bar" toggle in Settings, allowing users to switch cleanly between horizontal top tabs and vertical sidebar tabs only.
+
+---
+
 ## 🚀 Release: CmdGUI v2.4.0
 
 ### 🖥️ Display Stability, Glitch Elimination & Enhanced Graphics Engine

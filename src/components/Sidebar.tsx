@@ -366,6 +366,148 @@ const Sidebar: React.FC<SidebarProps> = ({
             </CollapsibleSection>
 
             <CollapsibleSection
+              title="ACTIVE TASKS"
+              isExpanded={expandedSections.tasks}
+              onToggle={() => toggleSection('tasks')}
+              action={
+                <div style={{ position: 'relative' }}>
+                  <div
+                    className="sidebar-action-btn"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsAddMenuOpen(!isAddMenuOpen);
+                    }}
+                    title="New Terminal..."
+                  >
+                    +
+                  </div>
+                  {isAddMenuOpen && (
+                    <>
+                      <div
+                        style={{ position: 'fixed', inset: 0, zIndex: 999 }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setIsAddMenuOpen(false);
+                        }}
+                      />
+                      <div
+                        className="dropdown-menu"
+                        style={{
+                          position: 'absolute',
+                          right: 0,
+                          top: '100%',
+                          zIndex: 1000,
+                          minWidth: '150px',
+                          background: 'var(--bg-modal, #252526)',
+                          border: '1px solid var(--border-color, #3e3e42)',
+                          boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
+                          borderRadius: '4px',
+                          padding: '4px 0',
+                        }}
+                      >
+                        <div
+                          className="project-item"
+                          style={{
+                            padding: '6px 12px',
+                            fontSize: '11px',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                          }}
+                          onClick={() => {
+                            onAddTerminal(false);
+                            setIsAddMenuOpen(false);
+                          }}
+                        >
+                          <span style={{ marginRight: '6px' }}>💻</span>
+                          <span>New Terminal</span>
+                        </div>
+                        <div
+                          className="project-item"
+                          style={{
+                            padding: '6px 12px',
+                            fontSize: '11px',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                          }}
+                          onClick={() => {
+                            onAddTerminal(true);
+                            setIsAddMenuOpen(false);
+                          }}
+                        >
+                          <span style={{ marginRight: '6px' }}>🛡️</span>
+                          <span>Run as Admin...</span>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+              }
+            >
+              <div className="tab-list" style={{ padding: '4px 0' }}>
+                {(Array.isArray(tabs) ? tabs : []).map((tab, index) => {
+                  if (searchQuery && !tab.title.toLowerCase().includes(searchQuery.toLowerCase())) {
+                    return null;
+                  }
+
+                  return (
+                    <div
+                      key={tab.id}
+                      onDragOver={(e) => handleDragOver(e, index)}
+                      onDrop={(e) => handleDrop(e, index)}
+                      className={dragOverTabIndex === index ? 'drag-over-indicator' : ''}
+                    >
+                      <TaskItem
+                        tab={tab}
+                        isActive={activeTabId === tab.id}
+                        searchQuery={searchQuery}
+                        onSelect={() => onSelectTab(tab.id)}
+                        onClose={(e) => onCloseTab(tab.id, e)}
+                        onRename={(e) => {
+                          e.stopPropagation();
+                          e.preventDefault();
+                          onRenameTab(tab.id, tab.title);
+                        }}
+                        onContextMenu={(e) => handleTabContextMenu(e, tab)}
+                        onMoveUp={
+                          index > 0
+                            ? (e) => {
+                                e.stopPropagation();
+                                onReorderTabs(index, index - 1);
+                              }
+                            : undefined
+                        }
+                        onMoveDown={
+                          index < tabs.length - 1
+                            ? (e) => {
+                                e.stopPropagation();
+                                onReorderTabs(index, index + 1);
+                              }
+                            : undefined
+                        }
+                        onDragStart={() => handleDragStart(index)}
+                        onDragEnd={handleDragEnd}
+                      />
+                    </div>
+                  );
+                })}
+                {tabs.length === 0 && (
+                  <div
+                    style={{
+                      padding: '12px 15px',
+                      color: 'var(--fg-secondary, #666)',
+                      fontSize: '11px',
+                      fontStyle: 'italic',
+                    }}
+                  >
+                    No active tasks. Click + to open a terminal.
+                  </div>
+                )}
+              </div>
+            </CollapsibleSection>
+
+            <CollapsibleSection
               title="COMMAND SNIPPETS"
               isExpanded={expandedSections.snippets}
               onToggle={() => toggleSection('snippets')}

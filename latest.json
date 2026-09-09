@@ -1,11 +1,11 @@
 {
-  "version": "2.4.0",
-  "notes": "CmdGUI v2.4.0: Display Stability & Glitch Elimination (Canvas 2D Default Engine, WebGL Auto-Recovery, WebView2 Occlusion Fix, Native Window Shadow, Instant Display Refresh)",
-  "pub_date": "2026-09-08T18:50:00.000Z",
+  "version": "2.4.1",
+  "notes": "CmdGUI v2.4.1: Vertical Task Management & Direct Admin Tab Execution",
+  "pub_date": "2026-09-09T15:40:00.000Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRTFBBRTlkRm42aWE2SFBiNzV0d3kxQTJiRjRkOWFLLy93T2FDY3NOSFEzaVE0T3dmYUhMa2pMSlFzM1ZORER2QmtnaitkZTBTNERsUEpmT01kTFpySkhwQjlTemtFNGdJPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg4ODkzMzU0CWZpbGU6Q21kR1VJXzIuNC4wX3g2NC1zZXR1cC5leGUKbWpacStkUWFycm42a0o5ZVJkQ1IxejJLbEFlNUZNeWQ5MUNET3dIbUpXaExKcEdYMkVYTUozT2ZEN3hyclltblRTZmpwaFozaE1rMURkL1lodzlYQ0E9PQo=",
-      "url": "https://github.com/Harrys-HQ/CMDGui/releases/download/v2.4.0/CmdGUI_2.4.0_x64-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRTFBBRTlkRm42aVRxd3g4V0pVUE9VdVhHOWVzcmR1T1hGOC9hV0plYTZDWXV1NlVhOGt5ZjFJWDJ0S2pwUU9QRlFxMTRiSkh2cWw0VmVsbTZEOHBnTlhBL0swMUUvcFFBPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg4OTY4NDI1CWZpbGU6Q21kR1VJXzIuNC4xX3g2NC1zZXR1cC5leGUKRHNub0R4dXBlR2IrNFNsRU1OYjdlb3VOTXM5RlVySVVqVlFQUXY1LzBPNUpObWs1UDRTQnkrWVpLdGtHMklZMVFyK2dBSXp2VDlXNmo3V3djWXcvQ0E9PQo=",
+      "url": "https://github.com/Harrys-HQ/CMDGui/releases/download/v2.4.1/CmdGUI_2.4.1_x64-setup.exe"
     }
   }
 }

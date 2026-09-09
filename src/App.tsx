@@ -636,27 +636,30 @@ const App: React.FC = () => {
         />
         <div className={`resizer ${!isSidebarVisible ? 'collapsed' : ''}`} onMouseDown={startResizing} />
         <div className="main-content">
-          <TopTabBar
-            tabs={tabs}
-            activeTabId={activeTabId}
-            onSelectTab={setActiveTabId}
-            onCloseTab={handleCloseTab}
-            onRenameTab={handleRenameTab}
-            onReorderTabs={reorderTabs}
-            onAddTab={() => handleAddTerminal(false)}
-            onDuplicateTab={(id) => {
-              const target = tabs.find((t) => t.id === id);
-              if (target && target.panes) {
-                const firstPane = Object.values(target.panes)[0];
-                addTab(firstPane?.cwd);
-              }
-            }}
-            onCloseOthers={(id) => {
-              tabs.forEach((t) => {
-                if (t.id !== id) closeTab(t.id);
-              });
-            }}
-          />
+          {showTopTabBar && (
+            <TopTabBar
+              tabs={tabs}
+              activeTabId={activeTabId}
+              onSelectTab={setActiveTabId}
+              onCloseTab={handleCloseTab}
+              onRenameTab={handleRenameTab}
+              onReorderTabs={reorderTabs}
+              onAddTab={() => handleAddTerminal(false)}
+              onAddAdminTab={() => handleAddTerminal(true)}
+              onDuplicateTab={(id) => {
+                const target = tabs.find((t) => t.id === id);
+                if (target && target.panes) {
+                  const firstPane = Object.values(target.panes)[0];
+                  addTab(firstPane?.cwd);
+                }
+              }}
+              onCloseOthers={(id) => {
+                tabs.forEach((t) => {
+                  if (t.id !== id) closeTab(t.id);
+                });
+              }}
+            />
+          )}
           {!isAppReady ? (
             <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-root)', color: '#888' }}>
               Loading workspace...

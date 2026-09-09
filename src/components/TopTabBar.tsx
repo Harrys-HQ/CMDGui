@@ -12,6 +12,7 @@ interface TopTabBarProps {
   onDuplicateTab?: (id: string) => void;
   onCloseOthers?: (id: string) => void;
   onAddTab?: () => void;
+  onAddAdminTab?: () => void;
 }
 
 const TopTabBar: React.FC<TopTabBarProps> = ({
@@ -24,11 +25,14 @@ const TopTabBar: React.FC<TopTabBarProps> = ({
   onDuplicateTab,
   onCloseOthers,
   onAddTab,
+  onAddAdminTab,
 }) => {
   const [draggedIdx, setDraggedIdx] = useState<number | null>(null);
   const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
   const [contextMenuTabId, setContextMenuTabId] = useState<string | null>(null);
   const [menuPos, setMenuPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [isAddMenuOpen, setIsAddMenuOpen] = useState(false);
+  const [addMenuPos, setAddMenuPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
 
   const handleContextMenu = (e: React.MouseEvent, tab: Tab) => {
     e.preventDefault();
@@ -66,7 +70,13 @@ const TopTabBar: React.FC<TopTabBarProps> = ({
   };
 
   return (
-    <div className="top-tab-bar" onClick={() => setContextMenuTabId(null)}>
+    <div
+      className="top-tab-bar"
+      onClick={() => {
+        setContextMenuTabId(null);
+        setIsAddMenuOpen(false);
+      }}
+    >
       {(Array.isArray(tabs) ? tabs : []).map((tab, idx) => (
         <div
           key={tab.id}
@@ -110,8 +120,16 @@ const TopTabBar: React.FC<TopTabBarProps> = ({
       {onAddTab && (
         <div
           onClick={onAddTab}
+          onContextMenu={(e) => {
+            if (onAddAdminTab) {
+              e.preventDefault();
+              e.stopPropagation();
+              setAddMenuPos({ x: e.clientX, y: e.clientY });
+              setIsAddMenuOpen(true);
+            }
+          }}
           className="top-tab"
-          title="New Terminal Tab (Ctrl+T)"
+          title="New Terminal Tab (Ctrl+T) • Right-click for Admin"
           style={{
             width: '28px',
             minWidth: '28px',
@@ -122,6 +140,58 @@ const TopTabBar: React.FC<TopTabBarProps> = ({
           }}
         >
           <Plus size={14} />
+        </div>
+      )}
+
+      {isAddMenuOpen && onAddAdminTab && (
+        <div
+          className="dropdown-menu"
+          style={{
+            position: 'fixed',
+            left: `${addMenuPos.x}px`,
+            top: `${addMenuPos.y}px`,
+            zIndex: 10000,
+            background: 'var(--bg-modal)',
+            border: '1px solid var(--border-color)',
+            boxShadow: '0 6px 20px rgba(0,0,0,0.4)',
+            borderRadius: '6px',
+            padding: '4px 0',
+          }}
+        >
+          <div
+            className="project-item"
+            style={{
+              fontSize: '12px',
+              padding: '6px 14px',
+              gap: '8px',
+              display: 'flex',
+              alignItems: 'center',
+              cursor: 'pointer',
+            }}
+            onClick={() => {
+              if (onAddTab) onAddTab();
+              setIsAddMenuOpen(false);
+            }}
+          >
+            <Plus size={14} /> New Terminal
+          </div>
+          <div
+            className="project-item"
+            style={{
+              fontSize: '12px',
+              padding: '6px 14px',
+              gap: '8px',
+              display: 'flex',
+              alignItems: 'center',
+              cursor: 'pointer',
+            }}
+            onClick={() => {
+              onAddAdminTab();
+              setIsAddMenuOpen(false);
+            }}
+          >
+            <span style={{ fontSize: '13px' }}>🛡️</span> Run as Admin...
+          </div>
         </div>
       )}
 
