@@ -1,3 +1,13 @@
+## 🚀 Release: CmdGUI v2.4.2
+
+### 📑 Streamlined Horizontal Tab Bar & Dedicated Elevated Admin Terminal Shortcut
+- **📑 Reverted to Clean Horizontal Tab Bar:** Streamlined active terminal management exclusively to the horizontal top tab bar, removing redundant vertical task lists from the sidebar explorer to optimize vertical viewport space.
+- **🛡️ Dedicated Elevated Terminal Shortcut (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>A</kbd>):** Added a global, customizable keybinding action (`newAdminTab`) mapped to <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>A</kbd> to launch elevated Administrator terminals instantly from anywhere in the application (even while focused inside active terminal shells).
+- **⚡ Dual Normal Tab Shortcut Support:** Added direct keyboard support for standard <kbd>Ctrl</kbd>+<kbd>T</kbd> alongside configured <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>N</kbd> for creating new normal terminal tabs.
+- **🎯 Command Palette & Quick Access Hints:** Displayed elevated terminal shortcuts in the Command Palette, Welcome Dashboard quick action cards, and the Top Tab Bar `+` right-click context menu.
+
+---
+
 ## 🚀 Release: CmdGUI v2.4.1
 
 ### 🛡️ Vertical Task Management & Direct Admin Tab Execution

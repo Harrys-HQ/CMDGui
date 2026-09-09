@@ -139,6 +139,7 @@ export const useCommands = ({
         name: 'New Terminal (Admin)',
         category: 'Terminal',
         icon: '🛡️',
+        shortcut: formatKeybinding(keymap.newAdminTab),
         action: () => onAddTerminal(true),
       },
       {

@@ -129,7 +129,7 @@ const TopTabBar: React.FC<TopTabBarProps> = ({
             }
           }}
           className="top-tab"
-          title="New Terminal Tab (Ctrl+T) • Right-click for Admin"
+          title="New Terminal Tab (Ctrl+T / Ctrl+Shift+N) • Admin (Ctrl+Shift+A) • Right-click for options"
           style={{
             width: '28px',
             minWidth: '28px',
@@ -156,6 +156,7 @@ const TopTabBar: React.FC<TopTabBarProps> = ({
             boxShadow: '0 6px 20px rgba(0,0,0,0.4)',
             borderRadius: '6px',
             padding: '4px 0',
+            minWidth: '180px',
           }}
         >
           <div
@@ -174,6 +175,7 @@ const TopTabBar: React.FC<TopTabBarProps> = ({
             }}
           >
             <Plus size={14} /> New Terminal
+            <span style={{ marginLeft: 'auto', fontSize: '10px', color: '#888', paddingLeft: '12px' }}>Ctrl+Shift+N</span>
           </div>
           <div
             className="project-item"
@@ -191,6 +193,7 @@ const TopTabBar: React.FC<TopTabBarProps> = ({
             }}
           >
             <span style={{ fontSize: '13px' }}>🛡️</span> Run as Admin...
+            <span style={{ marginLeft: 'auto', fontSize: '10px', color: '#888', paddingLeft: '12px' }}>Ctrl+Shift+A</span>
           </div>
         </div>
       )}

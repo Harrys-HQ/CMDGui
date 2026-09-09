@@ -665,11 +665,13 @@ const Terminal: React.FC<TerminalProps> = ({
       // Allow navigation and global keybindings to bubble up to App.tsx
       if (
         isKeyMatch(e, keymap.newTab) ||
+        isKeyMatch(e, keymap.newAdminTab) ||
         isKeyMatch(e, keymap.closeTab) ||
         isKeyMatch(e, keymap.nextTab) ||
         isKeyMatch(e, keymap.prevTab) ||
         isKeyMatch(e, keymap.commandPalette) ||
-        isKeyMatch(e, keymap.toggleSidebar)
+        isKeyMatch(e, keymap.toggleSidebar) ||
+        (e.ctrlKey && !e.shiftKey && !e.altKey && !e.metaKey && (e.key === 't' || e.key === 'T'))
       ) {
         return false;
       }

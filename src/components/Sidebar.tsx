@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Project, Tab } from '../types';
 import ProjectItem from './ProjectItem';
-import TaskItem from './TaskItem';
 import FileExplorer from './FileExplorer';
 import { loadState, saveState } from '../hooks/usePersistence';
 import { useToast } from '../hooks/useToast';
@@ -86,14 +85,10 @@ const Sidebar: React.FC<SidebarProps> = ({
   className = '',
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
-  const [isAddMenuOpen, setIsAddMenuOpen] = useState(false);
-  const [draggedTabIndex, setDraggedTabIndex] = useState<number | null>(null);
-  const [dragOverTabIndex, setDragOverTabIndex] = useState<number | null>(null);
   const [draggedProjectIndex, setDraggedProjectIndex] = useState<number | null>(null);
   const [dragOverProjectIndex, setDragOverProjectIndex] = useState<number | null>(null);
   const [expandedSections, setExpandedSections] = useState({
     projects: true,
-    tasks: true,
     snippets: true,
   });
   const [openExplorerPath, setOpenExplorerPath] = useState<string | null>(null);
@@ -185,9 +180,9 @@ const Sidebar: React.FC<SidebarProps> = ({
 
   useEffect(() => {
     const loadExpandedState = async () => {
-      const savedState = await loadState<{ projects: boolean; tasks: boolean; snippets: boolean }>(
+      const savedState = await loadState<{ projects: boolean; snippets: boolean }>(
         'sidebarExpandedSections',
-        { projects: true, tasks: true, snippets: true }
+        { projects: true, snippets: true }
       );
       if (savedState) {
         setExpandedSections(savedState);
@@ -196,42 +191,12 @@ const Sidebar: React.FC<SidebarProps> = ({
     loadExpandedState();
   }, []);
 
-  const toggleSection = (section: 'projects' | 'tasks' | 'snippets') => {
+  const toggleSection = (section: 'projects' | 'snippets') => {
     setExpandedSections((prev) => {
       const newState = { ...prev, [section]: !prev[section] };
       saveState('sidebarExpandedSections', newState);
       return newState;
     });
-  };
-
-  const handleDragStart = (index: number) => {
-    setDraggedTabIndex(index);
-  };
-
-  const handleDragOver = (e: React.DragEvent, index: number) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    if (draggedTabIndex === null || draggedTabIndex === index) return;
-    setDragOverTabIndex(index);
-  };
-
-  const handleDrop = (e: React.DragEvent, dropIndex: number) => {
-    e.preventDefault();
-    const sourceTabId = e.dataTransfer.getData('text/plain');
-    let startIdx = draggedTabIndex;
-    if (startIdx === null && sourceTabId) {
-      startIdx = tabs.findIndex((t) => t.id === sourceTabId);
-    }
-    if (startIdx !== null && startIdx !== -1 && startIdx !== dropIndex) {
-      onReorderTabs(startIdx, dropIndex);
-    }
-    setDraggedTabIndex(null);
-    setDragOverTabIndex(null);
-  };
-
-  const handleDragEnd = () => {
-    setDraggedTabIndex(null);
-    setDragOverTabIndex(null);
   };
 
   const handleProjectDragStart = (index: number) => {
@@ -258,20 +223,9 @@ const Sidebar: React.FC<SidebarProps> = ({
     setDragOverProjectIndex(null);
   };
 
-  const filteredProjects = projects.filter(
-    (p) =>
-      p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.path.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
   const handleProjectContextMenu = (e: React.MouseEvent, project: Project) => {
     e.preventDefault();
     window.electron.showContextMenu('project', { path: project.path });
-  };
-
-  const handleTabContextMenu = (e: React.MouseEvent, tab: Tab) => {
-    e.preventDefault();
-    window.electron.showContextMenu('tab', { id: tab.id });
   };
 
   return (
@@ -282,7 +236,7 @@ const Sidebar: React.FC<SidebarProps> = ({
           <input
             type="text"
             className="sidebar-search-input"
-            placeholder="Filter projects & tasks..."
+            placeholder="Filter projects..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
@@ -308,8 +262,16 @@ const Sidebar: React.FC<SidebarProps> = ({
                 </div>
               }
             >
-              <div className="project-tree" style={{ padding: '4px 0' }}>
-                {(Array.isArray(projects) ? projects : []).map((p, index) => {
+              {(() => {
+                const filteredProjects = (Array.isArray(projects) ? projects : []).filter(
+                  (p) =>
+                    !searchQuery ||
+                    p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    p.path.toLowerCase().includes(searchQuery.toLowerCase())
+                );
+                return (
+                  <div className="project-tree" style={{ padding: '4px 0' }}>
+                    {(Array.isArray(projects) ? projects : []).map((p, index) => {
                   // Only show filtered projects if searching, otherwise show all for reordering
                   if (
                     searchQuery &&
@@ -363,149 +325,9 @@ const Sidebar: React.FC<SidebarProps> = ({
                   </div>
                 )}
               </div>
-            </CollapsibleSection>
-
-            <CollapsibleSection
-              title="ACTIVE TASKS"
-              isExpanded={expandedSections.tasks}
-              onToggle={() => toggleSection('tasks')}
-              action={
-                <div style={{ position: 'relative' }}>
-                  <div
-                    className="sidebar-action-btn"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setIsAddMenuOpen(!isAddMenuOpen);
-                    }}
-                    title="New Terminal..."
-                  >
-                    +
-                  </div>
-                  {isAddMenuOpen && (
-                    <>
-                      <div
-                        style={{ position: 'fixed', inset: 0, zIndex: 999 }}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setIsAddMenuOpen(false);
-                        }}
-                      />
-                      <div
-                        className="dropdown-menu"
-                        style={{
-                          position: 'absolute',
-                          right: 0,
-                          top: '100%',
-                          zIndex: 1000,
-                          minWidth: '150px',
-                          background: 'var(--bg-modal, #252526)',
-                          border: '1px solid var(--border-color, #3e3e42)',
-                          boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
-                          borderRadius: '4px',
-                          padding: '4px 0',
-                        }}
-                      >
-                        <div
-                          className="project-item"
-                          style={{
-                            padding: '6px 12px',
-                            fontSize: '11px',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                          }}
-                          onClick={() => {
-                            onAddTerminal(false);
-                            setIsAddMenuOpen(false);
-                          }}
-                        >
-                          <span style={{ marginRight: '6px' }}>💻</span>
-                          <span>New Terminal</span>
-                        </div>
-                        <div
-                          className="project-item"
-                          style={{
-                            padding: '6px 12px',
-                            fontSize: '11px',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                          }}
-                          onClick={() => {
-                            onAddTerminal(true);
-                            setIsAddMenuOpen(false);
-                          }}
-                        >
-                          <span style={{ marginRight: '6px' }}>🛡️</span>
-                          <span>Run as Admin...</span>
-                        </div>
-                      </div>
-                    </>
-                  )}
-                </div>
-              }
-            >
-              <div className="tab-list" style={{ padding: '4px 0' }}>
-                {(Array.isArray(tabs) ? tabs : []).map((tab, index) => {
-                  if (searchQuery && !tab.title.toLowerCase().includes(searchQuery.toLowerCase())) {
-                    return null;
-                  }
-
-                  return (
-                    <div
-                      key={tab.id}
-                      onDragOver={(e) => handleDragOver(e, index)}
-                      onDrop={(e) => handleDrop(e, index)}
-                      className={dragOverTabIndex === index ? 'drag-over-indicator' : ''}
-                    >
-                      <TaskItem
-                        tab={tab}
-                        isActive={activeTabId === tab.id}
-                        searchQuery={searchQuery}
-                        onSelect={() => onSelectTab(tab.id)}
-                        onClose={(e) => onCloseTab(tab.id, e)}
-                        onRename={(e) => {
-                          e.stopPropagation();
-                          e.preventDefault();
-                          onRenameTab(tab.id, tab.title);
-                        }}
-                        onContextMenu={(e) => handleTabContextMenu(e, tab)}
-                        onMoveUp={
-                          index > 0
-                            ? (e) => {
-                                e.stopPropagation();
-                                onReorderTabs(index, index - 1);
-                              }
-                            : undefined
-                        }
-                        onMoveDown={
-                          index < tabs.length - 1
-                            ? (e) => {
-                                e.stopPropagation();
-                                onReorderTabs(index, index + 1);
-                              }
-                            : undefined
-                        }
-                        onDragStart={() => handleDragStart(index)}
-                        onDragEnd={handleDragEnd}
-                      />
-                    </div>
-                  );
-                })}
-                {tabs.length === 0 && (
-                  <div
-                    style={{
-                      padding: '12px 15px',
-                      color: 'var(--fg-secondary, #666)',
-                      fontSize: '11px',
-                      fontStyle: 'italic',
-                    }}
-                  >
-                    No active tasks. Click + to open a terminal.
-                  </div>
-                )}
-              </div>
-            </CollapsibleSection>
+            );
+          })()}
+        </CollapsibleSection>
 
             <CollapsibleSection
               title="COMMAND SNIPPETS"

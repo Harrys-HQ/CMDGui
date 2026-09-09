@@ -45,6 +45,7 @@ interface SettingsModalProps {
 const ACTION_LABELS: Record<KeybindingAction, string> = {
   commandPalette: 'Open Command Palette',
   newTab: 'New Terminal Tab',
+  newAdminTab: 'New Terminal Tab (Admin)',
   closeTab: 'Close Active Tab',
   nextTab: 'Switch to Next Tab',
   prevTab: 'Switch to Previous Tab',
@@ -155,7 +156,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   const [activeTab, setActiveTab] = useState<
     'general' | 'keybindings' | 'workspaces' | 'about' | 'project' | 'appearance' | 'cli' | 'history'
   >('general');
-  const [appVersion, setAppVersion] = useState<string>('2.4.1');
+  const [appVersion, setAppVersion] = useState<string>('2.4.2');
   const [recordingAction, setRecordingAction] = useState<KeybindingAction | null>(null);
 
   // Update State
@@ -307,43 +308,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
               </section>
 
               <section className="modal-section">
-                <h3 className="modal-section-title">UI Layout</h3>
+                <h3 className="modal-section-title">Automation & Behavior</h3>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '15px', padding: '10px 0' }}>
-                  <div>
-                    <div style={{ fontWeight: '500', color: '#e5e5e5' }}>Horizontal Top Tab Bar</div>
-                    <div style={{ fontSize: '12px', color: '#888', marginTop: '4px' }}>Show horizontal tabs at the top of the workspace. Disable to use vertical sidebar tabs only.</div>
-                  </div>
-                  <button
-                    onClick={() => onShowTopTabBarChange && onShowTopTabBarChange(!showTopTabBar)}
-                    style={{
-                      width: '46px',
-                      height: '24px',
-                      borderRadius: '12px',
-                      background: showTopTabBar ? '#007acc' : '#444',
-                      border: 'none',
-                      position: 'relative',
-                      cursor: 'pointer',
-                      transition: 'background 0.2s ease',
-                      padding: 0,
-                    }}
-                  >
-                    <div
-                      style={{
-                        width: '18px',
-                        height: '18px',
-                        borderRadius: '50%',
-                        background: '#fff',
-                        position: 'absolute',
-                        top: '3px',
-                        left: showTopTabBar ? '25px' : '3px',
-                        transition: 'left 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                        boxShadow: '0 1px 3px rgba(0,0,0,0.4)',
-                      }}
-                    />
-                  </button>
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '15px', padding: '10px 0', borderTop: '1px solid var(--border-color)' }}>
                   <div>
                     <div style={{ fontWeight: '500', color: '#e5e5e5', display: 'flex', alignItems: 'center', gap: '6px' }}>
                       ⚡ YOLO Mode (Auto-Approve Confirmations)

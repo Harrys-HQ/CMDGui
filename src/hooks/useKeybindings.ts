@@ -4,6 +4,7 @@ import { loadState, saveState } from './usePersistence';
 export type KeybindingAction =
   | 'commandPalette'
   | 'newTab'
+  | 'newAdminTab'
   | 'closeTab'
   | 'nextTab'
   | 'prevTab'
@@ -31,6 +32,7 @@ export type Keymap = Record<KeybindingAction, Keybinding>;
 const DEFAULT_KEYMAP: Keymap = {
   commandPalette: { key: 'p', ctrlKey: true, shiftKey: true },
   newTab: { key: 'n', ctrlKey: true, shiftKey: true },
+  newAdminTab: { key: 'a', ctrlKey: true, shiftKey: true },
   closeTab: { key: 'w', ctrlKey: true, shiftKey: true },
   nextTab: { key: 'Tab', ctrlKey: true },
   prevTab: { key: 'Tab', ctrlKey: true, shiftKey: true },

@@ -142,6 +142,16 @@ const WelcomeDashboard: React.FC<WelcomeDashboardProps> = ({
             </div>
             <div
               className="shortcut-item"
+              onClick={() => onNewTerminal(undefined, true)}
+              style={{ cursor: 'pointer', padding: '6px', borderRadius: '6px', transition: 'background 0.1s' }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-hover)')}
+              onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+            >
+              <span className="shortcut-key">Ctrl+Shift+A</span>
+              <span className="shortcut-desc">Admin Tab</span>
+            </div>
+            <div
+              className="shortcut-item"
               onClick={onOpenAiAssistant}
               style={{ cursor: 'pointer', padding: '6px', borderRadius: '6px', transition: 'background 0.1s' }}
               onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-hover)')}
