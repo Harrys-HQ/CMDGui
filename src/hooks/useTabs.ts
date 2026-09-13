@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Tab, Pane, PaneLayout, Workspace } from '../types';
 import { loadState, saveState } from './usePersistence';
-import { killTerminalProcess } from '../utils/terminalUtils';
+import { killTerminalProcess, cleanupKilledPane } from '../utils/terminalUtils';
 
 const createTerminalPane = (
   cwd?: string,
@@ -115,7 +115,35 @@ export const useTabs = () => {
               Object.keys(tab.panes).forEach((paneId) => killTerminalProcess(paneId));
             }
           });
-          return JSON.parse(JSON.stringify(workspace.tabs));
+
+          // Deep clone and regenerate fresh pane IDs so restored tabs don't collide with killedPanes
+          const clonedTabs: Tab[] = JSON.parse(JSON.stringify(workspace.tabs));
+          clonedTabs.forEach((tab) => {
+            if (tab.panes) {
+              const idMap: Record<string, string> = {};
+              const newPanes: Record<string, Pane> = {};
+              Object.keys(tab.panes).forEach((oldPaneId) => {
+                cleanupKilledPane(oldPaneId);
+                const newPaneId = `pane-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+                idMap[oldPaneId] = newPaneId;
+                newPanes[newPaneId] = { ...tab.panes[oldPaneId], id: newPaneId };
+              });
+              tab.panes = newPanes;
+              if (tab.layout) {
+                const remapLayout = (node: any) => {
+                  if (!node) return;
+                  if (node.paneId && idMap[node.paneId]) {
+                    node.paneId = idMap[node.paneId];
+                  }
+                  if (node.first) remapLayout(node.first);
+                  if (node.second) remapLayout(node.second);
+                };
+                remapLayout(tab.layout);
+              }
+            }
+          });
+
+          return clonedTabs;
         });
         setActiveTabId(workspace.activeTabId);
         setActiveWorkspaceId(id);

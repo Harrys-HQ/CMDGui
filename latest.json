@@ -1,19 +1,19 @@
 {
-  "version": "2.4.2",
-  "notes": "CmdGUI v2.4.2: Streamlined Horizontal Tab Bar & Dedicated Elevated Admin Terminal Shortcut",
-  "pub_date": "2026-09-09T16:00:00.000Z",
+  "version": "2.4.3",
+  "notes": "CmdGUI v2.4.3: YOLO Engine Overhaul, Antigravity/Claude CLI Support & TUI Display Refresh",
+  "pub_date": "2026-09-13T17:38:00.000Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRTFBBRTlkRm42aWRPcGIxUTBZaDNWOXhmUThzYlNtSVBwS1VIYlN6NWZSZDQ2VmpQN0xBZ3dTYzlrQWVHaElacEI4RnJwSFlXUis2cDNaQmtHRzhWVGdBb1NxT0h2WlF3PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg4OTY5MTM1CWZpbGU6Q21kR1VJXzIuNC4yX3g2NC1zZXR1cC5leGUKd24zVUM5eUhJVHZETUVIREdtYnpOSDV4dy9iTG1lNkFtOHVtSVkrblJiWGdMQnlwUXdESWw1alJZSlF1NGg5ajlnOXQ4RkYweUQ5TzdiTFF4THNsQ1E9PQo=",
-      "url": "https://github.com/Harrys-HQ/CMDGui/releases/download/v2.4.2/CmdGUI_2.4.2_x64-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRTFBBRTlkRm42aWZ5TEFEZzVVSEpKeGhLeHZ5V0FGa2VaOUoxWE1oV2JPR3IyY3QxL2ZxQzVUMHdqWm5lOVFQc1lZa0hFaFUwUE1ocXE2bDV0ZHlOQyt6VzNtc2Z1dlFRPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg5MzIxMTI5CWZpbGU6Q21kR1VJXzIuNC4zX3g2NC1zZXR1cC5leGUKQnAvYnVpYTRDamxnNDN3ZS9UKzFkbmlhaytNZHEzU2k2Z2dtZTBqOUMvNU1vTkNkNXBZL253TlBXWjZHQW5sOWNlTkNTbVdCbnRGYTVpWDlDNFVuRFE9PQo=",
+      "url": "https://github.com/Harrys-HQ/CMDGui/releases/download/v2.4.3/CmdGUI_2.4.3_x64-setup.exe"
     },
     "windows-x86_64-nsis": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRTFBBRTlkRm42aWRPcGIxUTBZaDNWOXhmUThzYlNtSVBwS1VIYlN6NWZSZDQ2VmpQN0xBZ3dTYzlrQWVHaElacEI4RnJwSFlXUis2cDNaQmtHRzhWVGdBb1NxT0h2WlF3PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg4OTY5MTM1CWZpbGU6Q21kR1VJXzIuNC4yX3g2NC1zZXR1cC5leGUKd24zVUM5eUhJVHZETUVIREdtYnpOSDV4dy9iTG1lNkFtOHVtSVkrblJiWGdMQnlwUXdESWw1alJZSlF1NGg5ajlnOXQ4RkYweUQ5TzdiTFF4THNsQ1E9PQo=",
-      "url": "https://github.com/Harrys-HQ/CMDGui/releases/download/v2.4.2/CmdGUI_2.4.2_x64-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRTFBBRTlkRm42aWZ5TEFEZzVVSEpKeGhLeHZ5V0FGa2VaOUoxWE1oV2JPR3IyY3QxL2ZxQzVUMHdqWm5lOVFQc1lZa0hFaFUwUE1ocXE2bDV0ZHlOQyt6VzNtc2Z1dlFRPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg5MzIxMTI5CWZpbGU6Q21kR1VJXzIuNC4zX3g2NC1zZXR1cC5leGUKQnAvYnVpYTRDamxnNDN3ZS9UKzFkbmlhaytNZHEzU2k2Z2dtZTBqOUMvNU1vTkNkNXBZL253TlBXWjZHQW5sOWNlTkNTbVdCbnRGYTVpWDlDNFVuRFE9PQo=",
+      "url": "https://github.com/Harrys-HQ/CMDGui/releases/download/v2.4.3/CmdGUI_2.4.3_x64-setup.exe"
     },
     "windows-x86_64-msi": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRTFBBRTlkRm42aVF6UFBoUEUySXM3ZnUzTW5jekV5WHJuWDJrZTFpcDVTZTVjQXdGR1BHek5mN2lDK3FoSmY2UUgya2hISlZMS09qSlNtS3F2c25tWWQ5NnZibW1CdndzPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg4OTY5MTM1CWZpbGU6Q21kR1VJXzIuNC4yX3g2NF9lbi1VUy5tc2kKWlVXQ0RaMHJhSVJRSWFzMWVBTDF4Wkdwbyt4S0dpK3JXQllSY3c0VmNNaStiZ1VMQmlGUU5DS2EvYmpqVDU0bWZsc1JoWU9SOTA1RC9na0lRREY0Q2c9PQo=",
-      "url": "https://github.com/Harrys-HQ/CMDGui/releases/download/v2.4.2/CmdGUI_2.4.2_x64_en-US.msi"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRTFBBRTlkRm42aWRSeStWeDRqdlBSWXFHMDROL0tLYWZlUERpMVcwMVlMbjQxSHlDcmtycDU0eUtmWEErdEx2dG0zeTBxdGVhay9yUitkdHF3TEdUek04R1MwNTJ4end3PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg5MzIxMTI5CWZpbGU6Q21kR1VJXzIuNC4zX3g2NF9lbi1VUy5tc2kKYU1vbXUvbjg2d0wrMUFta29mdW5jMFZjQ3FmSFMwc3JTVmg1dFFRaUZuMUF3YUlkWWplNXB0ZmNCTUFLTlYvajRBdkY2UmtHZ24wMVJ5ZkIvZWNVRGc9PQo=",
+      "url": "https://github.com/Harrys-HQ/CMDGui/releases/download/v2.4.3/CmdGUI_2.4.3_x64_en-US.msi"
     }
   }
 }

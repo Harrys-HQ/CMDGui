@@ -1,3 +1,24 @@
+## 🚀 Release: CmdGUI v2.4.3
+
+### ⚡ YOLO Engine Overhaul, CLI Confirmation Framework & ConPTY Display Repaint
+- **⚡ Phantom '1' Auto-Enter Bug Scrubbed:** Replaced legacy scrollback regexes with strict trailing-buffer (~500 chars) prompt isolation. Version numbers (e.g. `1.0.0`), durations (`1.2s`), and historical diffs no longer trigger accidental auto-confirmations.
+- **⏱️ Streaming Output Quiescence Debounce (500ms):** Introduced a 500ms debounce buffer on terminal data streams before dispatching YOLO approvals, preventing premature keystrokes while AI agents are still generating text.
+- **🤖 Expanded Antigravity CLI (AGY) & Claude Code Approvals:**
+  - Added full automated confirmation support for AGY prompt choices (`1. Yes, accept this change`, `1. Apply this change`, `1. Always allow for this session`, `1. Yes, run this command`).
+  - Added support for Claude Code interactive choices (`❯ 1. Yes`, `Accept and continue`, `Yes, don't ask again`, `Allow Claude to run:`, and workspace trust dialogs).
+  - Automatically dispatches `\r` (Enter) for arrow-cursor menu highlights and `1\r` for numbered selection prompts.
+- **🖥️ TUI Forced Repaint on Display Refresh (<kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>R</kbd>):** Resolved graphical rendering glitches inside active CLI/TUI environments. The refresh trigger now briefly jitters PTY dimensions (`cols ± 1` for 35ms), forcing Windows ConPTY to fire `WINDOW_BUFFER_SIZE_EVENT` so interactive TUIs redraw clean rows.
+- **🐚 Cold-Start Shell Prompt Detection:** Replaced rigid launch delays with proactive shell prompt detection (`>`, `$`, `#`, `%`) and a 150ms stabilization cooldown, ensuring initial pane commands execute reliably without truncation.
+- **🎨 TrueColor & Developer Font Stack:**
+  - Injected `COLORTERM=truecolor` and `TERM=xterm-256color` into PTY sessions for full 24-bit TrueColor rendering.
+  - Automatically discovers and injects `%USERPROFILE%\AppData\Local\agy\bin`, `pnpm`, `bun`, and `cargo` directories into `PATH`.
+  - Added `Cascadia Code`, `Fira Code`, and `Segoe UI Emoji` to default terminal font stack for Unicode box-drawing symbols and status glyphs.
+- **🛡️ Storage Quota & Workspace Restoration Stability:**
+  - Guarded `localStorage` with a 200KB per-pane rolling limit to prevent `QuotaExceededError` crashes on heavy terminal logging.
+  - Fixed workspace restoration bug where restored split panes remained marked as killed, causing blank terminal panes.
+
+---
+
 ## 🚀 Release: CmdGUI v2.4.2
 
 ### 📑 Streamlined Horizontal Tab Bar & Dedicated Elevated Admin Terminal Shortcut

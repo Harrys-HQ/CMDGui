@@ -40,8 +40,8 @@ pub async fn create_terminal(
     state: State<'_, TerminalState>,
     options: CreateTerminalOptions,
 ) -> Result<String, String> {
-    let cols = options.cols.unwrap_or(80);
-    let rows = options.rows.unwrap_or(30);
+    let cols = options.cols.unwrap_or(80).max(2);
+    let rows = options.rows.unwrap_or(30).max(1);
 
     let pty_system = native_pty_system();
     let pair = pty_system
@@ -110,6 +110,10 @@ pub async fn create_terminal(
         cmd.env(k, v);
     }
 
+    // Set standard TrueColor terminal capabilities for Claude Code, Antigravity, and modern CLIs
+    cmd.env("TERM", "xterm-256color");
+    cmd.env("COLORTERM", "truecolor");
+
     #[cfg(target_os = "windows")]
     {
         let mut path_val = std::env::vars()
@@ -118,16 +122,21 @@ pub async fn create_terminal(
             .unwrap_or_default();
         if let Some(home) = std::env::var_os("USERPROFILE") {
             let home_str = home.to_string_lossy();
-            let npm_path = format!(r"{}\AppData\Roaming\npm", home_str);
-            let agy_path = format!(r"{}\AppData\Local\agy\bin", home_str);
-            
-            if !path_val.to_lowercase().contains(&npm_path.to_lowercase()) {
-                if !path_val.is_empty() { path_val.push(';'); }
-                path_val.push_str(&npm_path);
-            }
-            if !path_val.to_lowercase().contains(&agy_path.to_lowercase()) {
-                if !path_val.is_empty() { path_val.push(';'); }
-                path_val.push_str(&agy_path);
+            let additional_bins = [
+                format!(r"{}\AppData\Roaming\npm", home_str),
+                format!(r"{}\AppData\Local\agy\bin", home_str),
+                format!(r"{}\AppData\Local\pnpm", home_str),
+                format!(r"{}\.bun\bin", home_str),
+                format!(r"{}\.cargo\bin", home_str),
+                format!(r"{}\.local\bin", home_str),
+            ];
+            for bin_path in additional_bins {
+                if !path_val.to_lowercase().contains(&bin_path.to_lowercase()) {
+                    if !path_val.is_empty() {
+                        path_val.push(';');
+                    }
+                    path_val.push_str(&bin_path);
+                }
             }
         }
         // Find all case-insensitive variations of "PATH" currently in the environment
@@ -260,8 +269,8 @@ pub async fn resize_terminal(
         session
             .master
             .resize(PtySize {
-                rows,
-                cols,
+                rows: rows.max(1),
+                cols: cols.max(2),
                 pixel_width: 0,
                 pixel_height: 0,
             })

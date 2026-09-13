@@ -477,6 +477,7 @@ const App: React.FC = () => {
   const handleAddTerminalRef = useRef(handleAddTerminal);
   const closeTabRef = useRef(handleCloseTab);
   const renameTabRef = useRef(renameTab);
+  const handleRenameTabRef = useRef(handleRenameTab);
   const removeProjectRef = useRef(removeProject);
   const keymapRef = useRef(keymap);
   const setActiveTabIdRef = useRef(setActiveTabId);
@@ -488,6 +489,7 @@ const App: React.FC = () => {
     handleAddTerminalRef.current = handleAddTerminal;
     closeTabRef.current = handleCloseTab;
     renameTabRef.current = renameTab;
+    handleRenameTabRef.current = handleRenameTab;
     removeProjectRef.current = removeProject;
     keymapRef.current = keymap;
     setActiveTabIdRef.current = setActiveTabId;
@@ -503,8 +505,7 @@ const App: React.FC = () => {
         case 'rename-tab': {
           const tab = tabsRef.current.find((t) => t.id === data.id);
           if (tab) {
-            const newTitle = prompt('Rename Task:', tab.title);
-            if (newTitle) renameTabRef.current(data.id, newTitle);
+            handleRenameTabRef.current(tab.id, tab.title);
           }
           break;
         }

@@ -155,4 +155,30 @@ describe('useTabs Hook', () => {
       expect(result.current.tabs[1].id).toBe(tab1Id);
     });
   });
+
+  it('should save and load workspace with fresh pane IDs', async () => {
+    const { result } = renderHook(() => useTabs());
+    await waitFor(() => expect(result.current.tabs).toHaveLength(1));
+
+    act(() => {
+      result.current.saveWorkspace('Test Workspace');
+    });
+
+    await waitFor(() => expect(result.current.workspaces).toHaveLength(1));
+    const savedWorkspace = result.current.workspaces[0];
+    expect(savedWorkspace.name).toBe('Test Workspace');
+
+    const originalPaneId = Object.keys(result.current.tabs[0].panes)[0];
+
+    act(() => {
+      result.current.loadWorkspace(savedWorkspace.id);
+    });
+
+    await waitFor(() => {
+      const loadedPaneId = Object.keys(result.current.tabs[0].panes)[0];
+      // Pane ID must be regenerated and not match the old killed ID
+      expect(loadedPaneId).not.toBe(originalPaneId);
+      expect(result.current.tabs).toHaveLength(1);
+    });
+  });
 });

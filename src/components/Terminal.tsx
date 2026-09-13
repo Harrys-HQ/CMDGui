@@ -9,6 +9,7 @@ import { CanvasAddon } from '@xterm/addon-canvas';
 import { TerminalTheme, TerminalRendererType } from '../types';
 import { Keymap, isKeyMatch } from '../hooks/useKeybindings';
 import { globalPtyRegistry, isPaneKilled, cleanupKilledPane } from '../utils/terminalUtils';
+import { detectYoloPrompt, stripAnsi } from '../utils/yoloEngine';
 
 interface TerminalProps {
   paneId: string;
@@ -138,6 +139,18 @@ const Terminal: React.FC<TerminalProps> = ({
   const lastAutoResponseTimeRef = useRef<number>(0);
   const lastAutoRespondedPromptRef = useRef<string>('');
   const rendererAddonRef = useRef<any>(null);
+  const yoloAutoResponseTimerRef = useRef<any>(null);
+  const pendingInitialCommandRef = useRef<string | null>(initialCommand || null);
+  const initialCommandTimeoutRef = useRef<any>(null);
+  const keymapRef = useRef<Keymap>(keymap);
+
+  useEffect(() => {
+    keymapRef.current = keymap;
+  }, [keymap]);
+
+  useEffect(() => {
+    pendingInitialCommandRef.current = initialCommand || null;
+  }, [initialCommand]);
 
   const loadHighPerformanceRenderer = useCallback(
     (term: Xterm) => {
@@ -306,7 +319,8 @@ const Terminal: React.FC<TerminalProps> = ({
       fontSize,
       scrollback,
       lineHeight: 1.2,
-      fontFamily: 'Consolas, monospace',
+      fontFamily:
+        'Cascadia Code, "Fira Code", "JetBrains Mono", Consolas, "Segoe UI Emoji", monospace',
       theme: getTheme(theme, customTheme),
       allowProposedApi: true,
     });
@@ -603,13 +617,14 @@ const Terminal: React.FC<TerminalProps> = ({
 
     term.attachCustomKeyEventHandler((e) => {
       if (e.type !== 'keydown') return true;
+      const currentMap = keymapRef.current;
 
-      if (isKeyMatch(e, keymap.find)) {
+      if (isKeyMatch(e, currentMap.find)) {
         e.preventDefault();
         setIsSearchOpen(true);
         return false;
       }
-      if (isKeyMatch(e, keymap.copy)) {
+      if (isKeyMatch(e, currentMap.copy)) {
         e.preventDefault();
         const selection = term.getSelection();
         if (selection) {
@@ -618,7 +633,7 @@ const Terminal: React.FC<TerminalProps> = ({
         }
         return false;
       }
-      if (isKeyMatch(e, keymap.paste)) {
+      if (isKeyMatch(e, currentMap.paste)) {
         e.preventDefault();
         window.electron.readClipboard().then((text) => {
           // eslint-disable-next-line no-control-regex
@@ -627,29 +642,29 @@ const Terminal: React.FC<TerminalProps> = ({
         }).catch((err) => console.error('Clipboard paste failed:', err));
         return false;
       }
-      if (isKeyMatch(e, keymap.newLine)) {
+      if (isKeyMatch(e, currentMap.newLine)) {
         e.preventDefault();
         if (pidRef.current !== null) {
           window.electron.writeTerminal(pidRef.current, '\n');
         }
         return false;
       }
-      if (isKeyMatch(e, keymap.splitHorizontal)) {
+      if (isKeyMatch(e, currentMap.splitHorizontal)) {
         e.preventDefault();
         if (onSplitHorizontal) onSplitHorizontal();
         return false;
       }
-      if (isKeyMatch(e, keymap.splitVertical)) {
+      if (isKeyMatch(e, currentMap.splitVertical)) {
         e.preventDefault();
         if (onSplitVertical) onSplitVertical();
         return false;
       }
-      if (isKeyMatch(e, keymap.closePane)) {
+      if (isKeyMatch(e, currentMap.closePane)) {
         e.preventDefault();
         if (onClosePane) onClosePane();
         return false;
       }
-      if (isKeyMatch(e, keymap.clearTerminal)) {
+      if (isKeyMatch(e, currentMap.clearTerminal)) {
         e.preventDefault();
         if (pidRef.current !== null) {
           window.electron.writeTerminal(pidRef.current, '\x0c');
@@ -664,13 +679,13 @@ const Terminal: React.FC<TerminalProps> = ({
 
       // Allow navigation and global keybindings to bubble up to App.tsx
       if (
-        isKeyMatch(e, keymap.newTab) ||
-        isKeyMatch(e, keymap.newAdminTab) ||
-        isKeyMatch(e, keymap.closeTab) ||
-        isKeyMatch(e, keymap.nextTab) ||
-        isKeyMatch(e, keymap.prevTab) ||
-        isKeyMatch(e, keymap.commandPalette) ||
-        isKeyMatch(e, keymap.toggleSidebar) ||
+        isKeyMatch(e, currentMap.newTab) ||
+        isKeyMatch(e, currentMap.newAdminTab) ||
+        isKeyMatch(e, currentMap.closeTab) ||
+        isKeyMatch(e, currentMap.nextTab) ||
+        isKeyMatch(e, currentMap.prevTab) ||
+        isKeyMatch(e, currentMap.commandPalette) ||
+        isKeyMatch(e, currentMap.toggleSidebar) ||
         (e.ctrlKey && !e.shiftKey && !e.altKey && !e.metaKey && (e.key === 't' || e.key === 'T'))
       ) {
         return false;
@@ -746,11 +761,18 @@ const Terminal: React.FC<TerminalProps> = ({
           return;
         }
         globalPtyRegistry[paneId] = { pid, dataBuffer: [], lastActive: Date.now() };
-        if (initialCommand)
-          setTimeout(() => {
-            if (!isUnmounted && globalPtyRegistry[paneId])
-              window.electron.writeTerminal(pid, initialCommand + '\n');
-          }, 500);
+        if (initialCommand) {
+          pendingInitialCommandRef.current = initialCommand;
+          // Fallback timer: dispatch command after 1500ms if shell doesn't emit a standard prompt symbol
+          initialCommandTimeoutRef.current = setTimeout(() => {
+            if (!isUnmounted && pendingInitialCommandRef.current && pidRef.current !== null) {
+              const cmdToSend = pendingInitialCommandRef.current;
+              pendingInitialCommandRef.current = null;
+              window.electron.writeTerminal(pidRef.current, cmdToSend + '\n');
+            }
+            initialCommandTimeoutRef.current = null;
+          }, 1500);
+        }
       }
 
       if (isUnmounted) return;
@@ -784,151 +806,72 @@ const Terminal: React.FC<TerminalProps> = ({
           isDirtyRef.current = true;
         }
 
+        // Check for shell prompt readiness before dispatching pending initialCommand
+        if (pendingInitialCommandRef.current && pidRef.current !== null) {
+          const cleanChunk = stripAnsi(data);
+          if (cleanChunk.includes('>') || cleanChunk.includes('$') || cleanChunk.includes('#') || cleanChunk.includes('%')) {
+            const cmdToSend = pendingInitialCommandRef.current;
+            pendingInitialCommandRef.current = null;
+            if (initialCommandTimeoutRef.current) {
+              clearTimeout(initialCommandTimeoutRef.current);
+              initialCommandTimeoutRef.current = null;
+            }
+            // Allow 150ms for shell line editor (e.g. PSReadLine) to finish rendering its prompt
+            setTimeout(() => {
+              if (!isUnmounted && pidRef.current !== null) {
+                window.electron.writeTerminal(pidRef.current, cmdToSend + '\n');
+              }
+            }, 150);
+          }
+        }
+
         // Maintain rolling recent PTY output buffer for robust prompt detection
         rollingPtyBufferRef.current = (rollingPtyBufferRef.current + data).slice(-4096);
 
-        // Clean ANSI escape sequences (CSI, OSC, control characters) across interactive terminals
-        const stripAnsi = (str: string) =>
-          // eslint-disable-next-line no-control-regex
-          str.replace(/\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~]|\].*?(?:\x07|\x1B\\))/g, '');
+        // Cancel any pending automated response because the CLI is still actively outputting data
+        if (yoloAutoResponseTimerRef.current) {
+          clearTimeout(yoloAutoResponseTimerRef.current);
+          yoloAutoResponseTimerRef.current = null;
+        }
 
-        const combinedClean = stripAnsi(rollingPtyBufferRef.current).toLowerCase();
+        const promptMatch = detectYoloPrompt(rollingPtyBufferRef.current);
 
-        const confirmationPatterns = [
-          '[y/n]',
-          '(y/n)',
-          '[y/n/a]',
-          '[y/n/d]',
-          '[y/n/q]',
-          '[y/n/always]',
-          '(y/n/always)',
-          'proceed?',
-          'confirm?',
-          'are you sure',
-          'continue?',
-          'do you want to continue',
-          'do you want to proceed',
-          'override?',
-          'overwrite?',
-          'requesting permission',
-          'accept this file edit',
-          'accept this edit',
-          'accept this change',
-          'apply this change',
-          'apply these changes',
-          'allow this tool',
-          'allow this command',
-          'allow [a]lways',
-          'always allow',
-          '1. yes',
-          '> 1. yes',
-          '❯ 1. yes',
-          '› 1. yes',
-          '1. yes, accept',
-          '1. accept',
-          '1. allow',
-          '1. continue',
-          '1. proceed',
-          '❯ 1.',
-          '› 1.',
-          '> 1.',
-          'shift+tab to auto-approve',
-          'shift+tab to approve',
-          'accept this',
-          'reject this',
-          'press enter to continue',
-          'press any key to continue',
-          '(use arrow keys)',
-          '(press <enter> to select)'
-        ];
+        if (promptMatch && onNotificationRef.current) {
+          const { isDestructive, matchedPattern } = promptMatch;
+          const now = Date.now();
+          const isDuplicateTrigger =
+            now - lastAutoResponseTimeRef.current < 1500 &&
+            lastAutoRespondedPromptRef.current === matchedPattern;
 
-        const destructiveRegexes = [
-          // File system & OS destruction
-          /\bdrop\s+database\b/i,
-          /\brm\s+-[a-z]*r[a-z]*f\b/i,
-          /\bformat\s+[a-z]:/i,
-          /\bdelete\s+all\b/i,
-          /\btruncate\s+table\b/i,
-          /\bsudo\s+rm\b/i,
-          /\bdel\s+\/[sfa-z\s]*\b/i,
-          /\brd\s+\/[sqa-z\s]*\b/i,
-          /\bremove-item\s+.*-recurse\b/i,
-          // Git destructive actions
-          /\b(git\s+)?reset\s+--hard\b/i,
-          /\b(git\s+)?push\s+.*(--force|-f)\b/i,
-          /\b(git\s+)?clean\s+-[a-z]*f\b/i,
-          /\b(git\s+)?branch\s+-[dD]\b/i,
-          // Package Manager destructive / publish actions
-          /\b(npm|yarn|pnpm|cargo)\s+publish\b/i,
-          /\b(pip\s+uninstall|npm\s+un|yarn\s+remove)\b/i,
-          // Cloud & Infrastructure
-          /\bterraform\s+destroy\b/i,
-          /\bdocker\s+system\s+prune\b/i,
-          /\bdocker\s+rm\s+-[a-z]*f\b/i,
-          /\bdocker\s+rmi\s+-[a-z]*f\b/i,
-          /\bkubectl\s+delete\b/i,
-          /\baws\s+s3\s+rm\s+.*--recursive\b/i,
-          // DB Operations
-          /\b(drop\s+table|schema\s+drop|migrate:reset|db:drop|db:reset)\b/i
-        ];
-        
-        const isConfirmationPrompt = confirmationPatterns.some((p) => combinedClean.includes(p));
-        const isDestructiveCommand = destructiveRegexes.some((regex) => regex.test(combinedClean));
-
-        const now = Date.now();
-        const matchedPattern = confirmationPatterns.find((p) => combinedClean.includes(p)) || '';
-        const isDuplicateTrigger = (now - lastAutoResponseTimeRef.current < 1500) && (lastAutoRespondedPromptRef.current === matchedPattern);
-
-        if (isConfirmationPrompt && onNotificationRef.current) {
           if (isYoloModeRef.current && pidRef.current !== null && !isDuplicateTrigger) {
-            if (isDestructiveCommand) {
+            if (isDestructive) {
               console.warn('[YOLO Guardrail] Automated approval blocked due to destructive command pattern match.');
               onNotificationRef.current('confirmation');
             } else {
-              // Determine response key:
-              // 1. Shift+Tab sequence '\x1b[Z' for AI auto-approve prompts
-              // 2. Carriage Return / Enter '\r' for highlighted interactive menus / select lists
-              // 3. Option '1\r' for numbered choice prompts
-              // 4. Standard 'y\r' for yes/no confirmations
-              const isShiftTabPrompt = combinedClean.includes('shift+tab');
-              const isInteractiveMenu = combinedClean.includes('❯ 1.') || 
-                                        combinedClean.includes('› 1.') || 
-                                        combinedClean.includes('> 1.') || 
-                                        combinedClean.includes('(use arrow keys)') || 
-                                        combinedClean.includes('(press <enter> to select)') || 
-                                        combinedClean.includes('press enter to continue');
-              const isNumberedOption = combinedClean.includes('1. yes') || 
-                                       combinedClean.includes('1. accept') || 
-                                       combinedClean.includes('1. allow') || 
-                                       combinedClean.includes('1. proceed') || 
-                                       combinedClean.includes('1.');
-              
-              const responseKey = isShiftTabPrompt 
-                ? '\x1b[Z' 
-                : isInteractiveMenu 
-                  ? '\r' 
-                  : isNumberedOption 
-                    ? '1\r' 
-                    : 'y\r';
-              
-              lastAutoResponseTimeRef.current = now;
-              lastAutoRespondedPromptRef.current = matchedPattern;
-
-              setTimeout(() => {
-                if (pidRef.current !== null) {
-                  window.electron.writeTerminal(pidRef.current, responseKey);
+              // Wait for output quiescence (500ms of output silence) so the CLI finishes streaming its prompt
+              yoloAutoResponseTimerRef.current = setTimeout(() => {
+                if (!isUnmounted && pidRef.current !== null) {
+                  const finalMatch = detectYoloPrompt(rollingPtyBufferRef.current);
+                  if (finalMatch && !finalMatch.isDestructive) {
+                    lastAutoResponseTimeRef.current = Date.now();
+                    lastAutoRespondedPromptRef.current = finalMatch.matchedPattern;
+                    rollingPtyBufferRef.current = '';
+                    window.electron.writeTerminal(pidRef.current, finalMatch.responseKey);
+                  }
                 }
-              }, 120);
+                yoloAutoResponseTimerRef.current = null;
+              }, 500);
             }
-          } else if (!isYoloModeRef.current || isDestructiveCommand) {
+          } else if (!isYoloModeRef.current || isDestructive) {
             // Standard confirmation notification when YOLO is disabled or destructive command requires manual review
             onNotificationRef.current('confirmation');
           }
         }
 
         if (!isActiveRef.current && onNotificationRef.current) {
+          const cleanTail = stripAnsi(rollingPtyBufferRef.current).toLowerCase().slice(-500);
           const patterns = ['password', 'sudo', 'confirm', 'error:', 'failed', 'exception', '[y/n]', 'proceed?', 'are you sure', 'requesting permission'];
-          const match = patterns.find((p) => combinedClean.includes(p));
+          const match = patterns.find((p) => cleanTail.includes(p));
           if (match) {
             if (['password', 'sudo', 'confirm', '[y/n]', 'proceed?', 'are you sure', 'requesting permission'].includes(match))
               onNotificationRef.current('confirmation');
@@ -989,6 +932,8 @@ const Terminal: React.FC<TerminalProps> = ({
     return () => {
       isUnmounted = true;
       if (fitTimeoutRef.current) clearTimeout(fitTimeoutRef.current);
+      if (yoloAutoResponseTimerRef.current) clearTimeout(yoloAutoResponseTimerRef.current);
+      if (initialCommandTimeoutRef.current) clearTimeout(initialCommandTimeoutRef.current);
       window.removeEventListener('resize', handleResize);
       window.removeEventListener('focus', handleFocus);
       resizeObserver.disconnect();
@@ -1082,10 +1027,32 @@ const Terminal: React.FC<TerminalProps> = ({
       if (!xtermRef.current || !terminalRef.current) return;
       try {
         if (isActiveRef.current) {
+          const term = xtermRef.current;
           fitTerminal();
-          if (xtermRef.current.element) {
-            loadHighPerformanceRenderer(xtermRef.current);
-            xtermRef.current.refresh(0, xtermRef.current.rows - 1);
+          if (term.element) {
+            loadHighPerformanceRenderer(term);
+            term.refresh(0, term.rows - 1);
+          }
+
+          // Force ConPTY & active CLI (Claude Code, Antigravity, TUIs) to re-render:
+          // Interactive CLIs maintain their own internal screen state and only emit diffs.
+          // Jittering the PTY width by 1 column triggers WINDOW_BUFFER_SIZE_EVENT / SIGWINCH,
+          // forcing the CLI and ConPTY to invalidate their render caches and repaint the full screen.
+          if (pidRef.current !== null) {
+            const currentCols = term.cols || 80;
+            const currentRows = term.rows || 24;
+            const jitterCols = currentCols > 2 ? currentCols - 1 : currentCols + 1;
+
+            window.electron.resizeTerminal(pidRef.current, jitterCols, currentRows);
+
+            setTimeout(() => {
+              if (pidRef.current !== null && xtermRef.current) {
+                window.electron.resizeTerminal(pidRef.current, currentCols, currentRows);
+                xtermRef.current.resize(currentCols, currentRows);
+                xtermRef.current.refresh(0, xtermRef.current.rows - 1);
+                xtermRef.current.scrollToBottom();
+              }
+            }, 35);
           }
         }
       } catch (err) {
@@ -1106,12 +1073,19 @@ const Terminal: React.FC<TerminalProps> = ({
       const performSave = () => {
         if (!xtermRef.current || !serializeAddonRef.current) return;
         try {
-          // Serialize current buffer state
+          // Serialize current buffer state with ~200KB quota safety cap
           const buffer = serializeAddonRef.current.serialize();
-          localStorage.setItem(`terminal_buffer_${paneId}`, buffer);
+          const maxBufferChars = 200000;
+          const trimmedBuffer = buffer.length > maxBufferChars ? buffer.slice(-maxBufferChars) : buffer;
+          localStorage.setItem(`terminal_buffer_${paneId}`, trimmedBuffer);
           isDirtyRef.current = false;
         } catch (e) {
-          console.error('Failed to serialize terminal buffer:', e);
+          try {
+            // Prune older terminal buffers if storage quota is exceeded
+            const keys = Object.keys(localStorage);
+            keys.filter((k) => k.startsWith('terminal_buffer_')).forEach((k) => localStorage.removeItem(k));
+          } catch {}
+          console.warn('Failed to serialize terminal buffer or quota exceeded:', e);
         }
       };
 
@@ -1130,7 +1104,9 @@ const Terminal: React.FC<TerminalProps> = ({
       if (isDirtyRef.current && xtermRef.current && serializeAddonRef.current) {
         try {
           const buffer = serializeAddonRef.current.serialize();
-          localStorage.setItem(`terminal_buffer_${paneId}`, buffer);
+          const maxBufferChars = 200000;
+          const trimmedBuffer = buffer.length > maxBufferChars ? buffer.slice(-maxBufferChars) : buffer;
+          localStorage.setItem(`terminal_buffer_${paneId}`, trimmedBuffer);
         } catch {
           // Ignore
         }

@@ -156,7 +156,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   const [activeTab, setActiveTab] = useState<
     'general' | 'keybindings' | 'workspaces' | 'about' | 'project' | 'appearance' | 'cli' | 'history'
   >('general');
-  const [appVersion, setAppVersion] = useState<string>('2.4.2');
+  const [appVersion, setAppVersion] = useState<string>('2.4.3');
   const [recordingAction, setRecordingAction] = useState<KeybindingAction | null>(null);
 
   // Update State
