@@ -25,8 +25,8 @@ export const cleanTerminalTitle = (
     return null;
   }
 
-  if (cleanTitle.includes('\\')) {
-    cleanTitle = cleanTitle.split('\\').pop() || cleanTitle;
+  if (cleanTitle.includes('\\') || cleanTitle.includes('/')) {
+    cleanTitle = cleanTitle.split(/[/\\]/).filter(Boolean).pop() || cleanTitle;
   }
 
   return cleanTitle !== currentTitle ? cleanTitle : null;

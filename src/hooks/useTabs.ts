@@ -171,7 +171,7 @@ export const useTabs = () => {
     ) => {
       const id = Date.now().toString();
       const { pane, layout } = createTerminalPane(cwd, isAdmin, initialCommand, envVars);
-      const title = cwd ? cwd.split('\\').pop() || 'Terminal' : 'Terminal';
+      const title = cwd ? cwd.split(/[/\\]/).filter(Boolean).pop() || 'Terminal' : 'Terminal';
 
       setTabs((prev) => [
         ...prev,

@@ -1,3 +1,15 @@
+## 🚀 Release: CmdGUI v2.4.4
+
+### 🖥️ Persistent Tab Mounting, CLI State Preservation & Lifecycle Fixes
+- **🖥️ Persistent Tab Mounting & CLI State Preservation:** Inactive tabs are now continuously maintained in the DOM using CSS display toggling rather than unmounted in React. Eliminates terminal session destruction, dropped background PTY output, and buffer desynchronization during tab switching.
+- **🛡️ Initial Command Defusal on Existing Sessions:** Prevents re-arming and re-executing startup commands when refocusing or re-rendering tabs. Interactive shell and CLI prompts (such as `agy` and Claude Code) are never polluted with duplicate commands.
+- **⚡ Background Tab Inactivity Timer (Hibernation) Scrubbed:** Removed aggressive 5-minute DOM-unmounting hibernation that prematurely destroyed long-running background CLI jobs, builds, and AI agent tasks. Inactive tabs remain alive in the background while their WebGL/Canvas rendering layers are automatically unloaded to conserve GPU/CPU resources.
+- **🛑 Tab Close Event Bubbling Fix:** Added `e.stopPropagation()` on the top tab close button, preventing closed tab IDs from being mistakenly selected and focused.
+- **🧹 Orphaned Process & Multi-Tab Cleanup:** Guaranteed PTY process termination if a tab is unmounted during creation, and ensured `handleCloseTab` is consistently invoked during "Close Other Tabs" to prevent leaking background PTYs and terminal refs.
+- **📁 Cross-Platform Slash Parsing for Tab Titles:** Supported both forward (`/`) and backward (`\`) slashes in tab title derivation and OSC 7 directory handling, ensuring clean basename titles across Windows, Git Bash, WSL, and POSIX path formats.
+
+---
+
 ## 🚀 Release: CmdGUI v2.4.3
 
 ### ⚡ YOLO Engine Overhaul, CLI Confirmation Framework & ConPTY Display Repaint

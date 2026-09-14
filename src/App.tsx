@@ -126,56 +126,6 @@ const App: React.FC = () => {
   const [isSidebarVisible, setIsSidebarVisible] = useState(true);
   const [isQuickSwitcherOpen, setIsQuickSwitcherOpen] = useState(false);
   const [isUpdateAvailable, setIsUpdateAvailable] = useState(false);
-  const [hibernatedTabs, setHibernatedTabs] = useState<Set<string>>(new Set());
-
-  // Hibernation logic: Check every minute for inactive tabs
-  useEffect(() => {
-    const HIBERNATION_THRESHOLD = 5 * 60 * 1000; // 5 minutes
-    const interval = setInterval(() => {
-      const now = Date.now();
-      const newHibernated = new Set(hibernatedTabs);
-      let changed = false;
-
-      tabs.forEach((tab) => {
-        if (tab.id === activeTabId) {
-          if (newHibernated.has(tab.id)) {
-            newHibernated.delete(tab.id);
-            changed = true;
-          }
-          return;
-        }
-
-        // Check last active time of all panes in this tab
-        const panes = tab.panes ? Object.keys(tab.panes) : [];
-        const lastActive = panes.length > 0 
-          ? Math.max(...panes.map((p) => globalPtyRegistry[p]?.lastActive || 0))
-          : 0;
-
-        if (lastActive > 0 && now - lastActive > HIBERNATION_THRESHOLD) {
-          if (!newHibernated.has(tab.id)) {
-            newHibernated.add(tab.id);
-            changed = true;
-            console.log(`[Hibernation] Hibernating tab ${tab.id} (${tab.title})`);
-          }
-        }
-      });
-
-      if (changed) setHibernatedTabs(newHibernated);
-    }, 60000);
-
-    return () => clearInterval(interval);
-  }, [tabs, activeTabId, hibernatedTabs]);
-
-  // Wake up tab when it becomes active
-  useEffect(() => {
-    if (activeTabId && hibernatedTabs.has(activeTabId)) {
-      const newHibernated = new Set(hibernatedTabs);
-      newHibernated.delete(activeTabId);
-      // eslint-disable-next-line
-      setHibernatedTabs(newHibernated);
-      console.log(`[Hibernation] Waking up tab ${activeTabId}`);
-    }
-  }, [activeTabId, hibernatedTabs]);
 
   // Synchronize Active Workspace Context with Antigravity CLI / AI Agents
   useEffect(() => {
@@ -358,23 +308,6 @@ const App: React.FC = () => {
   );
 
   const renderLayout = (tab: Tab, layout: PaneLayout): React.ReactNode => {
-    if (hibernatedTabs.has(tab.id)) {
-      return (
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            height: '100%',
-            color: '#666',
-            fontSize: '12px',
-          }}
-        >
-          Tab is hibernating to save memory...
-        </div>
-      );
-    }
-
     if (layout.type === 'terminal') {
       const pane = tab.panes[layout.paneId!];
       if (!pane) return null;
@@ -663,9 +596,8 @@ const App: React.FC = () => {
               }
             }}
             onCloseOthers={(id) => {
-              tabs.forEach((t) => {
-                if (t.id !== id) closeTab(t.id);
-              });
+              const otherTabs = tabs.filter((t) => t.id !== id);
+              otherTabs.forEach((t) => handleCloseTab(t.id));
             }}
           />
           {!isAppReady ? (
@@ -683,21 +615,19 @@ const App: React.FC = () => {
                 onNavigate={(path) => addTab(path)}
               />
               <div className="terminal-container">
-                {(Array.isArray(tabs) ? tabs : []).map((tab) => {
-                  if (activeTabId !== tab.id) return null;
-                  return (
-                    <div
-                      key={tab.id}
-                      style={{
-                        height: '100%',
-                        width: '100%',
-                        position: 'relative',
-                      }}
-                    >
-                      {renderLayout(tab, tab.layout)}
-                    </div>
-                  );
-                })}
+                {(Array.isArray(tabs) ? tabs : []).map((tab) => (
+                  <div
+                    key={tab.id}
+                    style={{
+                      display: activeTabId === tab.id ? 'block' : 'none',
+                      height: '100%',
+                      width: '100%',
+                      position: 'relative',
+                    }}
+                  >
+                    {renderLayout(tab, tab.layout)}
+                  </div>
+                ))}
               </div>
             </>
           ) : (

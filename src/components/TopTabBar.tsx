@@ -111,7 +111,13 @@ const TopTabBar: React.FC<TopTabBarProps> = ({
           <span className="tab-title">{tab.title}</span>
           {tab.hasAlert && <span className="tab-status-dot alert" title="Activity alert" />}
           {tab.hasConfirmation && <span className="tab-status-dot confirmation" title="Requires input" />}
-          <div className="tab-close" onClick={(e) => onCloseTab(tab.id, e)}>
+          <div
+            className="tab-close"
+            onClick={(e) => {
+              e.stopPropagation();
+              onCloseTab(tab.id, e);
+            }}
+          >
             <X size={12} />
           </div>
         </div>

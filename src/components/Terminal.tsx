@@ -140,7 +140,9 @@ const Terminal: React.FC<TerminalProps> = ({
   const lastAutoRespondedPromptRef = useRef<string>('');
   const rendererAddonRef = useRef<any>(null);
   const yoloAutoResponseTimerRef = useRef<any>(null);
-  const pendingInitialCommandRef = useRef<string | null>(initialCommand || null);
+  const pendingInitialCommandRef = useRef<string | null>(
+    globalPtyRegistry[paneId] ? null : initialCommand || null
+  );
   const initialCommandTimeoutRef = useRef<any>(null);
   const keymapRef = useRef<Keymap>(keymap);
 
@@ -149,8 +151,10 @@ const Terminal: React.FC<TerminalProps> = ({
   }, [keymap]);
 
   useEffect(() => {
-    pendingInitialCommandRef.current = initialCommand || null;
-  }, [initialCommand]);
+    if (!globalPtyRegistry[paneId]) {
+      pendingInitialCommandRef.current = initialCommand || null;
+    }
+  }, [initialCommand, paneId]);
 
   const loadHighPerformanceRenderer = useCallback(
     (term: Xterm) => {
@@ -720,6 +724,12 @@ const Terminal: React.FC<TerminalProps> = ({
           if (globalPtyRegistry[paneId].cleanupData) globalPtyRegistry[paneId].cleanupData!();
           if (globalPtyRegistry[paneId].cleanupExit) globalPtyRegistry[paneId].cleanupExit!();
           globalPtyRegistry[paneId].lastActive = Date.now();
+          // Defuse initialCommand: session already active
+          pendingInitialCommandRef.current = null;
+          if (initialCommandTimeoutRef.current) {
+            clearTimeout(initialCommandTimeoutRef.current);
+            initialCommandTimeoutRef.current = null;
+          }
         } else {
           // Wait for a single frame to ensure DOM is ready and measurements are accurate
           await new Promise((resolve) => requestAnimationFrame(resolve));
@@ -755,7 +765,7 @@ const Terminal: React.FC<TerminalProps> = ({
           shell,
           envVars,
         });
-        if (isPaneKilled(paneId)) {
+        if (isPaneKilled(paneId) || isUnmounted) {
           window.electron.killTerminal(pid);
           cleanupKilledPane(paneId);
           return;
