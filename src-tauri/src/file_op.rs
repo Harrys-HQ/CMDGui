@@ -39,23 +39,71 @@ pub async fn file_delete(item_path: String) -> Result<(), String> {
     }
 }
 
+#[cfg(target_os = "windows")]
+fn to_wide_null(s: &str) -> Vec<u16> {
+    s.encode_utf16().chain(std::iter::once(0)).collect()
+}
+
+#[cfg(target_os = "windows")]
+unsafe fn win_shell_execute(target: &str) -> isize {
+    extern "system" {
+        fn ShellExecuteW(
+            hwnd: isize,
+            operation: *const u16,
+            file: *const u16,
+            parameters: *const u16,
+            directory: *const u16,
+            show_cmd: i32,
+        ) -> isize;
+    }
+    const SW_SHOWNORMAL: i32 = 1;
+    let op = to_wide_null("open");
+    let target_wide = to_wide_null(target);
+    ShellExecuteW(
+        0,
+        op.as_ptr(),
+        target_wide.as_ptr(),
+        std::ptr::null(),
+        std::ptr::null(),
+        SW_SHOWNORMAL,
+    )
+}
+
 #[tauri::command]
 pub async fn file_show_in_folder(item_path: String) -> Result<(), String> {
-    let path = Path::new(&item_path);
+    let mut clean_path = item_path.trim().to_string();
+    if clean_path.starts_with("~/") || clean_path.starts_with("~\\") {
+        if let Some(home) = std::env::var_os("USERPROFILE").or_else(|| std::env::var_os("HOME")) {
+            let home_str = home.to_string_lossy();
+            clean_path = format!("{}{}", home_str.trim_end_matches(['/', '\\']), &clean_path[1..]);
+        }
+    }
+    if clean_path.starts_with('/') && clean_path.len() > 2 && clean_path.chars().nth(2) == Some(':') {
+        clean_path = clean_path[1..].to_string();
+    }
+    let formatted = clean_path.replace("/", "\\");
+    let p = Path::new(&formatted);
     if cfg!(target_os = "windows") {
-        Command::new("explorer.exe")
-            .arg(format!("/select,{}", path.display()))
-            .spawn()
-            .map_err(|e| e.to_string())?;
+        if p.is_dir() {
+            Command::new("explorer.exe")
+                .arg(&formatted)
+                .spawn()
+                .map_err(|e| e.to_string())?;
+        } else {
+            Command::new("explorer.exe")
+                .arg(format!("/select,{}", formatted))
+                .spawn()
+                .map_err(|e| e.to_string())?;
+        }
     } else if cfg!(target_os = "macos") {
         Command::new("open")
             .arg("-R")
-            .arg(path)
+            .arg(p)
             .spawn()
             .map_err(|e| e.to_string())?;
     } else {
         // Linux fallback
-        if let Some(parent) = path.parent() {
+        if let Some(parent) = p.parent() {
             Command::new("xdg-open")
                 .arg(parent)
                 .spawn()
@@ -67,7 +115,17 @@ pub async fn file_show_in_folder(item_path: String) -> Result<(), String> {
 
 #[tauri::command]
 pub async fn fs_list_directory(dir_path: String) -> Result<Vec<FileEntry>, String> {
-    let path = Path::new(&dir_path);
+    let mut clean_path = dir_path.trim().to_string();
+    if clean_path.starts_with("~/") || clean_path.starts_with("~\\") {
+        if let Some(home) = std::env::var_os("USERPROFILE").or_else(|| std::env::var_os("HOME")) {
+            let home_str = home.to_string_lossy();
+            clean_path = format!("{}{}", home_str.trim_end_matches(['/', '\\']), &clean_path[1..]);
+        }
+    }
+    if clean_path.starts_with('/') && clean_path.len() > 2 && clean_path.chars().nth(2) == Some(':') {
+        clean_path = clean_path[1..].to_string();
+    }
+    let path = Path::new(&clean_path);
     let read_dir = fs::read_dir(path).map_err(|e| e.to_string())?;
     let mut entries = Vec::new();
 
@@ -90,30 +148,74 @@ pub async fn fs_list_directory(dir_path: String) -> Result<Vec<FileEntry>, Strin
 
 #[tauri::command]
 pub async fn shell_open_path(file_path: String) -> Result<bool, String> {
+    let mut path_str = file_path.trim().to_string();
+
+    // Expand leading tilde `~/` or `~\` to user home directory
+    if path_str.starts_with("~/") || path_str.starts_with("~\\") {
+        if let Some(home) = std::env::var_os("USERPROFILE").or_else(|| std::env::var_os("HOME")) {
+            let home_str = home.to_string_lossy();
+            path_str = format!("{}{}", home_str.trim_end_matches(['/', '\\']), &path_str[1..]);
+        }
+    }
+
+    // Strip leading `/` before Windows drive letter: e.g. `/C:/path` -> `C:/path`
+    if path_str.starts_with('/') && path_str.len() > 2 && path_str.chars().nth(2) == Some(':') {
+        path_str = path_str[1..].to_string();
+    }
+
+    let lower_path = path_str.to_lowercase();
+
     if cfg!(target_os = "windows") {
-        let path_str = file_path.trim().to_string();
-        let lower_path = path_str.to_lowercase();
+        // 1. Web & email URLs: open with user's default browser via ShellExecuteW
         if lower_path.starts_with("http://") || lower_path.starts_with("https://") || lower_path.starts_with("mailto:") {
-            let escaped_url = path_str.replace("^", "^^").replace("&", "^&");
-            Command::new("cmd.exe")
-                .args(&["/c", "start", "", &escaped_url])
-                .spawn()
-                .map_err(|e| e.to_string())?;
-        } else {
-            let formatted_path = path_str.replace("/", "\\");
-            Command::new("cmd.exe")
-                .args(&["/c", "start", "", &formatted_path])
-                .spawn()
-                .map_err(|e| e.to_string())?;
+            unsafe {
+                let res = win_shell_execute(&path_str);
+                if res <= 32 {
+                    // Fallback to start if ShellExecuteW had an issue
+                    let escaped_url = path_str.replace("^", "^^").replace("&", "^&");
+                    let _ = Command::new("cmd.exe")
+                        .args(&["/c", "start", "", &escaped_url])
+                        .spawn();
+                }
+            }
+            return Ok(true);
+        }
+
+        // 2. Local files and directories
+        let formatted_path = path_str.replace("/", "\\");
+        let p = Path::new(&formatted_path);
+
+        if p.is_dir() {
+            unsafe {
+                let res = win_shell_execute(&formatted_path);
+                if res <= 32 {
+                    let _ = Command::new("explorer.exe").arg(&formatted_path).spawn();
+                }
+            }
+            return Ok(true);
+        }
+
+        // File path handling
+        unsafe {
+            let res = win_shell_execute(&formatted_path);
+            // res <= 32 indicates an error, notably SE_ERR_NOASSOC = 31 (no file association in Registry, e.g. for .md/.log files)
+            if res <= 32 {
+                let ext = p.extension().and_then(|s| s.to_str()).unwrap_or("").to_lowercase();
+                if ["md", "txt", "log", "json", "yaml", "yml", "toml", "rs", "ts", "tsx", "js", "jsx", "html", "css", "py", "sh", "bat", "ps1"].contains(&ext.as_str()) {
+                    let _ = Command::new("notepad.exe").arg(&formatted_path).spawn();
+                } else {
+                    let _ = Command::new("explorer.exe").arg(format!("/select,{}", formatted_path)).spawn();
+                }
+            }
         }
     } else if cfg!(target_os = "macos") {
-        let path = Path::new(&file_path);
+        let path = Path::new(&path_str);
         Command::new("open")
             .arg(path)
             .spawn()
             .map_err(|e| e.to_string())?;
     } else {
-        let path = Path::new(&file_path);
+        let path = Path::new(&path_str);
         Command::new("xdg-open")
             .arg(path)
             .spawn()
@@ -179,16 +281,27 @@ pub async fn dialog_select_folder() -> Result<Option<String>, String> {
 
 #[tauri::command]
 pub async fn open_in_vscode(path: String) -> Result<(), String> {
+    let mut target_path = path.trim().to_string();
+    if target_path.starts_with("~/") || target_path.starts_with("~\\") {
+        if let Some(home) = std::env::var_os("USERPROFILE").or_else(|| std::env::var_os("HOME")) {
+            let home_str = home.to_string_lossy();
+            target_path = format!("{}{}", home_str.trim_end_matches(['/', '\\']), &target_path[1..]);
+        }
+    }
     if cfg!(target_os = "windows") {
-        Command::new("cmd.exe")
-            .args(&["/c", "code", &path])
-            .spawn()
-            .map_err(|e| e.to_string())?;
+        let spawn_res = Command::new("cmd.exe")
+            .args(&["/c", "code", &target_path])
+            .spawn();
+        if spawn_res.is_err() {
+            let _ = shell_open_path(target_path).await;
+        }
     } else {
-        Command::new("code")
-            .arg(path)
-            .spawn()
-            .map_err(|e| e.to_string())?;
+        let spawn_res = Command::new("code")
+            .arg(&target_path)
+            .spawn();
+        if spawn_res.is_err() {
+            let _ = shell_open_path(target_path).await;
+        }
     }
     Ok(())
 }

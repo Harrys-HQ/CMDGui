@@ -8,7 +8,13 @@ import { WebglAddon } from '@xterm/addon-webgl';
 import { CanvasAddon } from '@xterm/addon-canvas';
 import { TerminalTheme, TerminalRendererType } from '../types';
 import { Keymap, isKeyMatch } from '../hooks/useKeybindings';
-import { globalPtyRegistry, isPaneKilled, cleanupKilledPane } from '../utils/terminalUtils';
+import {
+  globalPtyRegistry,
+  isPaneKilled,
+  cleanupKilledPane,
+  extractTerminalLinks,
+  sanitizeLinkTarget,
+} from '../utils/terminalUtils';
 import { detectYoloPrompt, stripAnsi } from '../utils/yoloEngine';
 
 interface TerminalProps {
@@ -327,6 +333,21 @@ const Terminal: React.FC<TerminalProps> = ({
         'Cascadia Code, "Fira Code", "JetBrains Mono", Consolas, "Segoe UI Emoji", monospace',
       theme: getTheme(theme, customTheme),
       allowProposedApi: true,
+      linkHandler: {
+        allowNonHttpProtocols: true,
+        activate(_e: MouseEvent, text: string) {
+          const sanitized = sanitizeLinkTarget(text);
+          if (sanitized.type === 'external') {
+            if (window.electron && window.electron.openExternal) {
+              window.electron.openExternal(sanitized.path);
+            }
+          } else {
+            if (window.electron && window.electron.openLocalPath) {
+              window.electron.openLocalPath(sanitized.path);
+            }
+          }
+        },
+      },
     });
     const fitAddon = new FitAddon();
     const searchAddon = new SearchAddon();
@@ -334,6 +355,12 @@ const Terminal: React.FC<TerminalProps> = ({
     term.loadAddon(fitAddon);
     term.loadAddon(searchAddon);
     term.loadAddon(serializeAddon);
+
+    term.onBell(() => {
+      if (!isActiveRef.current && onNotificationRef.current) {
+        onNotificationRef.current('alert');
+      }
+    });
 
     // Track CWD via OSC 7 escape sequences
     term.parser.registerOscHandler(7, (data) => {
@@ -398,27 +425,33 @@ const Terminal: React.FC<TerminalProps> = ({
       return { x: last.length + 1, y: last.lineIdx + 1 };
     };
 
-    // 1. Register a provider for URLs, absolute file URLs, and path links across wrapped lines
+    // Helper to safely activate any web URL, file URI, or local path
+    const handleLinkActivation = (target: string) => {
+      const sanitized = sanitizeLinkTarget(target);
+      if (sanitized.type === 'external') {
+        if (window.electron && window.electron.openExternal) {
+          window.electron.openExternal(sanitized.path);
+        }
+      } else {
+        if (window.electron && window.electron.openLocalPath) {
+          window.electron.openLocalPath(sanitized.path);
+        }
+      }
+    };
+
+    // 1. Register a provider for Markdown links, URLs, file URLs, tilde paths, and Windows paths across wrapped lines
     term.registerLinkProvider({
       provideLinks(bufferLineNumber, callback) {
         const lineIdx = bufferLineNumber - 1;
-        const { startLineIdx, endLineIdx, fullText, lineOffsets } = getWrappedLineText(bufferLineNumber);
+        const { fullText, lineOffsets } = getWrappedLineText(bufferLineNumber);
+        const extracted = extractTerminalLinks(fullText);
         const links: any[] = [];
 
-        // Match http/https URLs: e.g. https://github.com/Harrys-HQ/CMDGui/releases/tag/v2.2.0
-        const httpUrlRegex = /https?:\/\/[^\s"'<>()]+/gi;
-        let match;
-        while ((match = httpUrlRegex.exec(fullText)) !== null) {
-          let url = match[0].replace(/[)\].,;:]+$/, '');
-          const matchStart = match.index;
-          const matchEnd = matchStart + url.length;
-
-          const startPos = getCharPosition(matchStart, lineOffsets);
-          const endPos = getCharPosition(matchEnd - 1, lineOffsets);
+        for (const item of extracted) {
+          const startPos = getCharPosition(item.start, lineOffsets);
+          const endPos = getCharPosition(item.end - 1, lineOffsets);
 
           if (lineIdx >= startPos.y - 1 && lineIdx <= endPos.y - 1) {
-            // For xterm.js multi-line link highlights on bufferLineNumber line:
-            // Calculate start and end columns for the current bufferLineNumber line segment
             let segStartX = 1;
             let segEndX = term.cols;
 
@@ -430,96 +463,20 @@ const Terminal: React.FC<TerminalProps> = ({
             }
 
             links.push({
-              text: url,
+              text: item.target,
               range: {
                 start: { x: segStartX, y: bufferLineNumber },
-                end: { x: segEndX, y: bufferLineNumber }
+                end: { x: segEndX, y: bufferLineNumber },
               },
               activate() {
-                const cleanUrl = url.replace(/\s+/g, '');
-                if (window.electron && window.electron.openExternal) {
-                  window.electron.openExternal(cleanUrl);
-                }
-              }
-            });
-          }
-        }
-
-        // Match file:/// links: e.g. file:///C:/path/to/file.ext or file:///C:\path\to\file.ext
-        const fileUriRegex = /file:\/\/\/[a-zA-Z]:[/\\][^\s"'<>()]+|file:\/\/\/[^\s"'<>()]+/g;
-        while ((match = fileUriRegex.exec(fullText)) !== null) {
-          let uri = match[0].replace(/[)\].,;:]+$/, '');
-          const matchStart = match.index;
-          const matchEnd = matchStart + uri.length;
-
-          const startPos = getCharPosition(matchStart, lineOffsets);
-          const endPos = getCharPosition(matchEnd - 1, lineOffsets);
-
-          if (lineIdx >= startPos.y - 1 && lineIdx <= endPos.y - 1) {
-            let segStartX = 1;
-            let segEndX = term.cols;
-            if (lineIdx === startPos.y - 1) segStartX = startPos.x;
-            if (lineIdx === endPos.y - 1) segEndX = endPos.x;
-
-            links.push({
-              text: uri,
-              range: {
-                start: { x: segStartX, y: bufferLineNumber },
-                end: { x: segEndX, y: bufferLineNumber }
+                handleLinkActivation(item.target);
               },
-              activate() {
-                let filePath = uri.replace(/^file:\/\/\//, '');
-                if (/^[a-zA-Z]:\//.test(filePath)) {
-                  filePath = filePath.replace(/\//g, '\\');
-                }
-                if (window.electron && window.electron.openLocalPath) {
-                  window.electron.openLocalPath(decodeURIComponent(filePath));
-                }
-              }
-            });
-          }
-        }
-
-        // Match Windows absolute paths: e.g. C:\path\to\file.ext or C:/path/to/file.ext
-        const winPathRegex = /[a-zA-Z]:[/\\][^\s"'<>()]+/g;
-        while ((match = winPathRegex.exec(fullText)) !== null) {
-          let pathStr = match[0];
-          const matchStart = match.index;
-
-          const prevStr = fullText.substring(Math.max(0, matchStart - 8), matchStart);
-          if (prevStr.includes('file:///')) {
-            continue;
-          }
-
-          pathStr = pathStr.replace(/[)\].,;:]+$/, '');
-          const matchEnd = matchStart + pathStr.length;
-
-          const startPos = getCharPosition(matchStart, lineOffsets);
-          const endPos = getCharPosition(matchEnd - 1, lineOffsets);
-
-          if (lineIdx >= startPos.y - 1 && lineIdx <= endPos.y - 1) {
-            let segStartX = 1;
-            let segEndX = term.cols;
-            if (lineIdx === startPos.y - 1) segStartX = startPos.x;
-            if (lineIdx === endPos.y - 1) segEndX = endPos.x;
-
-            links.push({
-              text: pathStr,
-              range: {
-                start: { x: segStartX, y: bufferLineNumber },
-                end: { x: segEndX, y: bufferLineNumber }
-              },
-              activate() {
-                if (window.electron && window.electron.openLocalPath) {
-                  window.electron.openLocalPath(pathStr);
-                }
-              }
             });
           }
         }
 
         callback(links.length > 0 ? links : undefined);
-      }
+      },
     });
 
     // 2. Register an asynchronous provider for active workspace relative files across wrapped lines
@@ -537,7 +494,7 @@ const Terminal: React.FC<TerminalProps> = ({
           let matchedStr = match[0];
           const matchStart = match.index;
           
-          // Avoid duplicate matching if it has file:/// prefix or C:\ prefix
+          // Avoid duplicate matching if it has file:/// prefix or C:\ prefix or ~ prefix
           const prevStr = fullText.substring(Math.max(0, matchStart - 8), matchStart);
           if (prevStr.includes('file:///')) {
             continue;
@@ -545,7 +502,7 @@ const Terminal: React.FC<TerminalProps> = ({
           if (/[a-zA-Z]:\\/.test(fullText.substring(Math.max(0, matchStart - 3), matchStart + 3))) {
             continue;
           }
-          if (matchedStr.startsWith('file:///') || /^[a-zA-Z]:[/\\]/.test(matchedStr)) {
+          if (matchedStr.startsWith('file:///') || /^[a-zA-Z]:[/\\]/.test(matchedStr) || matchedStr.startsWith('~')) {
             continue;
           }
           
@@ -637,7 +594,29 @@ const Terminal: React.FC<TerminalProps> = ({
         }
         return false;
       }
+      // Smart Ctrl+C: When active text selection is present, copy to clipboard and clear selection.
+      // When no text is selected, let it pass through to xterm to emit standard SIGINT (^C).
+      if (e.ctrlKey && !e.shiftKey && !e.altKey && !e.metaKey && (e.key === 'c' || e.key === 'C')) {
+        const selection = term.getSelection();
+        if (selection && selection.length > 0) {
+          e.preventDefault();
+          navigator.clipboard.writeText(selection);
+          term.clearSelection();
+          return false;
+        }
+        return true;
+      }
       if (isKeyMatch(e, currentMap.paste)) {
+        e.preventDefault();
+        window.electron.readClipboard().then((text) => {
+          // eslint-disable-next-line no-control-regex
+          const sanitized = text.replace(/[\u0000-\u0008\u000e-\u001f\u007f]/g, '');
+          term.paste(sanitized);
+        }).catch((err) => console.error('Clipboard paste failed:', err));
+        return false;
+      }
+      // Standard terminal Shift+Insert shortcut for pasting
+      if (e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey && e.key === 'Insert') {
         e.preventDefault();
         window.electron.readClipboard().then((text) => {
           // eslint-disable-next-line no-control-regex
@@ -1177,11 +1156,39 @@ const Terminal: React.FC<TerminalProps> = ({
     return cleanup;
   }, [onSplitHorizontal, onSplitVertical, paneId]);
 
+  useEffect(() => {
+    if (!window.electron.onFileDrop) return;
+    const cleanup = window.electron.onFileDrop((paths) => {
+      if (!isActiveRef.current || !xtermRef.current) return;
+      const formatted = paths
+        .map((p) => (p.includes(' ') ? `"${p}"` : p))
+        .join(' ');
+      if (formatted) {
+        xtermRef.current.focus();
+        xtermRef.current.paste(formatted + ' ');
+      }
+    });
+
+    return cleanup;
+  }, []);
+
   return (
     <div
       className={`terminal-wrapper ${isActive ? 'active' : ''} ${isAdmin ? 'admin-session' : ''} ${isYoloModeEnabled ? 'yolo-active' : ''}`}
       style={{ width: '100%', height: '100%', position: 'relative' }}
       onContextMenu={handleContextMenu}
+      onDragOver={(e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'copy';
+      }}
+      onDrop={(e) => {
+        e.preventDefault();
+        const text = e.dataTransfer.getData('text/plain');
+        if (text && xtermRef.current) {
+          xtermRef.current.focus();
+          xtermRef.current.paste(text);
+        }
+      }}
       onClick={() => {
         if (xtermRef.current) {
           xtermRef.current.focus();

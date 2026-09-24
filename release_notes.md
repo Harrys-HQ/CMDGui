@@ -1,3 +1,20 @@
+## 🚀 Release: CmdGUI v2.4.5
+
+### 🔗 Terminal Link Dispatch, PTY Streaming & CLI Productivity
+- **🔗 Native ShellExecuteW Link Activation:** Replaced legacy `cmd.exe /c start` with direct Win32 `ShellExecuteW` API dispatch. Eliminates `Access is denied.` (Win32 Error 5) when opening unassociated file formats (`.md`, `.log`, `.json`), and resolves command-line splitting bugs on query parameters (`?redirect_uri=...`).
+- **🛡️ Unassociated File Handlers:** Automatically opens text and markdown files in `notepad.exe` if no system file association is registered (`SE_ERR_NOASSOC = 31`), or reveals items in Windows Explorer via `explorer.exe /select,`.
+- **🌐 OSC 8 Hyperlink Routing in WebView2:** Configured `xterm` custom `linkHandler` with `allowNonHttpProtocols: true` to prevent Tauri's WebView2 from silently blocking terminal-emitted links and web URLs.
+- **📄 CLI Markdown Link Syntax Parser:** Added dedicated regex parsing in terminal output for markdown links `[Label](url)` and drive-letter URLs, making documentation references, CLI mockups, and local file links directly clickable.
+- **⚡ PTY Streaming UTF-8 Chunk Decoder:** Replaced raw byte slicing with a streaming UTF-8 decoder that buffers incomplete trailing multi-byte sequences across PTY read boundaries, guaranteeing zero corrupted characters or missing glyphs (`🚀`, `✨`, `│`, `─`).
+- **🌐 Modern CLI UTF-8 Environment:** Injected `LANG=en_US.UTF-8`, `LC_ALL=en_US.UTF-8`, and `PYTHONIOENCODING=utf-8` into terminal PTY sessions to prevent `UnicodeEncodeError` crashes on Windows, and added WinGet binary links (`AppData\Local\Microsoft\WinGet\Links`) to `PATH`.
+- **🖱️ Smart Terminal Shortcuts & Drag-and-Drop:**
+  - Context-aware <kbd>Ctrl</kbd>+<kbd>C</kbd> copies selected text when a selection is active; falls back to standard `SIGINT` (`\x03`) interrupt when no text is selected.
+  - Added support for standard terminal <kbd>Shift</kbd>+<kbd>Insert</kbd> pasting.
+  - Added <kbd>term.onBell</kbd> notification listener to alert users when background CLI commands finish.
+  - Added Explorer file/folder drag-and-drop pasting into the active terminal session with automatic window re-focusing, space-quoting, and bracketed paste compatibility.
+
+---
+
 ## 🚀 Release: CmdGUI v2.4.4
 
 ### 🖥️ Persistent Tab Mounting, CLI State Preservation & Lifecycle Fixes

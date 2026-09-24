@@ -110,9 +110,12 @@ pub async fn create_terminal(
         cmd.env(k, v);
     }
 
-    // Set standard TrueColor terminal capabilities for Claude Code, Antigravity, and modern CLIs
+    // Set standard TrueColor and UTF-8 terminal capabilities for Claude Code, Antigravity, and modern CLIs
     cmd.env("TERM", "xterm-256color");
     cmd.env("COLORTERM", "truecolor");
+    cmd.env("LANG", "en_US.UTF-8");
+    cmd.env("LC_ALL", "en_US.UTF-8");
+    cmd.env("PYTHONIOENCODING", "utf-8");
 
     #[cfg(target_os = "windows")]
     {
@@ -126,6 +129,7 @@ pub async fn create_terminal(
                 format!(r"{}\AppData\Roaming\npm", home_str),
                 format!(r"{}\AppData\Local\agy\bin", home_str),
                 format!(r"{}\AppData\Local\pnpm", home_str),
+                format!(r"{}\AppData\Local\Microsoft\WinGet\Links", home_str),
                 format!(r"{}\.bun\bin", home_str),
                 format!(r"{}\.cargo\bin", home_str),
                 format!(r"{}\.local\bin", home_str),
@@ -197,23 +201,59 @@ pub async fn create_terminal(
     // Spawn a thread to read output from the PTY master
     thread::spawn(move || {
         let mut buffer = [0u8; 8192];
+        let mut leftover: Vec<u8> = Vec::with_capacity(4);
+
         loop {
             match reader.read(&mut buffer) {
                 Ok(n) if n > 0 => {
-                    let data = String::from_utf8_lossy(&buffer[..n]).to_string();
-                    app_handle_clone
-                        .emit(
-                            &format!("terminal-incoming-{}", pid_clone),
-                            data,
-                        )
-                        .ok();
+                    let to_process = if leftover.is_empty() {
+                        buffer[..n].to_vec()
+                    } else {
+                        let mut v = std::mem::take(&mut leftover);
+                        v.extend_from_slice(&buffer[..n]);
+                        v
+                    };
+
+                    match std::str::from_utf8(&to_process) {
+                        Ok(valid_str) => {
+                            let text = valid_str.to_string();
+                            app_handle_clone
+                                .emit(&format!("terminal-incoming-{}", pid_clone), text)
+                                .ok();
+                        }
+                        Err(e) => {
+                            let valid_len = e.valid_up_to();
+                            if e.error_len().is_none() {
+                                // Trailing bytes form an incomplete UTF-8 codepoint across chunk boundaries
+                                if valid_len > 0 {
+                                    let valid_text = String::from_utf8_lossy(&to_process[..valid_len]).to_string();
+                                    app_handle_clone
+                                        .emit(&format!("terminal-incoming-{}", pid_clone), valid_text)
+                                        .ok();
+                                }
+                                leftover = to_process[valid_len..].to_vec();
+                            } else {
+                                // Actual invalid byte inside chunk; emit lossy and reset leftover
+                                let text = String::from_utf8_lossy(&to_process).to_string();
+                                app_handle_clone
+                                    .emit(&format!("terminal-incoming-{}", pid_clone), text)
+                                    .ok();
+                            }
+                        }
+                    }
                 }
                 _ => {
-                    // Reader EOF or error (shell process exited)
+                    // Flush any remaining leftover bytes before reporting EOF/exit
+                    if !leftover.is_empty() {
+                        let final_text = String::from_utf8_lossy(&leftover).to_string();
+                        app_handle_clone
+                            .emit(&format!("terminal-incoming-{}", pid_clone), final_text)
+                            .ok();
+                    }
                     app_handle_clone
                         .emit(&format!("terminal-exit-{}", pid_clone), ())
                         .ok();
-                    
+
                     // Remove session from map to free memory and resources
                     if let Ok(mut sessions) = sessions_clone.lock() {
                         sessions.remove(&pid_clone);

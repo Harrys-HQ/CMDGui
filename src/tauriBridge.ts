@@ -1,5 +1,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
+import { getCurrentWebview } from '@tauri-apps/api/webview';
+import { getVersion as getTauriAppVersion } from '@tauri-apps/api/app';
 import { check, type Update } from '@tauri-apps/plugin-updater';
 import { relaunch } from '@tauri-apps/plugin-process';
 
@@ -218,11 +220,20 @@ export const tauriBridge = {
   },
 
   openExternal: async (url: string) => {
-    await invoke('shell_open_path', { filePath: url });
+    try {
+      await invoke('shell_open_path', { filePath: url });
+    } catch (e) {
+      console.error('Failed to open external url:', url, e);
+    }
   },
 
   openLocalPath: async (filePath: string) => {
-    return await invoke<boolean>('shell_open_path', { filePath });
+    try {
+      return await invoke<boolean>('shell_open_path', { filePath });
+    } catch (e) {
+      console.error('Failed to open local path:', filePath, e);
+      return false;
+    }
   },
 
   checkForUpdates: async () => {
@@ -310,7 +321,11 @@ export const tauriBridge = {
   },
 
   getVersion: async () => {
-    return '2.4.3';
+    try {
+      return await getTauriAppVersion();
+    } catch {
+      return '2.4.5';
+    }
   },
 
   getLaunchArgs: async () => {
@@ -476,6 +491,24 @@ export const tauriBridge = {
     sidebarCallbacks.add(callback);
     return () => {
       sidebarCallbacks.delete(callback);
+    };
+  },
+
+  onFileDrop: (callback: (paths: string[]) => void) => {
+    let unlistenFn: (() => void) | null = null;
+    getCurrentWebview()
+      .onDragDropEvent((event) => {
+        if (event.payload.type === 'drop' && event.payload.paths && event.payload.paths.length > 0) {
+          callback(event.payload.paths);
+        }
+      })
+      .then((unlisten) => {
+        unlistenFn = unlisten;
+      })
+      .catch((err) => console.error('Failed to register drag-drop listener:', err));
+
+    return () => {
+      if (unlistenFn) unlistenFn();
     };
   },
 };
