@@ -54,6 +54,12 @@ const CONFIRMATION_PATTERNS = [
   '[y/n/q]',
   '[y/n/always]',
   '(y/n/always)',
+  '(y)es/(n)o',
+  '[y]es/[n]o',
+  '(y)es / (n)o',
+  '[y]es / [n]o',
+  "(y)es/(n)o/(d)on't ask again",
+  '(y)es/(n)o/(a)ll',
   'proceed?',
   'confirm?',
   'are you sure',
@@ -71,6 +77,7 @@ const CONFIRMATION_PATTERNS = [
   'allow this tool',
   'allow this command',
   'allow this change',
+  'allow command execution',
   'allow claude',
   'allow tool',
   'allow execution',
@@ -88,6 +95,8 @@ const CONFIRMATION_PATTERNS = [
   'approve changes',
   'run this command?',
   'execute this command?',
+  'execute command?',
+  'run tool',
   'apply file edit',
   'apply this change',
   'apply this edit',
@@ -113,7 +122,7 @@ const CONFIRMATION_PATTERNS = [
   'trust the files in this directory',
   'accept and continue',
   'allow and continue',
-  'yes, don\'t ask again',
+  "yes, don't ask again",
   'yes, accept this change',
   'yes, accept this file edit',
   'yes, accept this edit',
@@ -130,7 +139,14 @@ const CONFIRMATION_PATTERNS = [
   'shift+tab to auto-approve',
   'shift+tab to approve',
   'press enter to continue',
+  'press enter to confirm',
   'press any key to continue',
+  "type 'y' to confirm",
+  'type y to confirm',
+  'do you approve',
+  'run shell command?',
+  'add to the chat?',
+  'create new file?',
   '(use arrow keys)',
   '(press <enter> to select)',
 ];
@@ -221,7 +237,9 @@ export const detectYoloPrompt = (rawBuffer: string): YoloPromptMatch | null => {
     tail.includes('(use arrow keys)') ||
     tail.includes('(press <enter> to select)') ||
     tail.includes('press enter to continue') ||
-    tail.includes('press any key to continue')
+    tail.includes('press enter to confirm') ||
+    tail.includes('press any key to continue') ||
+    /\[\s*yes\s*\]\s*[:?]?\s*$/i.test(tail.trim())
   ) {
     // Interactive cursor menus or press-enter prompts: press Enter to select active item
     responseKey = '\r';

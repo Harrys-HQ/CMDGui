@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Project, Tab } from '../types';
+import { Project, Tab, ActivePort } from '../types';
 import ProjectItem from './ProjectItem';
 import FileExplorer from './FileExplorer';
 import { loadState, saveState } from '../hooks/usePersistence';
@@ -71,15 +71,15 @@ const Sidebar: React.FC<SidebarProps> = ({
   activeTabId,
   onAddProject,
   onRemoveProject: _onRemoveProject,
-  onAddTerminal,
-  onSelectTab,
-  onCloseTab,
-  onRenameTab,
-  onOpenSettings,
+  onAddTerminal: _onAddTerminal,
+  onSelectTab: _onSelectTab,
+  onCloseTab: _onCloseTab,
+  onRenameTab: _onRenameTab,
+  onOpenSettings: _onOpenSettings,
   onAddTabWithCwd,
   onRunProjectScript,
   onRunCustomCommand,
-  onReorderTabs,
+  onReorderTabs: _onReorderTabs,
   onReorderProjects,
   onRefreshGitStatus,
   className = '',
@@ -97,7 +97,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   const [isPending, setIsPending] = useState(false);
   const { showToast } = useToast();
 
-  const [ports, setPorts] = useState<any[]>([]);
+  const [ports, setPorts] = useState<ActivePort[]>([]);
   const [isRefreshingPorts, setIsRefreshingPorts] = useState(false);
   const [portSearchQuery, setPortSearchQuery] = useState('');
   const [expandedPorts, setExpandedPorts] = useState({
@@ -943,7 +943,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                   (p) => !systemProcesses.includes(p.processName.toLowerCase()) && p.pid > 4
                 );
 
-                const renderPortItem = (p: any, isSystem: boolean = false) => (
+                const renderPortItem = (p: ActivePort, isSystem: boolean = false) => (
                   <div
                     key={p.port}
                     style={{

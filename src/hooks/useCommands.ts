@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { Keymap, formatKeybinding } from './useKeybindings';
 import { Workspace } from '../types';
+import { SidebarView } from '../components/ActivityBar';
 
 export interface Command {
   id: string;
@@ -10,6 +11,7 @@ export interface Command {
   shortcut?: string;
   action: () => void;
 }
+
 interface UseCommandsProps {
   onAddTerminal: (asAdmin: boolean) => void;
   onCloseTab: (id: string) => void;
@@ -20,10 +22,13 @@ interface UseCommandsProps {
   onToggleTheme: () => void;
   onSetUiTheme: (theme: string) => void;
   onToggleSidebar: () => void;
-  onSetSidebarView: (view: string) => void;
+  onSetSidebarView: (view: SidebarView) => void;
   onSaveWorkspace: (name: string) => void;
   onLoadWorkspace: (id: string) => void;
   onRefreshDisplay: () => void;
+  onOpenAiAssistant?: () => void;
+  onToggleYoloMode?: () => void;
+  onToggleStayAwake?: () => void;
   workspaces: Workspace[];
   activeTabId: string | null;
   keymap: Keymap;
@@ -43,12 +48,37 @@ export const useCommands = ({
   onSaveWorkspace,
   onLoadWorkspace,
   onRefreshDisplay,
+  onOpenAiAssistant,
+  onToggleYoloMode,
+  onToggleStayAwake,
   workspaces,
   activeTabId,
   keymap,
 }: UseCommandsProps) => {
   const commands: Command[] = useMemo(() => {
     const list: Command[] = [
+      {
+        id: 'open-ai-assistant',
+        name: 'AI: Open Command & Workflow Center',
+        category: 'AI & Coding',
+        icon: '✨',
+        shortcut: 'Ctrl+K',
+        action: () => onOpenAiAssistant && onOpenAiAssistant(),
+      },
+      {
+        id: 'toggle-yolo-mode',
+        name: 'AI: Toggle YOLO Mode (Auto-Approve Confirmations)',
+        category: 'AI & Coding',
+        icon: '⚡',
+        action: () => onToggleYoloMode && onToggleYoloMode(),
+      },
+      {
+        id: 'toggle-stay-awake',
+        name: 'System: Toggle Stay Awake (Prevent Lock/Sleep)',
+        category: 'System',
+        icon: '☕',
+        action: () => onToggleStayAwake && onToggleStayAwake(),
+      },
       {
         id: 'refresh-display',
         name: 'Repair / Refresh Display (Fix Visual Glitches)',
@@ -80,11 +110,11 @@ export const useCommands = ({
         action: () => onSetSidebarView('git'),
       },
       {
-        id: 'show-settings-sidebar',
-        name: 'Show Settings in Sidebar',
+        id: 'show-ports',
+        name: 'Show Active Ports & Kill Processes',
         category: 'UI',
-        icon: '⚙️',
-        action: () => onSetSidebarView('settings'),
+        icon: '🔌',
+        action: () => onSetSidebarView('ports'),
       },
       {
         id: 'theme-dark',
@@ -106,6 +136,27 @@ export const useCommands = ({
         category: 'Appearance',
         icon: '🌑',
         action: () => onSetUiTheme('amoled'),
+      },
+      {
+        id: 'theme-nord',
+        name: 'Use Theme: Nord Frost',
+        category: 'Appearance',
+        icon: '❄️',
+        action: () => onSetUiTheme('nord'),
+      },
+      {
+        id: 'theme-tokyonight',
+        name: 'Use Theme: Tokyo Night',
+        category: 'Appearance',
+        icon: '🌸',
+        action: () => onSetUiTheme('tokyonight'),
+      },
+      {
+        id: 'theme-cyberpunk',
+        name: 'Use Theme: Cyberpunk Neon',
+        category: 'Appearance',
+        icon: '🌆',
+        action: () => onSetUiTheme('cyberpunk'),
       },
       {
         id: 'save-workspace',
@@ -208,6 +259,9 @@ export const useCommands = ({
     onSetUiTheme,
     onToggleSidebar,
     onRefreshDisplay,
+    onOpenAiAssistant,
+    onToggleYoloMode,
+    onToggleStayAwake,
     workspaces,
     activeTabId,
     keymap,

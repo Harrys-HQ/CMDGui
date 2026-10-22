@@ -86,9 +86,14 @@ export const useProjects = () => {
   // Periodic Git Status Refresh (every 30 seconds)
   useEffect(() => {
     if (!isLoaded) return;
-    refreshGitStatus(); // Refresh immediately on load
+    const timer = setTimeout(() => {
+      refreshGitStatus();
+    }, 0);
     const interval = setInterval(refreshGitStatus, 30000);
-    return () => clearInterval(interval);
+    return () => {
+      clearTimeout(timer);
+      clearInterval(interval);
+    };
   }, [isLoaded, refreshGitStatus]);
 
   const addProject = useCallback(async (path?: string) => {

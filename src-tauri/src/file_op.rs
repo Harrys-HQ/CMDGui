@@ -183,13 +183,41 @@ pub async fn shell_open_path(file_path: String) -> Result<bool, String> {
 
         // 2. Local files and directories
         let formatted_path = path_str.replace("/", "\\");
-        let p = Path::new(&formatted_path);
+        
+        // Strip line/col references if the path as given doesn't exist but the stripped file does
+        let file_to_open = if Path::new(&formatted_path).exists() {
+            formatted_path.clone()
+        } else {
+            let mut candidate = formatted_path.clone();
+            if let Some(pos) = candidate.rfind("#L") {
+                candidate.truncate(pos);
+            } else if let Some(pos) = candidate.rfind(':') {
+                let tail = &candidate[pos + 1..];
+                if tail.chars().all(|c| c.is_ascii_digit()) {
+                    let mut temp = candidate[..pos].to_string();
+                    if let Some(pos2) = temp.rfind(':') {
+                        let tail2 = &temp[pos2 + 1..];
+                        if tail2.chars().all(|c| c.is_ascii_digit()) {
+                            temp.truncate(pos2);
+                        }
+                    }
+                    candidate = temp;
+                }
+            }
+            if Path::new(&candidate).exists() {
+                candidate
+            } else {
+                formatted_path.clone()
+            }
+        };
+
+        let p = Path::new(&file_to_open);
 
         if p.is_dir() {
             unsafe {
-                let res = win_shell_execute(&formatted_path);
+                let res = win_shell_execute(&file_to_open);
                 if res <= 32 {
-                    let _ = Command::new("explorer.exe").arg(&formatted_path).spawn();
+                    let _ = Command::new("explorer.exe").arg(&file_to_open).spawn();
                 }
             }
             return Ok(true);
@@ -197,14 +225,14 @@ pub async fn shell_open_path(file_path: String) -> Result<bool, String> {
 
         // File path handling
         unsafe {
-            let res = win_shell_execute(&formatted_path);
+            let res = win_shell_execute(&file_to_open);
             // res <= 32 indicates an error, notably SE_ERR_NOASSOC = 31 (no file association in Registry, e.g. for .md/.log files)
             if res <= 32 {
                 let ext = p.extension().and_then(|s| s.to_str()).unwrap_or("").to_lowercase();
                 if ["md", "txt", "log", "json", "yaml", "yml", "toml", "rs", "ts", "tsx", "js", "jsx", "html", "css", "py", "sh", "bat", "ps1"].contains(&ext.as_str()) {
-                    let _ = Command::new("notepad.exe").arg(&formatted_path).spawn();
+                    let _ = Command::new("notepad.exe").arg(&file_to_open).spawn();
                 } else {
-                    let _ = Command::new("explorer.exe").arg(format!("/select,{}", formatted_path)).spawn();
+                    let _ = Command::new("explorer.exe").arg(format!("/select,{}", file_to_open)).spawn();
                 }
             }
         }
@@ -289,6 +317,14 @@ pub async fn open_in_vscode(path: String) -> Result<(), String> {
         }
     }
     if cfg!(target_os = "windows") {
+        #[cfg(target_os = "windows")]
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+        #[cfg(target_os = "windows")]
+        let spawn_res = Command::new("cmd.exe")
+            .args(&["/c", "code", &target_path])
+            .creation_flags(CREATE_NO_WINDOW)
+            .spawn();
+        #[cfg(not(target_os = "windows"))]
         let spawn_res = Command::new("cmd.exe")
             .args(&["/c", "code", &target_path])
             .spawn();

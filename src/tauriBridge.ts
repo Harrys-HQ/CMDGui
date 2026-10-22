@@ -324,7 +324,7 @@ export const tauriBridge = {
     try {
       return await getTauriAppVersion();
     } catch {
-      return '2.4.5';
+      return '2.4.6';
     }
   },
 
@@ -351,7 +351,7 @@ export const tauriBridge = {
     return await invoke<string>('read_clipboard');
   },
 
-  setQuakeMode: (enabled: boolean) => {
+  setQuakeMode: (_enabled: boolean) => {
     console.log('Quake mode not implemented directly in Tauri bridge');
   },
 
@@ -361,7 +361,7 @@ export const tauriBridge = {
     });
   },
 
-  updateActiveContext: (context: any) => {
+  updateActiveContext: (_context: unknown) => {
     console.log('Active context update ignored in Tauri bridge');
   },
 

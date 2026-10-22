@@ -164,4 +164,18 @@ describe('yoloEngine', () => {
     expect(match).not.toBeNull();
     expect(match?.responseKey).toBe('\r');
   });
+
+  it('detects Aider file add prompt and responds with "\\r" (Enter)', () => {
+    const output = "Add src/App.tsx to the chat? (Y)es/(N)o/(D)on't ask again [Yes]: ";
+    const match = detectYoloPrompt(output);
+    expect(match).not.toBeNull();
+    expect(match?.responseKey).toBe('\r');
+  });
+
+  it('detects Gemini CLI command execution prompt and responds with "y\\r"', () => {
+    const output = 'Allow command execution of npm test? (y/n): ';
+    const match = detectYoloPrompt(output);
+    expect(match).not.toBeNull();
+    expect(match?.responseKey).toBe('y\r');
+  });
 });

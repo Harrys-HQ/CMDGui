@@ -1,7 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Terminal as Xterm } from 'xterm';
 import { FitAddon } from 'xterm-addon-fit';
-import { WebLinksAddon } from 'xterm-addon-web-links';
 import { SearchAddon } from 'xterm-addon-search';
 import { SerializeAddon } from '@xterm/addon-serialize';
 import { WebglAddon } from '@xterm/addon-webgl';
@@ -168,7 +167,9 @@ const Terminal: React.FC<TerminalProps> = ({
         if (rendererAddonRef.current) {
           try {
             rendererAddonRef.current.dispose();
-          } catch {}
+          } catch {
+            /* ignore */
+          }
           rendererAddonRef.current = null;
         }
         return;
@@ -177,7 +178,9 @@ const Terminal: React.FC<TerminalProps> = ({
       if (rendererAddonRef.current) {
         try {
           rendererAddonRef.current.dispose();
-        } catch {}
+        } catch {
+          /* ignore */
+        }
         rendererAddonRef.current = null;
       }
 
@@ -483,11 +486,11 @@ const Terminal: React.FC<TerminalProps> = ({
     term.registerLinkProvider({
       provideLinks(bufferLineNumber, callback) {
         const lineIdx = bufferLineNumber - 1;
-        const { startLineIdx, endLineIdx, fullText, lineOffsets } = getWrappedLineText(bufferLineNumber);
+        const { fullText, lineOffsets } = getWrappedLineText(bufferLineNumber);
         const links: any[] = [];
 
         // Match possible relative paths: e.g. src/App.tsx, package.json, CmdGUI_2.1.1_x64-setup.exe, setup.exe
-        const relativePathRegex = /(?:[a-zA-Z0-9_\-\.\/\\]+)\.(?:exe|msi|bat|cmd|ps1|tsx|ts|jsx|js|json|md|txt|log|png|jpg|css|html)/gi;
+        const relativePathRegex = /(?:[a-zA-Z0-9_.\-/\\]+)\.(?:exe|msi|bat|cmd|ps1|tsx|ts|jsx|js|json|md|txt|log|png|jpg|css|html)/gi;
         const relativeMatches: { text: string; matchStart: number }[] = [];
         let match;
         while ((match = relativePathRegex.exec(fullText)) !== null) {
@@ -514,7 +517,7 @@ const Terminal: React.FC<TerminalProps> = ({
         if (currentCwd && relativeMatches.length > 0) {
           const promises = relativeMatches.map(async (m) => {
             const separator = currentCwd.includes('/') ? '/' : '\\';
-            const cleanRel = m.text.replace(/[\/\\]/g, separator);
+            const cleanRel = m.text.replace(/[/\\]/g, separator);
             const fullPath = `${currentCwd}${separator}${cleanRel}`;
             
             try {
@@ -545,7 +548,7 @@ const Terminal: React.FC<TerminalProps> = ({
                   });
                 }
               }
-            } catch (e) {
+            } catch {
               // Ignore folder check failure
             }
           });
@@ -890,7 +893,9 @@ const Terminal: React.FC<TerminalProps> = ({
         console.error('PTY setup failed:', e);
         try {
           term.write(`\r\n\x1b[31m[Error] PTY setup failed: ${e}\x1b[0m\r\n`);
-        } catch {}
+        } catch {
+          /* ignore */
+        }
       } finally {
         isSettingUpRef.current = false;
       }
@@ -992,7 +997,9 @@ const Terminal: React.FC<TerminalProps> = ({
       if (rendererAddonRef.current) {
         try {
           rendererAddonRef.current.dispose();
-        } catch {}
+        } catch {
+          /* ignore */
+        }
         rendererAddonRef.current = null;
       }
     }
@@ -1073,7 +1080,9 @@ const Terminal: React.FC<TerminalProps> = ({
             // Prune older terminal buffers if storage quota is exceeded
             const keys = Object.keys(localStorage);
             keys.filter((k) => k.startsWith('terminal_buffer_')).forEach((k) => localStorage.removeItem(k));
-          } catch {}
+          } catch {
+            /* ignore */
+          }
           console.warn('Failed to serialize terminal buffer or quota exceeded:', e);
         }
       };

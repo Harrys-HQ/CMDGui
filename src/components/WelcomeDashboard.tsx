@@ -1,6 +1,6 @@
 import React from 'react';
 import { Project } from '../types';
-import { Terminal, Plus, FolderOpen, Sparkles, Command } from 'lucide-react';
+import { Terminal, Plus, FolderOpen, Sparkles } from 'lucide-react';
 
 interface WelcomeDashboardProps {
   onNewTerminal: (cwd?: string, asAdmin?: boolean, initialCmd?: string) => void;

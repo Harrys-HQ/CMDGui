@@ -156,7 +156,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   const [activeTab, setActiveTab] = useState<
     'general' | 'keybindings' | 'workspaces' | 'about' | 'project' | 'appearance' | 'cli' | 'history'
   >('general');
-  const [appVersion, setAppVersion] = useState<string>('2.4.5');
+  const [appVersion, setAppVersion] = useState<string>('2.4.6');
   const [recordingAction, setRecordingAction] = useState<KeybindingAction | null>(null);
 
   // Update State
@@ -505,6 +505,29 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                       }}
                     >
                       Stay Awake (Prevent system lock/sleep)
+                    </label>
+                  </div>
+                )}
+
+                {onShowTopTabBarChange && (
+                  <div style={{ marginTop: '15px', display: 'flex', alignItems: 'center' }}>
+                    <input
+                      type="checkbox"
+                      id="show-top-tab-bar-toggle"
+                      checked={showTopTabBar}
+                      onChange={(e) => onShowTopTabBarChange(e.target.checked)}
+                      style={{ cursor: 'pointer' }}
+                    />
+                    <label
+                      htmlFor="show-top-tab-bar-toggle"
+                      style={{
+                        cursor: 'pointer',
+                        fontSize: '14px',
+                        color: '#ccc',
+                        marginLeft: '10px',
+                      }}
+                    >
+                      Show Top Tab Bar (Fast horizontal tabs)
                     </label>
                   </div>
                 )}
@@ -1103,7 +1126,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                                 if (parsed.terminalScrollback && onScrollbackChange) onScrollbackChange(parsed.terminalScrollback);
                                 if (parsed.customTheme && onCustomThemeChange) onCustomThemeChange(parsed.customTheme);
                                 alert('Configuration imported successfully!');
-                              } catch (err) {
+                              } catch {
                                 alert('Failed to parse config file.');
                               }
                             };

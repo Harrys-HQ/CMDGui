@@ -115,7 +115,7 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ rootPath, onSelectFolder })
     });
 
     return cleanup;
-  }, [onSelectFolder, expandedPaths, rootPath, loadFolder, toggleFolder]);
+  }, [onSelectFolder, expandedPaths, rootPath, loadFolder, toggleFolder, showToast]);
 
   const handleRenameSubmit = async () => {
     if (!renamingPath || !editValue) return;
@@ -290,7 +290,8 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ rootPath, onSelectFolder })
       <List
         rowCount={flattenedData.length}
         rowHeight={ITEM_HEIGHT}
-        rowComponent={Row as any}
+        rowComponent={Row as (props: any) => React.ReactElement | null}
+        style={{ height: containerHeight }}
         rowProps={{}}
       />
     </div>

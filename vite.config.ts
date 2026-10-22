@@ -16,6 +16,28 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     emptyOutDir: true,
+    chunkSizeWarningLimit: 600,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'xterm-vendor': [
+            'xterm',
+            'xterm-addon-fit',
+            'xterm-addon-search',
+            '@xterm/addon-canvas',
+            '@xterm/addon-webgl',
+            '@xterm/addon-serialize',
+          ],
+          'ui-vendor': [
+            'react',
+            'react-dom',
+            'lucide-react',
+            'react-resizable-panels',
+            'react-window',
+          ],
+        },
+      },
+    },
   },
   test: {
     globals: true,

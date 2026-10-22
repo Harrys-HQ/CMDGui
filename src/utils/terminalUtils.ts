@@ -134,7 +134,7 @@ export const extractTerminalLinks = (fullText: string): ExtractedLink[] => {
   }
 
   // D. Match tilde (~) home paths: e.g. ~/.gemini/... or ~\AppData\...
-  const tildeRegex = /(?:^|[\s"'<(\[`])(~[/\\][^\s"'<>()`]+)/g;
+  const tildeRegex = /(?:^|[[\s"'<(`])(~[/\\][^\s"'<>()`]+)/g;
   while ((match = tildeRegex.exec(fullText)) !== null) {
     const rawMatch = match[1];
     const start = match.index + (match[0].length - rawMatch.length);
@@ -146,7 +146,7 @@ export const extractTerminalLinks = (fullText: string): ExtractedLink[] => {
   }
 
   // E. Match Windows absolute paths (with optional leading slash, e.g. /C:/path or C:\path)
-  const winPathRegex = /(?:^|[\s"'<(\[`])(?:\/)?([a-zA-Z]:[/\\][^\s"'<>()`]+)/g;
+  const winPathRegex = /(?:^|[[\s"'<(`])(?:\/)?([a-zA-Z]:[/\\][^\s"'<>()`]+)/g;
   while ((match = winPathRegex.exec(fullText)) !== null) {
     const rawMatch = match[1];
     const start = match.index + (match[0].length - rawMatch.length);

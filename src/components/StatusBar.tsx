@@ -8,9 +8,12 @@ interface StatusBarProps {
   isUpdateAvailable?: boolean;
   isBroadcastMode?: boolean;
   isZoomed?: boolean;
+  isYoloModeEnabled?: boolean;
+  isStayAwakeEnabled?: boolean;
   onShowUpdates?: () => void;
   onToggleQuickSwitcher?: () => void;
   onOpenSettings?: () => void;
+  onToggleYoloMode?: () => void;
 }
 
 const StatusBar: React.FC<StatusBarProps> = ({
@@ -20,9 +23,12 @@ const StatusBar: React.FC<StatusBarProps> = ({
   isUpdateAvailable,
   isBroadcastMode,
   isZoomed,
+  isYoloModeEnabled,
+  isStayAwakeEnabled,
   onShowUpdates,
   onToggleQuickSwitcher,
   onOpenSettings,
+  onToggleYoloMode,
 }) => {
   return (
     <div className="status-bar">
@@ -34,6 +40,37 @@ const StatusBar: React.FC<StatusBarProps> = ({
         <CheckCircle2 size={12} style={{ marginRight: '6px', opacity: 0.8 }} />
         <span style={{ opacity: 0.9 }}>{status}</span>
       </div>
+
+      <div
+        className="status-item"
+        onClick={onToggleQuickSwitcher}
+        title="Active Sessions - Click to switch (Ctrl+P)"
+        style={{ cursor: 'pointer' }}
+      >
+        <Layers size={13} style={{ marginRight: '6px' }} />
+        <span>{tabCount} Tab{tabCount === 1 ? '' : 's'}</span>
+      </div>
+
+      {isYoloModeEnabled && (
+        <div
+          className="status-item"
+          onClick={onToggleYoloMode}
+          style={{ color: '#fbbf24', fontWeight: 600, gap: '6px', backgroundColor: 'rgba(245, 158, 11, 0.15)', cursor: 'pointer' }}
+          title="YOLO Mode Active (Auto-approves safe CLI tool prompts) - Click to toggle"
+        >
+          <span>⚡ YOLO</span>
+        </div>
+      )}
+
+      {isStayAwakeEnabled && (
+        <div
+          className="status-item"
+          style={{ color: '#a78bfa', fontWeight: 600, gap: '6px', backgroundColor: 'rgba(167, 139, 250, 0.15)' }}
+          title="Stay Awake Active (Prevents system sleep during long AI tasks)"
+        >
+          <span>☕ AWAKE</span>
+        </div>
+      )}
 
       {isBroadcastMode && (
         <div

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Tab, Project } from '../types';
 import { Command } from '../hooks/useCommands';
-import { Terminal, Folder, Command as CommandIcon, Search } from 'lucide-react';
+import { Terminal, Folder, Command as CommandIcon } from 'lucide-react';
 
 interface QuickSwitcherProps {
   isOpen: boolean;

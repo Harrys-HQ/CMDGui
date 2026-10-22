@@ -202,7 +202,7 @@ const App: React.FC = () => {
     });
 
     return cleanup;
-  }, [addProject, addTab]);
+  }, [addProject, addTab, showToast]);
 
   // AI Assistant Modal State
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
@@ -381,15 +381,30 @@ const App: React.FC = () => {
     onOpenSettings: () => setIsSettingsOpen(true),
     onCheckUpdates: handleCheckUpdates,
     onToggleTheme: () => setUiTheme(uiTheme === 'dark' ? 'light' : 'dark'),
-    onSetUiTheme: (theme) => setUiTheme(theme as any),
+    onSetUiTheme: (theme) => setUiTheme(theme as typeof uiTheme),
     onToggleSidebar: () => setIsSidebarVisible(!isSidebarVisible),
     onSetSidebarView: (view) => {
-      setActiveSidebarView(view as any);
+      setActiveSidebarView(view);
       setIsSidebarVisible(true);
     },
     onSaveWorkspace: saveWorkspace,
     onLoadWorkspace: loadWorkspace,
     onRefreshDisplay: handleRefreshDisplay,
+    onOpenAiAssistant: () => setIsAiModalOpen(true),
+    onToggleYoloMode: () => {
+      setIsYoloModeEnabled((prev) => {
+        const next = !prev;
+        showToast(next ? '⚡ YOLO Mode Enabled (Auto-approves safe actions)' : 'YOLO Mode Disabled', 'info');
+        return next;
+      });
+    },
+    onToggleStayAwake: () => {
+      setIsStayAwakeEnabled((prev) => {
+        const next = !prev;
+        showToast(next ? '☕ Stay Awake Enabled (Prevents PC sleep)' : 'Stay Awake Disabled', 'info');
+        return next;
+      });
+    },
     workspaces,
     activeTabId,
     keymap,
@@ -517,7 +532,7 @@ const App: React.FC = () => {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [zoomedPaneId]);
+  }, [zoomedPaneId, handleRefreshDisplay, showToast]);
 
   const activeTab = tabs.find((t) => t.id === activeTabId);
   useEffect(() => {
@@ -652,6 +667,15 @@ const App: React.FC = () => {
         isUpdateAvailable={isUpdateAvailable}
         isBroadcastMode={isBroadcastMode}
         isZoomed={!!zoomedPaneId}
+        isYoloModeEnabled={isYoloModeEnabled}
+        isStayAwakeEnabled={isStayAwakeEnabled}
+        onToggleYoloMode={() => {
+          setIsYoloModeEnabled((prev) => {
+            const next = !prev;
+            showToast(next ? '⚡ YOLO Mode Enabled' : 'YOLO Mode Disabled', 'info');
+            return next;
+          });
+        }}
         onShowUpdates={() => setIsSettingsOpen(true)}
         onToggleQuickSwitcher={() => setIsQuickSwitcherOpen(true)}
         onOpenSettings={() => setIsSettingsOpen(true)}
@@ -684,8 +708,11 @@ const App: React.FC = () => {
         onToggleBookmark={toggleBookmark}
         onClearHistory={clearHistory}
         onRunCommand={(cmd) => {
-          addTab(undefined, false, cmd);
+          const currentTab = tabs.find((t) => t.id === activeTabId);
+          const activePane = currentTab?.panes ? Object.values(currentTab.panes)[0] : undefined;
+          addTab(activePane?.cwd, false, cmd);
           setIsSettingsOpen(false);
+          showToast(`Launched command: ${cmd.length > 25 ? cmd.slice(0, 25) + '...' : cmd}`, 'info');
         }}
         defaultShell={defaultShell}
         onShellChange={setDefaultShell}
@@ -714,7 +741,24 @@ const App: React.FC = () => {
       <AiAssistantModal
         isOpen={isAiModalOpen}
         onClose={() => setIsAiModalOpen(false)}
-        onRunCommand={(cmd) => addTab(undefined, false, cmd)}
+        onRunCommand={(cmd, inNewTab) => {
+          const currentTab = tabs.find((t) => t.id === activeTabId);
+          const activePane = currentTab?.panes ? Object.values(currentTab.panes)[0] : undefined;
+          const currentCwd = activePane?.cwd;
+
+          if (!inNewTab && activeTabId && currentTab) {
+            const paneId = currentTab.layout?.type === 'terminal'
+              ? currentTab.layout.paneId
+              : (currentTab.panes ? Object.keys(currentTab.panes)[0] : undefined);
+            if (paneId && globalPtyRegistry[paneId]?.pid && window.electron?.writeTerminal) {
+              window.electron.writeTerminal(globalPtyRegistry[paneId].pid, cmd + '\n');
+              showToast(`Executing in terminal: ${cmd.length > 25 ? cmd.slice(0, 25) + '...' : cmd}`, 'info');
+              return;
+            }
+          }
+          addTab(currentCwd, false, cmd);
+          showToast(`Started in new tab: ${cmd.length > 25 ? cmd.slice(0, 25) + '...' : cmd}`, 'info');
+        }}
       />
       <PromptModal
         isOpen={promptModal.isOpen}

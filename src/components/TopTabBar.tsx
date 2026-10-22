@@ -258,7 +258,7 @@ const TopTabBar: React.FC<TopTabBarProps> = ({
             className="project-item"
             style={{ fontSize: '12px', padding: '6px 14px', gap: '8px', display: 'flex', alignItems: 'center', color: '#f14c4c' }}
             onClick={(e) => {
-              onCloseTab(contextMenuTabId, e as any);
+              onCloseTab(contextMenuTabId, e);
               setContextMenuTabId(null);
             }}
           >

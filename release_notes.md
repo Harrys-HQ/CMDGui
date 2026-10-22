@@ -1,3 +1,26 @@
+## 🚀 Release: CmdGUI v2.4.6
+
+### 🤖 CLI AI Coding Powerhouse, Smart PATH Discovery & Rendering Optimizations
+- **🤖 Multi-Tool AI Command Center:** Overhauled the AI Assistant modal into a full-featured CLI AI & Workflow Command Center supporting dedicated tool modes:
+  - **Antigravity CLI (`agy`):** Quick workflows for `/boost`, `/goal`, `/grill-me`, `/plan`, `/teamwork`.
+  - **Claude Code (`claude`):** Git diff review, type error repair, unit test generation.
+  - **Gemini CLI (`gemini`):** Architectural walkthroughs, security audits, doc generation.
+  - **Aider (`aider`):** Architect mode, automated test-and-repair loop.
+  - **Smart Shell:** One-click port killer, large file search (>50MB), git prune & sync, Docker cleanup.
+- **⚡ Context-Aware Terminal Execution:** Commands dispatched from the AI Assistant or Command Palette now execute directly inside the active terminal PTY session or spawn in a new tab bound to the active project working directory (`cwd`) instead of defaulting to user home.
+- **🛡️ Expanded YOLO Mode Guardrails & Prompt Engine:**
+  - Added support for Aider interactive prompts (`(Y)es/(N)o/(D)on't ask again [Yes]:`), auto-commit prompts, and test execution prompts.
+  - Added support for Antigravity slash commands and Gemini CLI tool confirmations.
+  - Automatic enter dispatch (`\r`) for default-bracketed prompts `[Yes]` and arrow menus.
+- **🔍 Smart PATH Discovery for AI Tools:** Automatically detects and appends installed paths for `antigravity-cli`, `gemini`, `claude`, `aider`, `ollama`, and Python user scripts (`AppData/Roaming/Python/Scripts`) to every terminal session.
+- **⚡ Vite Bundle Splitting & Vendor Chunking:** Introduced `manualChunks` (`xterm-vendor` and `ui-vendor`), decomposing the monolithic 920KB bundle into clean cached vendor bundles for faster app startup.
+- **🔗 File Hyperlink Line-Number Handling:** Strip line and column numbers (e.g., `file.ts:42:15` or `#L42`) before opening with Windows Shell, preventing "file not found" errors when clicking terminal links from test runners and AI agents.
+- **🖥️ Subprocess Window Flashing Prevention:** Added `CREATE_NO_WINDOW` (`0x08000000`) flag to Windows background process spawns to eliminate black console flickers.
+- **📊 Live Status Bar Telemetry:** Added live tab count with quick-switcher trigger, `⚡ YOLO` active mode toggle, and `☕ AWAKE` status indicator.
+- **🛠️ UI & Settings Polishing:** Added missing `showTopTabBar` toggle in Settings, fixed FileExplorer virtualized list dynamic height, and resolved cascading re-renders in project status detection.
+
+---
+
 ## 🚀 Release: CmdGUI v2.4.5
 
 ### 🔗 Terminal Link Dispatch, PTY Streaming & CLI Productivity

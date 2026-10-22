@@ -128,14 +128,26 @@ pub async fn create_terminal(
             let additional_bins = [
                 format!(r"{}\AppData\Roaming\npm", home_str),
                 format!(r"{}\AppData\Local\agy\bin", home_str),
+                format!(r"{}\.gemini\antigravity-cli\bin", home_str),
+                format!(r"{}\AppData\Local\Programs\antigravity-cli\bin", home_str),
                 format!(r"{}\AppData\Local\pnpm", home_str),
                 format!(r"{}\AppData\Local\Microsoft\WinGet\Links", home_str),
                 format!(r"{}\.bun\bin", home_str),
                 format!(r"{}\.cargo\bin", home_str),
                 format!(r"{}\.local\bin", home_str),
+                format!(r"{}\AppData\Roaming\Python\Scripts", home_str),
+                format!(r"{}\AppData\Roaming\Python\Python312\Scripts", home_str),
+                format!(r"{}\AppData\Roaming\Python\Python311\Scripts", home_str),
+                format!(r"{}\AppData\Local\Programs\Python\Python312\Scripts", home_str),
+                format!(r"{}\AppData\Local\Programs\Python\Python311\Scripts", home_str),
+                format!(r"{}\AppData\Local\Programs\Ollama", home_str),
+                format!(r"{}\AppData\Local\Programs\Claude\bin", home_str),
+                format!(r"{}\AppData\Local\Programs\cursor\resources\app\bin", home_str),
+                r"C:\Program Files\Git\cmd".to_string(),
+                r"C:\Program Files\Git\bin".to_string(),
             ];
             for bin_path in additional_bins {
-                if !path_val.to_lowercase().contains(&bin_path.to_lowercase()) {
+                if std::path::Path::new(&bin_path).exists() && !path_val.to_lowercase().contains(&bin_path.to_lowercase()) {
                     if !path_val.is_empty() {
                         path_val.push(';');
                     }
