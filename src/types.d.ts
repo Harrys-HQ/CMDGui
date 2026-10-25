@@ -149,6 +149,7 @@ export interface ElectronAPI {
   getActivePorts: () => Promise<ActivePort[]>;
   killProcessByPid: (pid: number) => Promise<string>;
   listDirectory: (path: string) => Promise<FileEntry[]>;
+  getPlatform?: () => Promise<'windows' | 'linux' | 'macos' | 'other'>;
   checkAdmin: () => Promise<boolean>;
   relaunchAdmin: () => void;
   openExternal: (url: string) => Promise<void>;

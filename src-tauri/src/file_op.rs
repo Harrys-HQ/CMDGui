@@ -296,6 +296,14 @@ pub fn app_relaunch_admin(app_handle: tauri::AppHandle) {
             let _ = cmd.spawn();
             app_handle.exit(0);
         }
+    } else {
+        if let Ok(current_exe) = std::env::current_exe() {
+            let mut cmd = Command::new("pkexec");
+            cmd.arg(current_exe.display().to_string());
+            if let Ok(_) = cmd.spawn() {
+                app_handle.exit(0);
+            }
+        }
     }
 }
 
@@ -325,8 +333,8 @@ pub async fn open_in_vscode(path: String) -> Result<(), String> {
             .creation_flags(CREATE_NO_WINDOW)
             .spawn();
         #[cfg(not(target_os = "windows"))]
-        let spawn_res = Command::new("cmd.exe")
-            .args(&["/c", "code", &target_path])
+        let spawn_res = Command::new("code")
+            .arg(&target_path)
             .spawn();
         if spawn_res.is_err() {
             let _ = shell_open_path(target_path).await;

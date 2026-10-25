@@ -64,7 +64,7 @@ pub async fn create_terminal(
             format!(r"{}\System32\WindowsPowerShell\v1.0\powershell.exe", system_root)
         }
     } else {
-        "bash".to_string()
+        std::env::var("SHELL").unwrap_or_else(|_| "bash".to_string())
     };
     let mut shell_cmd = options.shell.unwrap_or(default_shell.clone());
     if shell_cmd.trim().is_empty() {
@@ -166,6 +166,36 @@ pub async fn create_terminal(
         }
         if !found {
             cmd.env("Path", &path_val);
+        }
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        let mut path_val = std::env::var("PATH").unwrap_or_default();
+        if let Some(home) = std::env::var_os("HOME") {
+            let home_str = home.to_string_lossy();
+            let additional_bins = [
+                format!("{}/.local/bin", home_str),
+                format!("{}/.cargo/bin", home_str),
+                format!("{}/.bun/bin", home_str),
+                format!("{}/.npm-global/bin", home_str),
+                format!("{}/bin", home_str),
+                "/usr/local/bin".to_string(),
+                "/usr/bin".to_string(),
+                "/bin".to_string(),
+            ];
+            let mut paths: Vec<String> = path_val.split(':').map(|s| s.to_string()).collect();
+            let mut modified = false;
+            for bin_path in additional_bins {
+                if std::path::Path::new(&bin_path).exists() && !paths.contains(&bin_path) {
+                    paths.insert(0, bin_path);
+                    modified = true;
+                }
+            }
+            if modified {
+                path_val = paths.join(":");
+                cmd.env("PATH", &path_val);
+            }
         }
     }
 

@@ -11,6 +11,19 @@ fn get_launch_args() -> Vec<String> {
   std::env::args().collect()
 }
 
+#[tauri::command]
+fn get_platform() -> &'static str {
+  if cfg!(target_os = "windows") {
+    "windows"
+  } else if cfg!(target_os = "macos") {
+    "macos"
+  } else if cfg!(target_os = "linux") {
+    "linux"
+  } else {
+    "other"
+  }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
   #[cfg(target_os = "windows")]
@@ -122,6 +135,7 @@ pub fn run() {
     })
     .invoke_handler(tauri::generate_handler![
       get_launch_args,
+      get_platform,
       project::get_project_info,
       project::get_project_details,
       project::git_stage_all,

@@ -211,6 +211,14 @@ export const tauriBridge = {
     return await invoke<any[]>('fs_list_directory', { dirPath: path });
   },
 
+  getPlatform: async (): Promise<'windows' | 'linux' | 'macos' | 'other'> => {
+    try {
+      return await invoke<'windows' | 'linux' | 'macos' | 'other'>('get_platform');
+    } catch {
+      return 'windows';
+    }
+  },
+
   checkAdmin: async () => {
     return await invoke<boolean>('app_check_admin');
   },

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { UpdateInfo, Workspace, TerminalTheme, TerminalRendererType } from '../types';
 import { HistoryItem } from '../hooks/useCommandHistory';
 import { Keymap, KeybindingAction, Keybinding, formatKeybinding } from '../hooks/useKeybindings';
+import { tauriBridge } from '../tauriBridge';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -157,6 +158,11 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
     'general' | 'keybindings' | 'workspaces' | 'about' | 'project' | 'appearance' | 'cli' | 'history'
   >('general');
   const [appVersion, setAppVersion] = useState<string>('2.4.6');
+  const [osPlatform, setOsPlatform] = useState<'windows' | 'linux' | 'macos' | 'other'>('windows');
+
+  useEffect(() => {
+    tauriBridge.getPlatform().then(setOsPlatform);
+  }, []);
   const [recordingAction, setRecordingAction] = useState<KeybindingAction | null>(null);
 
   // Update State
@@ -646,12 +652,53 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                         outline: 'none',
                       }}
                     >
-                      <option value="">System Default (Windows PowerShell)</option>
-                      <option value="powershell.exe">Windows PowerShell (5.1)</option>
-                      <option value="pwsh.exe">PowerShell 7 Core (pwsh)</option>
-                      <option value="cmd.exe">Command Prompt (cmd)</option>
-                      <option value="git-bash">Git Bash</option>
-                      <option value="wsl.exe">WSL (Linux Subsystem)</option>
+                      {osPlatform === 'linux' ? (
+                        <>
+                          <option value="">System Default ($SHELL / Bash)</option>
+                          <option value="bash">Bash (/bin/bash)</option>
+                          <option value="zsh">Zsh (/bin/zsh)</option>
+                          <option value="fish">Fish (/usr/bin/fish)</option>
+                          <option value="sh">POSIX Shell (/bin/sh)</option>
+                          <option value="pwsh">PowerShell Core (pwsh)</option>
+                        </>
+                      ) : osPlatform === 'macos' ? (
+                        <>
+                          <option value="">System Default ($SHELL / Zsh)</option>
+                          <option value="/bin/zsh">Zsh (/bin/zsh)</option>
+                          <option value="/bin/bash">Bash (/bin/bash)</option>
+                          <option value="fish">Fish</option>
+                          <option value="pwsh">PowerShell Core (pwsh)</option>
+                        </>
+                      ) : (
+                        <>
+                          <option value="">System Default (Windows PowerShell)</option>
+                          <option value="powershell.exe">Windows PowerShell (5.1)</option>
+                          <option value="pwsh.exe">PowerShell 7 Core (pwsh)</option>
+                          <option value="cmd.exe">Command Prompt (cmd)</option>
+                          <option value="git-bash">Git Bash</option>
+                          <option value="wsl.exe">WSL (Linux Subsystem)</option>
+                        </>
+                      )}
+                      {defaultShell &&
+                        ![
+                          '',
+                          'powershell.exe',
+                          'pwsh.exe',
+                          'cmd.exe',
+                          'git-bash',
+                          'wsl.exe',
+                          'bash',
+                          '/bin/bash',
+                          'zsh',
+                          '/bin/zsh',
+                          'fish',
+                          '/usr/bin/fish',
+                          'sh',
+                          '/bin/sh',
+                          'pwsh',
+                        ].includes(defaultShell) && (
+                          <option value={defaultShell}>{defaultShell} (Custom)</option>
+                        )}
                     </select>
                   </div>
                 )}

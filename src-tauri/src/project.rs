@@ -520,7 +520,83 @@ pub async fn get_active_ports() -> Result<Vec<ActivePort>, String> {
 
     #[cfg(not(target_os = "windows"))]
     {
-        Ok(Vec::new())
+        let mut active_ports = Vec::new();
+
+        // 1. Try `ss -tlpn -H` (standard on modern Linux distributions / iproute2)
+        if let Ok(output) = Command::new("ss").args(&["-tlpn", "-H"]).output() {
+            if output.status.success() {
+                let stdout = String::from_utf8_lossy(&output.stdout);
+                for line in stdout.lines() {
+                    let tokens: Vec<&str> = line.split_whitespace().collect();
+                    if tokens.len() >= 4 {
+                        let local_addr = tokens[3];
+                        if let Some(port_str) = local_addr.rsplit(':').next() {
+                            if let Ok(port) = port_str.parse::<u16>() {
+                                let mut pid = 0u32;
+                                let mut process_name = "Unknown".to_string();
+
+                                for tok in &tokens[4..] {
+                                    if tok.contains("pid=") {
+                                        if let Some(pid_start) = tok.find("pid=") {
+                                            let sub = &tok[pid_start + 4..];
+                                            let pid_digits: String = sub.chars().take_while(|c| c.is_ascii_digit()).collect();
+                                            if let Ok(parsed_pid) = pid_digits.parse::<u32>() {
+                                                pid = parsed_pid;
+                                            }
+                                        }
+                                        if let Some(name_start) = tok.find("((\"") {
+                                            let sub = &tok[name_start + 3..];
+                                            if let Some(name_end) = sub.find('"') {
+                                                process_name = sub[..name_end].to_string();
+                                            }
+                                        }
+                                    }
+                                }
+
+                                if !active_ports.iter().any(|ap: &ActivePort| ap.port == port) {
+                                    active_ports.push(ActivePort {
+                                        port,
+                                        pid,
+                                        process_name,
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 2. Fallback to `lsof -iTCP -sTCP:LISTEN -n -P` (standard on macOS and also common on Linux)
+        if active_ports.is_empty() {
+            if let Ok(output) = Command::new("lsof").args(&["-iTCP", "-sTCP:LISTEN", "-n", "-P"]).output() {
+                if output.status.success() {
+                    let stdout = String::from_utf8_lossy(&output.stdout);
+                    for line in stdout.lines().skip(1) {
+                        let tokens: Vec<&str> = line.split_whitespace().collect();
+                        if tokens.len() >= 9 {
+                            let proc_name = tokens[0].to_string();
+                            let pid_res = tokens[1].parse::<u32>();
+                            let name_field = tokens[8];
+                            if let (Ok(pid), Some(port_str)) = (pid_res, name_field.rsplit(':').next()) {
+                                if let Ok(port) = port_str.parse::<u16>() {
+                                    if !active_ports.iter().any(|ap: &ActivePort| ap.port == port) {
+                                        active_ports.push(ActivePort {
+                                            port,
+                                            pid,
+                                            process_name: proc_name,
+                                        });
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        active_ports.sort_by_key(|ap| ap.port);
+        Ok(active_ports)
     }
 }
 
@@ -548,7 +624,19 @@ pub async fn kill_process_by_pid(pid: u32) -> Result<String, String> {
 
     #[cfg(not(target_os = "windows"))]
     {
-        Err("Unsupported OS".to_string())
+        let mut cmd = Command::new("kill");
+        cmd.args(&["-9", &pid.to_string()]);
+
+        match cmd.output() {
+            Ok(out) => {
+                if out.status.success() {
+                    Ok(format!("Successfully terminated process with PID {}", pid))
+                } else {
+                    Err(String::from_utf8_lossy(&out.stderr).trim().to_string())
+                }
+            }
+            Err(e) => Err(e.to_string()),
+        }
     }
 }
 
