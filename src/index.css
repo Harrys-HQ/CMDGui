@@ -1199,3 +1199,8 @@ select,
 .shortcut-desc {
   opacity: 0.8;
 }
+
+.drag-over-active {
+  outline: 2px dashed var(--accent-primary) !important;
+  outline-offset: -2px;
+}

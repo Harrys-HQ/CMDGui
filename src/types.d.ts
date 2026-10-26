@@ -185,7 +185,7 @@ export interface ElectronAPI {
   showContextMenu: (type: string, data?: ContextMenuData) => Promise<void>;
   onTerminalContextAction: (callback: (action: string) => void) => () => void;
   onSidebarContextAction: (callback: (data: SidebarAction) => void) => () => void;
-  onFileDrop?: (callback: (paths: string[]) => void) => () => void;
+  onFileDrop?: (callback: (paths: string[], position?: { x: number; y: number }) => void) => () => void;
 }
 
 declare global {

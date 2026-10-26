@@ -97,10 +97,12 @@ const App: React.FC = () => {
     showToast('Display refreshed (terminals redrawn)', 'info');
   }, [showToast]);
 
-  // Redraw buffers when window regains focus to eliminate stale or occluded frame artifacts
+  // Window focus handler: Terminal handles its own local canvas repaint safely without resizing PTY
   useEffect(() => {
     const handleFocus = () => {
-      window.dispatchEvent(new CustomEvent('cmdgui-refresh-display'));
+      // Intentionally avoid dispatching cmdgui-refresh-display on focus.
+      // Jittering PTY columns on focus disrupts active CLI processes (Antigravity, Claude, REPLs)
+      // and triggers ConPTY buffer reflow that resets scroll position to the top.
     };
     window.addEventListener('focus', handleFocus);
     return () => {
@@ -120,6 +122,35 @@ const App: React.FC = () => {
     );
     document.body.classList.add(`theme-${uiTheme}`);
   }, [uiTheme]);
+
+  // Global file drop listener: Handles drops on Sidebar (projects) or when no tabs are open (welcome screen)
+  useEffect(() => {
+    if (!window.electron?.onFileDrop) return;
+    const cleanup = window.electron.onFileDrop(async (paths, position) => {
+      if (!paths || paths.length === 0) return;
+
+      // 1. If dropped on sidebar area, add project(s)
+      const isDroppedOnSidebar = position && position.x <= sidebarWidth;
+      if (isDroppedOnSidebar) {
+        for (const p of paths) {
+          await addProject(p);
+        }
+        showToast(`Added ${paths.length} project(s) to workspace`, 'info');
+        if (!activeTabId || tabs.length === 0) {
+          addTab(paths[0]);
+        }
+        return;
+      }
+
+      // 2. If no tab is open (e.g. WelcomeDashboard), open new tab at the dropped path
+      if (!activeTabId || tabs.length === 0) {
+        const first = paths[0];
+        addTab(first);
+        showToast(`Opened: ${first.split(/[\\/]/).pop() || first}`, 'info');
+      }
+    });
+    return cleanup;
+  }, [activeTabId, tabs.length, sidebarWidth, addProject, addTab, showToast]);
 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [activeSidebarView, setActiveSidebarView] = useState<SidebarView>('explorer');

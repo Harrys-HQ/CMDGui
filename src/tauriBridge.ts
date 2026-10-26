@@ -1,6 +1,8 @@
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { getCurrentWebview } from '@tauri-apps/api/webview';
+import { getCurrentWindow } from '@tauri-apps/api/window';
+import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
 import { getVersion as getTauriAppVersion } from '@tauri-apps/api/app';
 import { check, type Update } from '@tauri-apps/plugin-updater';
 import { relaunch } from '@tauri-apps/plugin-process';
@@ -23,6 +25,164 @@ window.addEventListener(
 // Map to hold listeners for terminal/sidebar callbacks
 const terminalCallbacks = new Set<(action: string) => void>();
 const sidebarCallbacks = new Set<(data: any) => void>();
+const fileDropCallbacks = new Set<(paths: string[], position?: { x: number; y: number }) => void>();
+let isFileDropInitialized = false;
+let lastDropTimestamp = 0;
+let lastDropSignature = '';
+
+function dispatchFileDrop(paths: string[], position?: { x: number; y: number }) {
+  if (!paths || paths.length === 0) return;
+  const now = Date.now();
+  const signature = paths.join('|');
+  // Deduplicate triggers within 300ms for identical paths
+  if (now - lastDropTimestamp < 300 && signature === lastDropSignature) {
+    return;
+  }
+  lastDropTimestamp = now;
+  lastDropSignature = signature;
+
+  // Bring window to focus so user can immediately interact with dropped content
+  try {
+    getCurrentWindow().setFocus().catch(() => {});
+  } catch {
+    /* ignore */
+  }
+
+  fileDropCallbacks.forEach((cb) => {
+    try {
+      cb(paths, position);
+    } catch (err) {
+      console.error('File drop callback error:', err);
+    }
+  });
+}
+
+function extractPathsAndPosition(payload: any): { paths: string[]; position?: { x: number; y: number } } {
+  if (!payload) return { paths: [] };
+  let pos: { x: number; y: number } | undefined;
+  if (payload.position && typeof payload.position.x === 'number' && typeof payload.position.y === 'number') {
+    pos = { x: payload.position.x, y: payload.position.y };
+  }
+
+  if (Array.isArray(payload) && typeof payload[0] === 'string') {
+    return { paths: payload, position: pos };
+  }
+  if (payload.type === 'drop' && Array.isArray(payload.paths)) {
+    return { paths: payload.paths, position: pos };
+  }
+  if (Array.isArray(payload.paths)) {
+    return { paths: payload.paths, position: pos };
+  }
+  return { paths: [], position: pos };
+}
+
+function initFileDropListeners() {
+  if (isFileDropInitialized) return;
+  isFileDropInitialized = true;
+
+  // Global window dragover / drop preventDefault to eliminate WebView2 URL navigation
+  if (typeof window !== 'undefined') {
+    window.addEventListener(
+      'dragover',
+      (e) => {
+        e.preventDefault();
+        if (e.dataTransfer) {
+          e.dataTransfer.dropEffect = 'copy';
+        }
+      },
+      false
+    );
+    window.addEventListener(
+      'drop',
+      (e) => {
+        e.preventDefault();
+        // If native DOM dataTransfer has files with .path (e.g. Electron or patched webview)
+        if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+          const domPaths = [];
+          for (let i = 0; i < e.dataTransfer.files.length; i++) {
+            const file = e.dataTransfer.files[i] as unknown as { path?: string };
+            if (file && typeof file.path === 'string' && file.path.length > 0) {
+              domPaths.push(file.path);
+            }
+          }
+          if (domPaths.length > 0) {
+            dispatchFileDrop(domPaths, { x: e.clientX, y: e.clientY });
+          }
+        }
+      },
+      false
+    );
+  }
+
+  // 1. WebviewWindow onDragDropEvent
+  try {
+    const webviewWindow = getCurrentWebviewWindow();
+    if (webviewWindow && typeof webviewWindow.onDragDropEvent === 'function') {
+      webviewWindow
+        .onDragDropEvent((event) => {
+          const { paths, position } = extractPathsAndPosition(event.payload);
+          if (paths.length > 0) dispatchFileDrop(paths, position);
+        })
+        .catch((err) => console.warn('WebviewWindow drag-drop listener failed:', err));
+    }
+  } catch (e) {
+    console.warn('getCurrentWebviewWindow failed:', e);
+  }
+
+  // 2. Window onDragDropEvent
+  try {
+    const appWindow = getCurrentWindow();
+    if (appWindow && typeof appWindow.onDragDropEvent === 'function') {
+      appWindow
+        .onDragDropEvent((event) => {
+          const { paths, position } = extractPathsAndPosition(event.payload);
+          if (paths.length > 0) dispatchFileDrop(paths, position);
+        })
+        .catch((err) => console.warn('Window drag-drop listener failed:', err));
+    }
+  } catch (e) {
+    console.warn('getCurrentWindow failed:', e);
+  }
+
+  // 3. Webview onDragDropEvent
+  try {
+    const webview = getCurrentWebview();
+    if (webview && typeof webview.onDragDropEvent === 'function') {
+      webview
+        .onDragDropEvent((event) => {
+          const { paths, position } = extractPathsAndPosition(event.payload);
+          if (paths.length > 0) dispatchFileDrop(paths, position);
+        })
+        .catch((err) => console.warn('Webview drag-drop listener failed:', err));
+    }
+  } catch (e) {
+    console.warn('getCurrentWebview failed:', e);
+  }
+
+  // 4. Raw tauri://drag-drop event with target 'main'
+  try {
+    listen(
+      'tauri://drag-drop',
+      (event) => {
+        const { paths, position } = extractPathsAndPosition(event.payload);
+        if (paths.length > 0) dispatchFileDrop(paths, position);
+      },
+      { target: 'main' }
+    ).catch((err) => console.warn('Raw drag-drop (main) failed:', err));
+  } catch (e) {
+    console.warn('listen tauri://drag-drop (main) failed:', e);
+  }
+
+  // 5. Raw tauri://drag-drop event without target filter
+  try {
+    listen('tauri://drag-drop', (event) => {
+      const { paths, position } = extractPathsAndPosition(event.payload);
+      if (paths.length > 0) dispatchFileDrop(paths, position);
+    }).catch((err) => console.warn('Raw drag-drop (any) failed:', err));
+  } catch (e) {
+    console.warn('listen tauri://drag-drop (any) failed:', e);
+  }
+}
 
 // Style template for custom HTML context menu overlay
 const menuStyle = `
@@ -502,21 +662,11 @@ export const tauriBridge = {
     };
   },
 
-  onFileDrop: (callback: (paths: string[]) => void) => {
-    let unlistenFn: (() => void) | null = null;
-    getCurrentWebview()
-      .onDragDropEvent((event) => {
-        if (event.payload.type === 'drop' && event.payload.paths && event.payload.paths.length > 0) {
-          callback(event.payload.paths);
-        }
-      })
-      .then((unlisten) => {
-        unlistenFn = unlisten;
-      })
-      .catch((err) => console.error('Failed to register drag-drop listener:', err));
-
+  onFileDrop: (callback: (paths: string[], position?: { x: number; y: number }) => void) => {
+    initFileDropListeners();
+    fileDropCallbacks.add(callback);
     return () => {
-      if (unlistenFn) unlistenFn();
+      fileDropCallbacks.delete(callback);
     };
   },
 };

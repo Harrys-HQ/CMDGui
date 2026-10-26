@@ -79,6 +79,8 @@ const getTheme = (name: string = 'vscode', custom?: TerminalTheme) => {
   }
 };
 
+let activeFocusedPaneId: string | null = null;
+
 const Terminal: React.FC<TerminalProps> = ({
   paneId,
   cwd,
@@ -113,6 +115,20 @@ const Terminal: React.FC<TerminalProps> = ({
   const pidRef = useRef<string | null>(null);
   const [isReady, setIsReady] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isDragOver, setIsDragOver] = useState(false);
+
+  useEffect(() => {
+    if (isActive) {
+      if (!activeFocusedPaneId) {
+        activeFocusedPaneId = paneId;
+      }
+    }
+    return () => {
+      if (activeFocusedPaneId === paneId) {
+        activeFocusedPaneId = null;
+      }
+    };
+  }, [isActive, paneId]);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchOptions, setSearchOptions] = useState({ caseSensitive: false, wholeWord: false });
   const dataBuffer = useRef<string[]>([]);
@@ -288,6 +304,7 @@ const Terminal: React.FC<TerminalProps> = ({
             if (pidRef.current !== null) {
               window.electron.resizeTerminal(pidRef.current, newCols, newRows);
             }
+            xtermRef.current.scrollToBottom();
           }
         }
       } catch (e) {
@@ -311,16 +328,29 @@ const Terminal: React.FC<TerminalProps> = ({
 
       // If terminal becomes active, flush both local and global buffers
       if (xtermRef.current) {
+        let hasWritten = false;
         if (globalPtyRegistry[paneId]?.dataBuffer?.length) {
-          xtermRef.current.write(globalPtyRegistry[paneId].dataBuffer!.join(''));
+          xtermRef.current.write(globalPtyRegistry[paneId].dataBuffer!.join(''), () => {
+            xtermRef.current?.scrollToBottom();
+          });
           globalPtyRegistry[paneId].dataBuffer = [];
+          hasWritten = true;
         }
         if (dataBuffer.current.length > 0) {
-          xtermRef.current.write(dataBuffer.current.join(''));
+          xtermRef.current.write(dataBuffer.current.join(''), () => {
+            xtermRef.current?.scrollToBottom();
+          });
           dataBuffer.current = [];
+          hasWritten = true;
+        }
+        if (!hasWritten) {
+          xtermRef.current.scrollToBottom();
         }
         // Also trigger a fit after a short delay to ensure layout is ready
-        setTimeout(fitTerminal, 50);
+        setTimeout(() => {
+          fitTerminal();
+          xtermRef.current?.scrollToBottom();
+        }, 50);
       }
     }
   }, [onTitleChange, onExit, onCommand, onNotification, onClear, isActive, paneId]);
@@ -571,7 +601,9 @@ const Terminal: React.FC<TerminalProps> = ({
     const savedBuffer = localStorage.getItem(`terminal_buffer_${paneId}`);
     if (savedBuffer) {
       try {
-        term.write(savedBuffer);
+        term.write(savedBuffer, () => {
+          term.scrollToBottom();
+        });
       } catch (e) {
         console.error('Failed to restore terminal buffer:', e);
       }
@@ -914,11 +946,16 @@ const Terminal: React.FC<TerminalProps> = ({
       if (!isActiveRef.current || !terminalRef.current || !term.element) return;
       fitTerminal();
       term.refresh(0, term.rows - 1);
+      term.scrollToBottom();
     };
     const handleFocus = () => {
       if (!isActiveRef.current || !terminalRef.current || !term.element) return;
       requestAnimationFrame(() => {
         term.refresh(0, term.rows - 1);
+        const buffer = term.buffer.active;
+        if (buffer && buffer.baseY - buffer.viewportY <= 2) {
+          term.scrollToBottom();
+        }
       });
     };
     window.addEventListener('resize', handleResize);
@@ -968,16 +1005,24 @@ const Terminal: React.FC<TerminalProps> = ({
             xtermRef.current.open(el);
             loadHighPerformanceRenderer(xtermRef.current);
             if (dataBuffer.current.length > 0) {
-              xtermRef.current.write(dataBuffer.current.join(''));
+              xtermRef.current.write(dataBuffer.current.join(''), () => {
+                xtermRef.current?.scrollToBottom();
+              });
               dataBuffer.current = [];
+            } else {
+              xtermRef.current.scrollToBottom();
             }
           } else {
             // Re-load to recreate the Canvas/WebGL surface after display: none -> block transition
             loadHighPerformanceRenderer(xtermRef.current);
             xtermRef.current.refresh(0, xtermRef.current.rows - 1);
+            xtermRef.current.scrollToBottom();
           }
           requestAnimationFrame(() => {
-            if (isActiveRef.current) fitTerminal();
+            if (isActiveRef.current && xtermRef.current) {
+              fitTerminal();
+              xtermRef.current.scrollToBottom();
+            }
           });
           xtermRef.current.focus();
         } catch (e) {
@@ -989,6 +1034,7 @@ const Terminal: React.FC<TerminalProps> = ({
       timerId = setTimeout(() => {
         if (isActiveRef.current && xtermRef.current) {
           fitTerminal();
+          xtermRef.current.scrollToBottom();
           xtermRef.current.focus();
         }
       }, 60);
@@ -1166,9 +1212,21 @@ const Terminal: React.FC<TerminalProps> = ({
   }, [onSplitHorizontal, onSplitVertical, paneId]);
 
   useEffect(() => {
-    if (!window.electron.onFileDrop) return;
-    const cleanup = window.electron.onFileDrop((paths) => {
+    if (!window.electron?.onFileDrop) return;
+    const cleanup = window.electron.onFileDrop((paths, position) => {
       if (!isActiveRef.current || !xtermRef.current) return;
+      // In a split layout, if another pane in this tab is specifically focused, let that pane handle it
+      if (activeFocusedPaneId && activeFocusedPaneId !== paneId) {
+        return;
+      }
+      // If position was over the sidebar, allow App/sidebar handler to take priority
+      if (position) {
+        const sidebarEl = document.querySelector('.sidebar');
+        if (sidebarEl) {
+          const rect = sidebarEl.getBoundingClientRect();
+          if (position.x <= rect.right) return;
+        }
+      }
       const formatted = paths
         .map((p) => (p.includes(' ') ? `"${p}"` : p))
         .join(' ');
@@ -1179,26 +1237,33 @@ const Terminal: React.FC<TerminalProps> = ({
     });
 
     return cleanup;
-  }, []);
+  }, [paneId]);
 
   return (
     <div
-      className={`terminal-wrapper ${isActive ? 'active' : ''} ${isAdmin ? 'admin-session' : ''} ${isYoloModeEnabled ? 'yolo-active' : ''}`}
+      className={`terminal-wrapper ${isActive ? 'active' : ''} ${isAdmin ? 'admin-session' : ''} ${isYoloModeEnabled ? 'yolo-active' : ''} ${isDragOver ? 'drag-over-active' : ''}`}
       style={{ width: '100%', height: '100%', position: 'relative' }}
       onContextMenu={handleContextMenu}
       onDragOver={(e) => {
         e.preventDefault();
         e.dataTransfer.dropEffect = 'copy';
+        if (!isDragOver) setIsDragOver(true);
+      }}
+      onDragLeave={() => {
+        setIsDragOver(false);
       }}
       onDrop={(e) => {
         e.preventDefault();
+        setIsDragOver(false);
         const text = e.dataTransfer.getData('text/plain');
-        if (text && xtermRef.current) {
+        const hasFiles = e.dataTransfer.types && Array.from(e.dataTransfer.types).includes('Files');
+        if (text && !hasFiles && xtermRef.current) {
           xtermRef.current.focus();
           xtermRef.current.paste(text);
         }
       }}
       onClick={() => {
+        activeFocusedPaneId = paneId;
         if (xtermRef.current) {
           xtermRef.current.focus();
         }
