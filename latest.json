@@ -1,19 +1,19 @@
 {
-  "version": "2.4.6",
-  "notes": "CmdGUI v2.4.6: CLI AI Coding Powerhouse, Smart PATH Discovery & Rendering Optimizations",
-  "pub_date": "2026-10-22T10:58:05.000Z",
+  "version": "2.4.7",
+  "notes": "CmdGUI v2.4.7: Drag-and-Drop Multi-Channel Dispatch, Viewport Stability & Linux Support",
+  "pub_date": "2026-10-27T01:00:00.000Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRTFBBRTlkRm42aVlHemVQRWRuVFRPNXNXcXMvZ1hQcXNGVXczV3lVc3RML1grUC82WFUzQkZDVWtXRUJtVmx6d1p4ekN5RTdGY1o4YVJjSDIveVZla2tlV2l0bHEya1FJPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkyNjY2Njg1CWZpbGU6Q21kR1VJXzIuNC42X3g2NC1zZXR1cC5leGUKUzNYb0w2YjduRGtubFNkcDJXOW1HSTgrWDZvU2VhZ1BnTm5EWTRTamlMeWJDUk94L2lZSVphbjJmZW9aWWFYN0VCKzZUMkFBWHJRa1hESnBSL0NRQVE9PQo=",
-      "url": "https://github.com/Harrys-HQ/CMDGui/releases/download/v2.4.6/CmdGUI_2.4.6_x64-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRTFBBRTlkRm42aVFnVm1XWEVIOHlMK3dxU3dtdkY3OGNFam1zcTlaZit6VnlyaEJIdHR5dnM4bnYycnUrUXg3aXVWZFBNRHQzVHk3Y2V4YnBVd0FoR1B5TGw2MEt1U1FvPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkzMDYyNzUyCWZpbGU6Q21kR1VJXzIuNC43X3g2NC1zZXR1cC5leGUKc3ZnMjNDUzlNdnVIUHBBZThiZk9OTWVrV3VsTm1EZjNGSktTSW94a3JSbjR0L0t1Z2VKQlNHOEVzcllMWlVEVmJCQXBRaXFpMGxjOWpCVlk0KzlBQXc9PQo=",
+      "url": "https://github.com/Harrys-HQ/CMDGui/releases/download/v2.4.7/CmdGUI_2.4.7_x64-setup.exe"
     },
     "windows-x86_64-nsis": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRTFBBRTlkRm42aVlHemVQRWRuVFRPNXNXcXMvZ1hQcXNGVXczV3lVc3RML1grUC82WFUzQkZDVWtXRUJtVmx6d1p4ekN5RTdGY1o4YVJjSDIveVZla2tlV2l0bHEya1FJPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkyNjY2Njg1CWZpbGU6Q21kR1VJXzIuNC42X3g2NC1zZXR1cC5leGUKUzNYb0w2YjduRGtubFNkcDJXOW1HSTgrWDZvU2VhZ1BnTm5EWTRTamlMeWJDUk94L2lZSVphbjJmZW9aWWFYN0VCKzZUMkFBWHJRa1hESnBSL0NRQVE9PQo=",
-      "url": "https://github.com/Harrys-HQ/CMDGui/releases/download/v2.4.6/CmdGUI_2.4.6_x64-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRTFBBRTlkRm42aVFnVm1XWEVIOHlMK3dxU3dtdkY3OGNFam1zcTlaZit6VnlyaEJIdHR5dnM4bnYycnUrUXg3aXVWZFBNRHQzVHk3Y2V4YnBVd0FoR1B5TGw2MEt1U1FvPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkzMDYyNzUyCWZpbGU6Q21kR1VJXzIuNC43X3g2NC1zZXR1cC5leGUKc3ZnMjNDUzlNdnVIUHBBZThiZk9OTWVrV3VsTm1EZjNGSktTSW94a3JSbjR0L0t1Z2VKQlNHOEVzcllMWlVEVmJCQXBRaXFpMGxjOWpCVlk0KzlBQXc9PQo=",
+      "url": "https://github.com/Harrys-HQ/CMDGui/releases/download/v2.4.7/CmdGUI_2.4.7_x64-setup.exe"
     },
     "windows-x86_64-msi": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRTFBBRTlkRm42aWJNemt5ZlVGQjZGMmxjN2pVVit4dXR0Z3BTakR6QS9KK3lmeXFFcExSWGFybEtKbFUvWDB1NEZaNHdlZzdIY0ZWMlZMZmJXZlZTbUVqTFBNWFJEeHdZPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkyNjY2Njg1CWZpbGU6Q21kR1VJXzIuNC42X3g2NF9lbi1VUy5tc2kKNW9tSHhoS0Q1K0JxZ1lISytUUFlzRC9SQjVCMm1TQkFiVG0xdTdCc0dLcmJZRWRuWE84a2h4RkxYR3pCSHV4RkxaSGZaTE9LNk1DRkRKTm9oL01UREE9PQo=",
-      "url": "https://github.com/Harrys-HQ/CMDGui/releases/download/v2.4.6/CmdGUI_2.4.6_x64_en-US.msi"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRTFBBRTlkRm42aVZaMVNrcGpRTjNVOTd6VGNIWVA5aC9OTnE1emwvckRNaWJPNWZsOGhWRWsyUlJuMFJyTzhXWVBZNHV3cC91T1ZRcWo3RWs0TDZONCtJdHJLTEhkMmdZPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkzMDYyNzUyCWZpbGU6Q21kR1VJXzIuNC43X3g2NF9lbi1VUy5tc2kKdlpWZWxXNFlrV1o5RUE5Zis2WTl2NURoRytaNXEwaHM2Y2tJWWQ4WE5MSFdpN3JVaTIzbmFrdjc1STVBYjM5NHZ0ay9kNWhWUDJZSVhhanR1SFR3Q3c9PQo=",
+      "url": "https://github.com/Harrys-HQ/CMDGui/releases/download/v2.4.7/CmdGUI_2.4.7_x64_en-US.msi"
     }
   }
 }

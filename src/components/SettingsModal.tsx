@@ -157,7 +157,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   const [activeTab, setActiveTab] = useState<
     'general' | 'keybindings' | 'workspaces' | 'about' | 'project' | 'appearance' | 'cli' | 'history'
   >('general');
-  const [appVersion, setAppVersion] = useState<string>('2.4.6');
+  const [appVersion, setAppVersion] = useState<string>('2.4.7');
   const [osPlatform, setOsPlatform] = useState<'windows' | 'linux' | 'macos' | 'other'>('windows');
 
   useEffect(() => {

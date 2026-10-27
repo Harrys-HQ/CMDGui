@@ -1,3 +1,22 @@
+## 🚀 Release: CmdGUI v2.4.7
+
+### 🖱️ Drag-and-Drop Multi-Channel Dispatch, Viewport Stability & Linux Support
+- **🖱️ Multi-Channel Drag-and-Drop Dispatch:**
+  - Restored OS file and folder drag-and-drop in Tauri v2 / WebView2 by listening concurrently across `WebviewWindow`, `Window`, and window-targeted event channels.
+  - Added multi-event deduplication and browser default suppression to prevent accidental WebView2 file navigations.
+  - Added coordinate-aware drop routing:
+    - Dropping folders onto the sidebar automatically adds them to the project workspace with instant feedback.
+    - Dropping files or folders onto the terminal pastes space-quoted absolute paths into the focused pane.
+    - Dropping onto the welcome dashboard immediately opens a new terminal tab at that directory.
+- **🛡️ Terminal Viewport Stability & Focus Fix:**
+  - Eliminated ConPTY column jitter on window focus (`cols - 1` resize) that was forcing ConPTY buffer reflows and jumping the viewport from active session progress back to line 0.
+  - Ensured reliable bottom viewport pinning (`term.scrollToBottom()`) upon terminal buffer restoration, tab switches, and container resizes while preserving user intentional scrollback inspection.
+- **🐧 Cross-Platform Linux Support & CI Release Automation:**
+  - Added Linux PTY process management with POSIX signal handling and standard `/bin/bash` / `/bin/sh` shell resolution.
+  - Added GitHub Actions multi-platform release CI matrix targeting both `windows-latest` and `ubuntu-22.04`.
+
+---
+
 ## 🚀 Release: CmdGUI v2.4.6
 
 ### 🤖 CLI AI Coding Powerhouse, Smart PATH Discovery & Rendering Optimizations
