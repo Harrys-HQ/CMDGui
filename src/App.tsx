@@ -581,6 +581,7 @@ const App: React.FC = () => {
       <TitleBar
         onOpenAiAssistant={() => setIsAiModalOpen(true)}
         onRefreshDisplay={handleRefreshDisplay}
+        onOpenQuickSwitcher={() => setIsQuickSwitcherOpen(true)}
       />
       <div className="workspace-layout">
         <ActivityBar

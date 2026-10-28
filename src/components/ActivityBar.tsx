@@ -19,9 +19,9 @@ const ActivityBar: React.FC<ActivityBarProps> = ({
   onOpenSettings,
 }) => {
   const items: { id: SidebarView; icon: React.ReactNode; label: string }[] = [
-    { id: 'explorer', icon: <Folder size={20} />, label: 'Explorer' },
-    { id: 'git', icon: <GitBranch size={20} />, label: 'Source Control' },
-    { id: 'ports', icon: <Network size={20} />, label: 'Active Ports' },
+    { id: 'explorer', icon: <Folder size={18} strokeWidth={2} />, label: 'Explorer' },
+    { id: 'git', icon: <GitBranch size={18} strokeWidth={2} />, label: 'Source Control' },
+    { id: 'ports', icon: <Network size={18} strokeWidth={2} />, label: 'Active Ports' },
   ];
 
   return (
@@ -49,9 +49,11 @@ const ActivityBar: React.FC<ActivityBarProps> = ({
         <div
           className="activity-bar-item"
           onClick={onOpenSettings}
-          title="Settings (Open Full Settings)"
+          title="Settings (Ctrl+,)"
         >
-          <span className="activity-icon"><Settings size={20} /></span>
+          <span className="activity-icon">
+            <Settings size={18} strokeWidth={2} />
+          </span>
         </div>
       </div>
     </div>

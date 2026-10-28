@@ -1,4 +1,5 @@
 import React from 'react';
+import { Home, ChevronRight } from 'lucide-react';
 
 interface BreadcrumbsProps {
   path: string;
@@ -31,12 +32,18 @@ const Breadcrumbs: React.FC<BreadcrumbsProps> = ({ path, onNavigate }) => {
 
   return (
     <div className="breadcrumbs">
-      <div className="breadcrumb-item root" onClick={() => onNavigate?.(root)}>
-        🏠
+      <div
+        className="breadcrumb-item root"
+        onClick={() => onNavigate?.(root)}
+        title={`Root (${root})`}
+      >
+        <Home size={12} strokeWidth={2} />
       </div>
       {parts.map((part, index) => (
         <React.Fragment key={part.fullPath}>
-          <div className="breadcrumb-separator">/</div>
+          <div className="breadcrumb-separator">
+            <ChevronRight size={10} strokeWidth={2} />
+          </div>
           <div
             className={`breadcrumb-item ${index === parts.length - 1 ? 'active' : ''}`}
             onClick={() => onNavigate?.(part.fullPath)}

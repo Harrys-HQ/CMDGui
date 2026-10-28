@@ -1,13 +1,18 @@
 import React, { useEffect, useState } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { Terminal, Sparkles, RotateCw, Minus, Square, Copy, X } from 'lucide-react';
+import { Terminal, Sparkles, RotateCw, Minus, Square, Copy, X, Search } from 'lucide-react';
 
 interface TitleBarProps {
   onOpenAiAssistant?: () => void;
   onRefreshDisplay?: () => void;
+  onOpenQuickSwitcher?: () => void;
 }
 
-const TitleBar: React.FC<TitleBarProps> = ({ onOpenAiAssistant, onRefreshDisplay }) => {
+const TitleBar: React.FC<TitleBarProps> = ({
+  onOpenAiAssistant,
+  onRefreshDisplay,
+  onOpenQuickSwitcher,
+}) => {
   const [isMaximized, setIsMaximized] = useState(false);
   const appWindow = getCurrentWindow();
 
@@ -31,165 +36,71 @@ const TitleBar: React.FC<TitleBarProps> = ({ onOpenAiAssistant, onRefreshDisplay
   const handleClose = () => appWindow.close();
 
   return (
-    <div
-      className="draggable-area"
-      data-tauri-drag-region
-      style={
-        {
-          height: '32px',
-          width: '100%',
-          backgroundColor: 'var(--bg-sidebar)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          userSelect: 'none',
-          borderBottom: '1px solid var(--border-color)',
-          flexShrink: 0,
-          zIndex: 9999,
-        } as React.CSSProperties
-      }
-    >
-      <div
-        data-tauri-drag-region
-        style={{
-          fontSize: '12px',
-          fontWeight: 600,
-          color: 'var(--fg-active)',
-          paddingLeft: '16px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '12px',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center' }} data-tauri-drag-region>
-          <span data-tauri-drag-region style={{ marginRight: '8px', display: 'flex', alignItems: 'center', color: 'var(--accent-primary)' }}>
-            <Terminal size={14} />
+    <div className="titlebar-container draggable-area" data-tauri-drag-region>
+      <div className="titlebar-left" data-tauri-drag-region>
+        <div className="titlebar-brand" data-tauri-drag-region>
+          <span className="titlebar-brand-icon" data-tauri-drag-region>
+            <Terminal size={13} strokeWidth={2.2} />
           </span>
           CmdGUI
         </div>
 
         {onOpenAiAssistant && (
           <button
-            className="non-draggable"
+            className="titlebar-ai-chip non-draggable"
             onClick={onOpenAiAssistant}
-            title="Open AI Command Generator"
-            style={{
-              background: 'rgba(59, 130, 246, 0.15)',
-              border: '1px solid var(--accent-primary)',
-              color: 'var(--accent-primary)',
-              padding: '2px 8px',
-              borderRadius: '4px',
-              fontSize: '11px',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px',
-              fontWeight: 500,
-              transition: 'all 0.15s ease',
-            }}
+            title="Open AI Command Generator (Alt+A / Ctrl+K)"
           >
-            <Sparkles size={12} /> AI Assistant
+            <Sparkles size={12} /> AI Hub
           </button>
         )}
 
         {onRefreshDisplay && (
           <button
-            className="non-draggable"
+            className="titlebar-btn non-draggable"
             onClick={onRefreshDisplay}
             title="Refresh Display (Ctrl+Alt+R) - Fix visual artifacts"
-            style={{
-              background: 'transparent',
-              border: '1px solid var(--border-subtle)',
-              color: 'var(--fg-secondary)',
-              padding: '2px 8px',
-              borderRadius: '4px',
-              fontSize: '11px',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px',
-              fontWeight: 500,
-              transition: 'all 0.15s ease',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = 'var(--bg-hover)';
-              e.currentTarget.style.color = 'var(--fg-active)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'transparent';
-              e.currentTarget.style.color = 'var(--fg-secondary)';
-            }}
           >
-            <RotateCw size={11} /> Refresh Display
+            <RotateCw size={11} /> Redraw
           </button>
         )}
       </div>
 
-      {/* Custom Window Controls */}
-      <div style={{ display: 'flex', height: '100%' }}>
+      {onOpenQuickSwitcher && (
+        <div
+          className="titlebar-search-trigger non-draggable"
+          onClick={onOpenQuickSwitcher}
+          title="Open Command Palette & Quick Switcher (Ctrl+P)"
+        >
+          <Search size={12} />
+          <span>Quick Switcher / &gt; commands</span>
+          <kbd>Ctrl+P</kbd>
+        </div>
+      )}
+
+      {/* Windows 11 Fluent Window Caption Controls */}
+      <div className="titlebar-window-controls non-draggable">
         <button
+          className="titlebar-window-ctrl"
           onClick={handleMinimize}
           title="Minimize"
-          style={{
-            width: '46px',
-            height: '100%',
-            background: 'transparent',
-            border: 'none',
-            color: 'var(--fg-secondary)',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            transition: 'background 0.2s',
-          }}
-          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--bg-hover)')}
-          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+          aria-label="Minimize Window"
         >
           <Minus size={14} />
         </button>
         <button
+          className="titlebar-window-ctrl"
           onClick={handleMaximize}
-          title={isMaximized ? "Restore Down" : "Maximize"}
-          style={{
-            width: '46px',
-            height: '100%',
-            background: 'transparent',
-            border: 'none',
-            color: 'var(--fg-secondary)',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            transition: 'background 0.2s',
-          }}
-          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--bg-hover)')}
-          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+          title={isMaximized ? 'Restore Down' : 'Maximize'}
+          aria-label="Maximize Window"
         >
           {isMaximized ? <Copy size={12} /> : <Square size={12} />}
         </button>
         <button
+          className="titlebar-window-ctrl close"
           onClick={handleClose}
           title="Close"
-          style={{
-            width: '46px',
-            height: '100%',
-            background: 'transparent',
-            border: 'none',
-            color: 'var(--fg-secondary)',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            transition: 'background 0.2s, color 0.2s',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = '#e81123';
-            e.currentTarget.style.color = '#fff';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = 'transparent';
-            e.currentTarget.style.color = 'var(--fg-secondary)';
-          }}
+          aria-label="Close Window"
         >
           <X size={14} />
         </button>

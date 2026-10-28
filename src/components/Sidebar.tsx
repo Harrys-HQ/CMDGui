@@ -4,7 +4,7 @@ import ProjectItem from './ProjectItem';
 import FileExplorer from './FileExplorer';
 import { loadState, saveState } from '../hooks/usePersistence';
 import { useToast } from '../hooks/useToast';
-import { Search } from 'lucide-react';
+import { Search, ChevronRight } from 'lucide-react';
 
 import { SidebarView } from './ActivityBar';
 
@@ -44,12 +44,12 @@ const CollapsibleSection: React.FC<{
           style={{
             marginRight: '5px',
             transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
-            transition: 'transform 0.1s',
-            display: 'inline-block',
-            fontSize: '10px',
+            transition: 'transform 0.15s ease',
+            display: 'inline-flex',
+            alignItems: 'center',
           }}
         >
-          ▶
+          <ChevronRight size={12} strokeWidth={2.2} />
         </span>
         <span style={{ fontWeight: 'bold' }}>{title}</span>
         {action && (
@@ -1048,10 +1048,10 @@ const Sidebar: React.FC<SidebarProps> = ({
                       <span style={{
                         marginRight: '6px',
                         transform: expandedPorts.user ? 'rotate(90deg)' : 'rotate(0deg)',
-                        transition: 'transform 0.1s',
-                        display: 'inline-block',
-                        fontSize: '9px',
-                      }}>▶</span>
+                        transition: 'transform 0.15s ease',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                      }}><ChevronRight size={11} strokeWidth={2.2} /></span>
                       <span>DEV & APP PORTS ({appPorts.length})</span>
                     </div>
                     {expandedPorts.user && (
@@ -1088,10 +1088,10 @@ const Sidebar: React.FC<SidebarProps> = ({
                           <span style={{
                             marginRight: '6px',
                             transform: expandedPorts.system ? 'rotate(90deg)' : 'rotate(0deg)',
-                            transition: 'transform 0.1s',
-                            display: 'inline-block',
-                            fontSize: '9px',
-                          }}>▶</span>
+                            transition: 'transform 0.15s ease',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                          }}><ChevronRight size={11} strokeWidth={2.2} /></span>
                           <span>SYSTEM SERVICES ({systemPorts.length})</span>
                         </div>
                         {expandedPorts.system && (

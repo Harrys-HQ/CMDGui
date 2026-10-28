@@ -1,3 +1,27 @@
+## 🚀 Release: CmdGUI v2.4.8
+
+### 🎨 Modern UI/UX Redesign, Obsidian & Cyber-Glass System, SVG Tech Badges & Bento Dashboard
+- **🎨 Obsidian & Cyber-Glass Design System:**
+  - Overhauled visual styling across the application with deep OLED canvas layers (`#09090b` / `#111114`), frosted acrylic glass modals, and refined border contrast (`rgba(255, 255, 255, 0.08)`).
+  - Centralized design tokens for surface elevations, type scales, and semantic neon accents (Emerald Run, Amber YOLO, Purple AI Hub, Crimson Alert).
+- **🪟 Windows 11 Fluent Header & Quick Switcher Capsule:**
+  - Modernized `TitleBar` with integrated `Ctrl+P` search trigger capsule and sleek Windows 11 caption controls.
+  - Added gradient AI Hub chip launcher and display redraw button with clean CSS transitions, removing all legacy inline style overrides.
+- **⚓ Tactile Dock-Style Activity Bar:**
+  - Slimmed to a 48px rail with 36×36px rounded dock tiles and a floating electric-blue active indicator pill.
+- **🏷️ Crisp SVG Devicons (Zero Emojis):**
+  - Replaced all raw OS emojis in project items and welcome screens with crisp, scalable SVG devicons for React, Vue, Angular, Svelte, Node.js, Python, Rust, Go, Docker, Android, Git, and .NET.
+  - Replaced legacy text chevrons (`▶`) in the sidebar with animated Lucide `ChevronRight` micro-icons.
+- **📑 Floating Pill Tabs & Viewport Framing:**
+  - Modernized `TopTabBar` with Zed/Warp-inspired floating pill card geometry (`border-radius: 6px`) and luminous active indicator glow.
+  - Interactive breadcrumb pills with SVG `Home` and `ChevronRight` path navigation.
+- **🍱 Bento-Grid Command Center:**
+  - Upgraded the `WelcomeDashboard` into a modern 4-quadrant developer command center: Quick Launch, Recent Workspaces with Git branch pills, Autonomous AI CLI Hub (`agy`, `claude`, `gemini`), and Speed Cheatsheet.
+- **⚡ Raycast-Class Quick Switcher (Ctrl+P):**
+  - Polished Command Palette with category chips (`TAB`, `WORKSPACE`, `ACTION`), frosted acrylic blur, and keyboard shortcut `<kbd>` badges.
+
+---
+
 ## 🚀 Release: CmdGUI v2.4.7
 
 ### 🖱️ Drag-and-Drop Multi-Channel Dispatch, Viewport Stability & Linux Support

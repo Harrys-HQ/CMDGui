@@ -1,6 +1,8 @@
 /* eslint-disable react/prop-types */
 import React, { useState } from 'react';
 import { Project } from '../types';
+import TechIcon from './TechIcon';
+import { ChevronUp, ChevronDown, FolderTree, Zap, GitBranch } from 'lucide-react';
 
 interface ProjectItemProps {
   project: Project;
@@ -15,139 +17,6 @@ interface ProjectItemProps {
   onDragStart: () => void;
   onDragEnd: () => void;
 }
-
-const ProjectIcon: React.FC<{ type?: string }> = ({ type }) => {
-  switch (type) {
-    case 'react':
-      return (
-        <span className="project-icon" title="React Project">
-          ⚛️
-        </span>
-      );
-    case 'vue':
-      return (
-        <span className="project-icon" title="Vue Project">
-          🖖
-        </span>
-      );
-    case 'angular':
-      return (
-        <span className="project-icon" title="Angular Project">
-          🅰️
-        </span>
-      );
-    case 'svelte':
-      return (
-        <span className="project-icon" title="Svelte Project">
-          🔥
-        </span>
-      );
-    case 'node':
-      return (
-        <span className="project-icon" title="Node.js Project">
-          🟢
-        </span>
-      );
-    case 'python':
-      return (
-        <span className="project-icon" title="Python Project">
-          🐍
-        </span>
-      );
-    case 'rust':
-      return (
-        <span className="project-icon" title="Rust Project">
-          🦀
-        </span>
-      );
-    case 'go':
-      return (
-        <span className="project-icon" title="Go Project">
-          🐹
-        </span>
-      );
-    case 'deno':
-      return (
-        <span className="project-icon" title="Deno Project">
-          🦕
-        </span>
-      );
-    case 'docker':
-      return (
-        <span className="project-icon" title="Docker Project">
-          🐳
-        </span>
-      );
-    case 'dotnet':
-      return (
-        <span className="project-icon" title=" .NET Project">
-          🎯
-        </span>
-      );
-    case 'cpp':
-      return (
-        <span className="project-icon" title="C++ Project">
-          💎
-        </span>
-      );
-    case 'git':
-      return (
-        <span className="project-icon" title="Git Repository">
-          🌿
-        </span>
-      );
-    case 'php':
-      return (
-        <span className="project-icon" title="PHP Project">
-          🐘
-        </span>
-      );
-    case 'laravel':
-      return (
-        <span className="project-icon" title="Laravel Project">
-          🚀
-        </span>
-      );
-    case 'ruby':
-      return (
-        <span className="project-icon" title="Ruby Project">
-          💎
-        </span>
-      );
-    case 'java':
-      return (
-        <span className="project-icon" title="Java Project">
-          ☕
-        </span>
-      );
-    case 'android':
-      return (
-        <span className="project-icon" title="Android Project">
-          🤖
-        </span>
-      );
-    case 'react-native':
-      return (
-        <span className="project-icon" title="React Native Mobile Project">
-          📱
-        </span>
-      );
-    case 'flutter':
-      return (
-        <span className="project-icon" title="Flutter Mobile Project">
-          💙
-        </span>
-      );
-    case 'ios':
-      return (
-        <span className="project-icon" title="iOS Project">
-          🍎
-        </span>
-      );
-    default:
-      return <span className="project-icon">📂</span>;
-  }
-};
 
 const getHighlightedText = (text: string, highlight: string) => {
   if (!highlight.trim()) return <span>{text}</span>;
@@ -196,9 +65,10 @@ const ProjectItem: React.FC<ProjectItemProps> = React.memo(
     };
 
     const favoriteScripts = ['dev', 'start', 'build', 'test', 'watch', 'serve'];
-    const availableFavorites = project.scripts && typeof project.scripts === 'object'
-      ? Object.keys(project.scripts).filter((s) => favoriteScripts.includes(s.toLowerCase()))
-      : [];
+    const availableFavorites =
+      project.scripts && typeof project.scripts === 'object'
+        ? Object.keys(project.scripts).filter((s) => favoriteScripts.includes(s.toLowerCase()))
+        : [];
 
     return (
       <div
@@ -225,24 +95,33 @@ const ProjectItem: React.FC<ProjectItemProps> = React.memo(
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
-          <ProjectIcon type={project.type} />
+          <span style={{ marginRight: '8px', display: 'flex', alignItems: 'center' }}>
+            <TechIcon type={project.type} size={15} />
+          </span>
           <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-            <span style={{ textOverflow: 'ellipsis', overflow: 'hidden' }}>
+            <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', fontWeight: 500 }}>
               {getHighlightedText(project.name, searchQuery)}
             </span>
             {project.gitBranch && (
               <div
                 className={`git-badge ${project.gitDirty ? 'dirty' : ''}`}
-                style={{ marginLeft: 0, marginTop: '2px', alignSelf: 'flex-start' }}
+                style={{
+                  marginLeft: 0,
+                  marginTop: '3px',
+                  alignSelf: 'flex-start',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                }}
               >
-                <span className="git-branch-icon">ᚠ</span>
-                {project.gitBranch}
+                <GitBranch size={10} strokeWidth={2.2} />
+                <span>{project.gitBranch}</span>
                 {project.gitDirty && <span>*</span>}
               </div>
             )}
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
             {onMoveUp && (
               <span
                 onClick={(e) => {
@@ -251,9 +130,9 @@ const ProjectItem: React.FC<ProjectItemProps> = React.memo(
                 }}
                 className="task-close-btn"
                 title="Move Up"
-                style={{ fontSize: '11px', opacity: 0.7 }}
+                style={{ opacity: 0.7, display: 'flex', alignItems: 'center' }}
               >
-                ▲
+                <ChevronUp size={12} strokeWidth={2.2} />
               </span>
             )}
             {onMoveDown && (
@@ -264,71 +143,76 @@ const ProjectItem: React.FC<ProjectItemProps> = React.memo(
                 }}
                 className="task-close-btn"
                 title="Move Down"
-                style={{ fontSize: '11px', opacity: 0.7 }}
+                style={{ opacity: 0.7, display: 'flex', alignItems: 'center' }}
               >
-                ▼
+                <ChevronDown size={12} strokeWidth={2.2} />
               </span>
             )}
             <span
               onClick={handleToggleExplorer}
               title="Toggle File Explorer"
               style={{
-                fontSize: '12px',
-                marginRight: '4px',
                 cursor: 'pointer',
                 opacity: isExplorerOpen ? 1 : 0.5,
+                display: 'flex',
+                alignItems: 'center',
+                padding: '2px 4px',
+                color: isExplorerOpen ? 'var(--accent-primary)' : 'var(--fg-secondary)',
               }}
             >
-              📂
+              <FolderTree size={13} strokeWidth={1.8} />
             </span>
-            {project.scripts && typeof project.scripts === 'object' && Object.keys(project.scripts).length > 0 && (
-              <div style={{ position: 'static' }}>
-                <span
-                  onClick={toggleScriptMenu}
-                  title="All Scripts"
-                  style={{
-                    fontSize: '12px',
-                    color: '#007acc',
-                    marginRight: '6px',
-                    opacity: 0.8,
-                    cursor: 'pointer',
-                  }}
-                >
-                  ⚡
-                </span>
-                {isScriptMenuOpen && (
-                  <div
-                    className="dropdown-menu"
-                    onMouseLeave={() => setIsScriptMenuOpen(false)}
+            {project.scripts &&
+              typeof project.scripts === 'object' &&
+              Object.keys(project.scripts).length > 0 && (
+                <div style={{ position: 'static' }}>
+                  <span
+                    onClick={toggleScriptMenu}
+                    title="All Scripts"
                     style={{
-                      top: '100%',
-                      right: '20px',
-                      maxHeight: '200px',
-                      overflowY: 'auto',
-                      position: 'absolute',
+                      color: 'var(--accent-primary)',
+                      opacity: 0.85,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      padding: '2px 4px',
                     }}
                   >
-                    {Object.entries(project.scripts).map(([scriptName, scriptCmd]) => (
-                      <div
-                        key={scriptName}
-                        className="project-item"
-                        style={{ fontSize: '11px', padding: '6px 12px' }}
-                        title={scriptCmd as string}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setIsScriptMenuOpen(false);
-                          if (onRunScript) onRunScript(scriptName);
-                        }}
-                      >
-                        <span style={{ fontWeight: 'bold', marginRight: '8px', color: '#d4d4d4' }}>
-                          {scriptName}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
+                    <Zap size={13} strokeWidth={2} />
+                  </span>
+                  {isScriptMenuOpen && (
+                    <div
+                      className="dropdown-menu"
+                      onMouseLeave={() => setIsScriptMenuOpen(false)}
+                      style={{
+                        top: '100%',
+                        right: '20px',
+                        maxHeight: '200px',
+                        overflowY: 'auto',
+                        position: 'absolute',
+                      }}
+                    >
+                      {Object.entries(project.scripts).map(([scriptName, scriptCmd]) => (
+                        <div
+                          key={scriptName}
+                          className="project-item"
+                          style={{ fontSize: '11px', padding: '6px 12px' }}
+                          title={scriptCmd as string}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setIsScriptMenuOpen(false);
+                            if (onRunScript) onRunScript(scriptName);
+                          }}
+                        >
+                          <span style={{ fontWeight: 'bold', marginRight: '8px', color: '#d4d4d4' }}>
+                            {scriptName}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
           </div>
         </div>
 
@@ -339,7 +223,7 @@ const ProjectItem: React.FC<ProjectItemProps> = React.memo(
               flexWrap: 'wrap',
               gap: '4px',
               marginTop: '6px',
-              marginLeft: '24px',
+              marginLeft: '23px',
             }}
           >
             {availableFavorites.map((s) => (
