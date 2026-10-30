@@ -28,6 +28,7 @@ const TopTabBar: React.FC<TopTabBarProps> = ({
   onAddAdminTab,
 }) => {
   const [draggedIdx, setDraggedIdx] = useState<number | null>(null);
+  const [isExternalDragOver, setIsExternalDragOver] = useState(false);
   const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
   const [contextMenuTabId, setContextMenuTabId] = useState<string | null>(null);
   const [menuPos, setMenuPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
@@ -71,10 +72,24 @@ const TopTabBar: React.FC<TopTabBarProps> = ({
 
   return (
     <div
-      className="top-tab-bar"
+      className={`top-tab-bar ${isExternalDragOver ? 'drag-over-active' : ''}`}
       onClick={() => {
         setContextMenuTabId(null);
         setIsAddMenuOpen(false);
+      }}
+      onDragOver={(e) => {
+        if (e.dataTransfer?.types && Array.from(e.dataTransfer.types).includes('Files')) {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'copy';
+          if (!isExternalDragOver) setIsExternalDragOver(true);
+        }
+      }}
+      onDragLeave={(e) => {
+        if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+        setIsExternalDragOver(false);
+      }}
+      onDrop={() => {
+        setIsExternalDragOver(false);
       }}
     >
       {(Array.isArray(tabs) ? tabs : []).map((tab, idx) => (

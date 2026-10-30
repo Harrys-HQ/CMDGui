@@ -57,23 +57,48 @@ function dispatchFileDrop(paths: string[], position?: { x: number; y: number }) 
   });
 }
 
+function cleanDroppedPath(p: string): string {
+  if (typeof p !== "string") return "";
+  let cleaned = p.trim();
+  if (cleaned.startsWith("file:///")) {
+    cleaned = decodeURI(cleaned.replace(/^file:\/\/\/?/, ""));
+    if (/^[a-zA-Z]:\//.test(cleaned)) {
+      cleaned = cleaned.replace(/\//g, "\\");
+    }
+  }
+  return cleaned;
+}
+
 function extractPathsAndPosition(payload: any): { paths: string[]; position?: { x: number; y: number } } {
   if (!payload) return { paths: [] };
   let pos: { x: number; y: number } | undefined;
-  if (payload.position && typeof payload.position.x === 'number' && typeof payload.position.y === 'number') {
-    pos = { x: payload.position.x, y: payload.position.y };
+  if (payload.position && typeof payload.position.x === "number" && typeof payload.position.y === "number") {
+    // Tauri v2 onDragDropEvent delivers PhysicalPosition in physical pixels.
+    // Convert to CSS logical coordinates so DOM getBoundingClientRect() comparisons align.
+    const dpr = typeof window !== "undefined" && window.devicePixelRatio ? window.devicePixelRatio : 1;
+    if (typeof payload.position.toLogical === "function") {
+      try {
+        const logical = payload.position.toLogical(dpr);
+        pos = { x: logical.x, y: logical.y };
+      } catch {
+        pos = { x: payload.position.x / dpr, y: payload.position.y / dpr };
+      }
+    } else {
+      pos = { x: payload.position.x / dpr, y: payload.position.y / dpr };
+    }
   }
 
-  if (Array.isArray(payload) && typeof payload[0] === 'string') {
-    return { paths: payload, position: pos };
+  let rawPaths: string[] = [];
+  if (Array.isArray(payload) && typeof payload[0] === "string") {
+    rawPaths = payload;
+  } else if (payload.type === "drop" && Array.isArray(payload.paths)) {
+    rawPaths = payload.paths;
+  } else if (Array.isArray(payload.paths)) {
+    rawPaths = payload.paths;
   }
-  if (payload.type === 'drop' && Array.isArray(payload.paths)) {
-    return { paths: payload.paths, position: pos };
-  }
-  if (Array.isArray(payload.paths)) {
-    return { paths: payload.paths, position: pos };
-  }
-  return { paths: [], position: pos };
+
+  const paths = rawPaths.map(cleanDroppedPath).filter(Boolean);
+  return { paths, position: pos };
 }
 
 function initFileDropListeners() {

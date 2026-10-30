@@ -87,6 +87,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [draggedProjectIndex, setDraggedProjectIndex] = useState<number | null>(null);
   const [dragOverProjectIndex, setDragOverProjectIndex] = useState<number | null>(null);
+  const [isExternalDragOver, setIsExternalDragOver] = useState(false);
   const [expandedSections, setExpandedSections] = useState({
     projects: true,
     snippets: true,
@@ -229,7 +230,25 @@ const Sidebar: React.FC<SidebarProps> = ({
   };
 
   return (
-    <div className={`sidebar ${className}`} style={{ width: 'var(--sidebar-width)' }} onClick={onRefreshGitStatus}>
+    <div
+      className={`sidebar ${className} ${isExternalDragOver ? 'drag-over-active' : ''}`}
+      style={{ width: 'var(--sidebar-width)' }}
+      onClick={onRefreshGitStatus}
+      onDragOver={(e) => {
+        if (e.dataTransfer?.types && Array.from(e.dataTransfer.types).includes('Files')) {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'copy';
+          if (!isExternalDragOver) setIsExternalDragOver(true);
+        }
+      }}
+      onDragLeave={(e) => {
+        if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+        setIsExternalDragOver(false);
+      }}
+      onDrop={() => {
+        setIsExternalDragOver(false);
+      }}
+    >
       {activeView === 'explorer' && (
         <div className="sidebar-search-container">
           <Search size={14} style={{ color: 'var(--fg-secondary)', flexShrink: 0 }} />

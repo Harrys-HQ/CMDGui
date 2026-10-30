@@ -1,3 +1,19 @@
+## 🚀 Release: CmdGUI v2.4.9
+
+### 🖱️ High-DPI Drag-and-Drop Normalization, Tab-Bar Drop Routing & Visual Feedback
+- **🖱️ High-DPI Drag-and-Drop Normalization:**
+  - Added physical-to-logical pixel scaling (`toLogical(dpr)`) in the Tauri v2 bridge so drag-and-drop cursor coordinates align with CSS layout bounds across all Windows DPI scale factors (125%, 150%, 200%).
+  - Added robust path sanitization (`cleanDroppedPath`) to strip `file:///` protocols and format Windows backslashes properly.
+- **📑 Top Tab Bar Drop Routing:**
+  - Dropping folders or files onto the Title Bar, Top Tab Bar, or Breadcrumb header area now automatically opens each dropped path as a new terminal tab.
+  - Preserved sidebar drop routing for workspace project addition and terminal container drop routing for shell path pasting.
+- **✨ Visual Drag-Over Indicators:**
+  - Added real-time dashed accent borders (`drag-over-active`) to the Top Tab Bar and Workspace Sidebar when hovering OS files or folders.
+- **⚙️ Tauri Window Configuration:**
+  - Explicitly enabled `dragDropEnabled: true` on the main window config to ensure reliable OS-level file drop target initialization.
+
+---
+
 ## 🚀 Release: CmdGUI v2.4.8
 
 ### 🎨 Modern UI/UX Redesign, Obsidian & Cyber-Glass System, SVG Tech Badges & Bento Dashboard

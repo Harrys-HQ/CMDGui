@@ -130,7 +130,11 @@ const App: React.FC = () => {
       if (!paths || paths.length === 0) return;
 
       // 1. If dropped on sidebar area, add project(s)
-      const isDroppedOnSidebar = position && position.x <= sidebarWidth;
+      const sidebarEl = document.querySelector('.sidebar');
+      const isDroppedOnSidebar = position && sidebarEl
+        ? position.x <= sidebarEl.getBoundingClientRect().right
+        : position && position.x <= sidebarWidth;
+
       if (isDroppedOnSidebar) {
         for (const p of paths) {
           await addProject(p);
@@ -142,11 +146,27 @@ const App: React.FC = () => {
         return;
       }
 
-      // 2. If no tab is open (e.g. WelcomeDashboard), open new tab at the dropped path
+      // 2. If dropped on top header / tab bar area, open each dropped path as a new tab
+      const termContainerEl = document.querySelector('.terminal-container');
+      const isDroppedOnTopNav = position && termContainerEl
+        ? position.y < termContainerEl.getBoundingClientRect().top
+        : position && position.y <= 80;
+
+      if (isDroppedOnTopNav) {
+        for (const p of paths) {
+          addTab(p);
+        }
+        showToast(`Opened ${paths.length} new tab(s)`, 'info');
+        return;
+      }
+
+      // 3. If no tab is open (e.g. WelcomeDashboard), open new tab(s) at the dropped path(s)
       if (!activeTabId || tabs.length === 0) {
-        const first = paths[0];
-        addTab(first);
-        showToast(`Opened: ${first.split(/[\\/]/).pop() || first}`, 'info');
+        for (const p of paths) {
+          addTab(p);
+        }
+        showToast(`Opened: ${paths[0].split(/[\\/]/).pop() || paths[0]}`, 'info');
+        return;
       }
     });
     return cleanup;

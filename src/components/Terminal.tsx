@@ -1226,6 +1226,12 @@ const Terminal: React.FC<TerminalProps> = ({
           const rect = sidebarEl.getBoundingClientRect();
           if (position.x <= rect.right) return;
         }
+        // If position was over top header (TitleBar / TopTabBar / Breadcrumbs), let App tab-opener handler take priority
+        const termContainerEl = document.querySelector('.terminal-container');
+        if (termContainerEl) {
+          const termRect = termContainerEl.getBoundingClientRect();
+          if (position.y < termRect.top) return;
+        }
       }
       const formatted = paths
         .map((p) => (p.includes(' ') ? `"${p}"` : p))
