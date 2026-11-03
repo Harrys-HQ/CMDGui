@@ -18,26 +18,66 @@ const TitleBar: React.FC<TitleBarProps> = ({
   isDualBrainStudioActive,
 }) => {
   const [isMaximized, setIsMaximized] = useState(false);
-  const appWindow = getCurrentWindow();
+  const appWindow = React.useMemo(() => {
+    try {
+      return typeof window !== 'undefined' ? getCurrentWindow() : null;
+    } catch {
+      return null;
+    }
+  }, []);
 
   useEffect(() => {
+    if (!appWindow) return;
+    let isMounted = true;
     const checkMaximized = async () => {
-      setIsMaximized(await appWindow.isMaximized());
+      try {
+        const maximized = await appWindow.isMaximized();
+        if (isMounted) setIsMaximized(maximized);
+      } catch {
+        /* ignore */
+      }
     };
     checkMaximized();
 
     // Listen for resize to update maximized state
-    const unlisten = appWindow.onResized(() => {
-      checkMaximized();
-    });
+    let unlistenFn: (() => void) | undefined;
+    try {
+      appWindow.onResized(() => {
+        checkMaximized();
+      }).then((fn) => {
+        unlistenFn = fn;
+      }).catch(() => {});
+    } catch {
+      /* ignore */
+    }
+
     return () => {
-      unlisten.then((fn) => fn());
+      isMounted = false;
+      if (unlistenFn) unlistenFn();
     };
   }, [appWindow]);
 
-  const handleMinimize = () => appWindow.minimize();
-  const handleMaximize = () => appWindow.toggleMaximize();
-  const handleClose = () => appWindow.close();
+  const handleMinimize = () => {
+    try {
+      appWindow?.minimize().catch(() => {});
+    } catch {
+      /* ignore */
+    }
+  };
+  const handleMaximize = () => {
+    try {
+      appWindow?.toggleMaximize().catch(() => {});
+    } catch {
+      /* ignore */
+    }
+  };
+  const handleClose = () => {
+    try {
+      appWindow?.close().catch(() => {});
+    } catch {
+      /* ignore */
+    }
+  };
 
   return (
     <div className="titlebar-container draggable-area" data-tauri-drag-region>

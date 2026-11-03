@@ -337,7 +337,12 @@ const DualBrainStudio: React.FC<DualBrainStudioProps> = ({
       <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
         <Group orientation="horizontal" style={{ width: '100%', height: '100%' }}>
           {/* ================= LEFT PANE: ORCHESTRATOR ================= */}
-          <Panel defaultSize={38} minSize={25} maxSize={55} style={{ display: 'flex', flexDirection: 'column', height: '100%', background: 'var(--bg-surface-l1)' }}>
+          <Panel
+            defaultSize="32%"
+            minSize="280px"
+            maxSize="50%"
+            style={{ display: 'flex', flexDirection: 'column', height: '100%', minWidth: 0, background: 'var(--bg-surface-l1)' }}
+          >
             {/* Orchestrator Top Summary */}
             <div
               style={{
@@ -349,9 +354,9 @@ const DualBrainStudio: React.FC<DualBrainStudioProps> = ({
                 background: 'var(--bg-surface-l2)',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Bot size={16} style={{ color: 'var(--accent-primary)' }} />
-                <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--fg-active)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+                <Bot size={16} style={{ color: 'var(--accent-primary)', flexShrink: 0 }} />
+                <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--fg-active)', whiteSpace: 'nowrap' }}>
                   Autonomous Orchestrator
                 </span>
               </div>
@@ -364,6 +369,7 @@ const DualBrainStudio: React.FC<DualBrainStudioProps> = ({
                   background: activeWorkflow ? 'rgba(16, 185, 129, 0.2)' : 'rgba(255, 255, 255, 0.05)',
                   color: activeWorkflow ? 'var(--neon-run)' : 'var(--text-muted)',
                   border: `1px solid ${activeWorkflow ? 'var(--neon-run)' : 'var(--border-color)'}`,
+                  flexShrink: 0,
                 }}
               >
                 {activeWorkflow ? `● Step: ${activeWorkflow.stage.replace('-running', '')}` : '○ Ready'}
@@ -547,7 +553,7 @@ const DualBrainStudio: React.FC<DualBrainStudioProps> = ({
             {/* Prompt Dispatcher & Action Chips */}
             <div style={{ padding: '14px', borderTop: '1px solid var(--border-color)', background: 'var(--bg-surface-l2)' }}>
               {/* Fast Action Preset Chips */}
-              <div style={{ display: 'flex', gap: '6px', overflowX: 'auto', paddingBottom: '8px', marginBottom: '8px' }}>
+              <div style={{ display: 'flex', gap: '6px', overflowX: 'auto', paddingBottom: '8px', marginBottom: '8px', scrollbarWidth: 'thin' }}>
                 {[
                   { label: '🚀 Full Refactor Loop', prompt: 'Refactor feature architecture and verify with unit tests' },
                   { label: '🛡️ Security & Bug Audit', prompt: 'Audit repository for security vulnerabilities and race conditions' },
@@ -568,6 +574,7 @@ const DualBrainStudio: React.FC<DualBrainStudioProps> = ({
                     }}
                     style={{
                       whiteSpace: 'nowrap',
+                      flexShrink: 0,
                       padding: '4px 8px',
                       borderRadius: '12px',
                       fontSize: '10px',
@@ -598,6 +605,7 @@ const DualBrainStudio: React.FC<DualBrainStudioProps> = ({
                   rows={2}
                   style={{
                     flex: 1,
+                    minWidth: 0,
                     resize: 'none',
                     padding: '8px 12px',
                     borderRadius: '8px',
@@ -627,6 +635,7 @@ const DualBrainStudio: React.FC<DualBrainStudioProps> = ({
                     display: 'flex',
                     alignItems: 'center',
                     gap: '6px',
+                    flexShrink: 0,
                   }}
                 >
                   <Send size={14} /> Send
@@ -634,7 +643,7 @@ const DualBrainStudio: React.FC<DualBrainStudioProps> = ({
               </div>
 
               {/* Mode toggles */}
-              <div style={{ display: 'flex', gap: '10px', marginTop: '8px', fontSize: '10px', color: 'var(--text-muted)' }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px 12px', marginTop: '8px', fontSize: '10px', color: 'var(--text-muted)' }}>
                 <label style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
                   <input
                     type="radio"
@@ -669,11 +678,11 @@ const DualBrainStudio: React.FC<DualBrainStudioProps> = ({
           <Separator className="pane-resizer-vertical" />
 
           {/* ================= RIGHT PANE: DUAL LIVE TERMINALS ================= */}
-          <Panel defaultSize={62} minSize={45} style={{ height: '100%', background: 'var(--bg-canvas)' }}>
+          <Panel defaultSize="68%" minSize="400px" style={{ height: '100%', background: 'var(--bg-canvas)' }}>
             <Group orientation="vertical" style={{ width: '100%', height: '100%' }}>
               {/* TOP RIGHT: ANTIGRAVITY (GEMINI) */}
               {(activeRightTab === 'both' || activeRightTab === 'agy') && (
-                <Panel defaultSize={50} minSize={20} style={{ position: 'relative', display: 'flex', flexDirection: 'column', height: '100%' }}>
+                <Panel defaultSize="50%" minSize="20%" style={{ position: 'relative', display: 'flex', flexDirection: 'column', height: '100%' }}>
                   <div
                     style={{
                       height: '28px',
@@ -715,7 +724,7 @@ const DualBrainStudio: React.FC<DualBrainStudioProps> = ({
 
               {/* BOTTOM RIGHT: OPENAI CODEX (GPT 6.1 SOL) */}
               {(activeRightTab === 'both' || activeRightTab === 'codex') && (
-                <Panel defaultSize={50} minSize={20} style={{ position: 'relative', display: 'flex', flexDirection: 'column', height: '100%' }}>
+                <Panel defaultSize="50%" minSize="20%" style={{ position: 'relative', display: 'flex', flexDirection: 'column', height: '100%' }}>
                   <div
                     style={{
                       height: '28px',

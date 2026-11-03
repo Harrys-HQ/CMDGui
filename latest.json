@@ -1,19 +1,19 @@
 {
-  "version": "2.5.1",
-  "notes": "CmdGUI v2.5.1: Dual-Brain Mission Control Studio (3-Pane Tri-View) & Native Subscription Orchestration",
-  "pub_date": "2026-11-03T05:51:00.000Z",
+  "version": "2.5.2",
+  "notes": "CmdGUI v2.5.2: Dual-Brain Studio Layout Stabilization, Resizer Hit Target Expansion & TitleBar Guard",
+  "pub_date": "2026-11-03T06:28:00.000Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRTFBBRTlkRm42aWFMbXh3YXdYK2ZGMDEzUU1waGZOb3lTMW1oODJFWGhaQ1VNTkc4S2Y5djhjOS9jRnVkVTNzYThDWXEvY3l1QnN5eFVrS1BGUzM3OGlZVVF1SkxhMGdrPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkzNjg1MDc1CWZpbGU6Q21kR1VJXzIuNS4xX3g2NC1zZXR1cC5leGUKYWFpTEFBMlduYklmZVZoU1FRekVLR09UMldEZmhUODVsRTRtOXl2ZTJna1RsRVJ6M3ljRlFFYlRnSXVHYXR2Ti82S0srRU5MMEtDWHlrK2QrQUVsQ1E9PQo=",
-      "url": "https://github.com/Harrys-HQ/CMDGui/releases/download/v2.5.1/CmdGUI_2.5.1_x64-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRTFBBRTlkRm42aWZ2T3UvQ1g0VnVrbTRDbHY2SkFENGo0Q0NneHUwWFVENGhlbytmYnM4T3crZllpV0loTG83azVqbWVvY2k5V1RyMWNYOGRxUUNFVDZBSklqT1c3MWc4PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkzNjg3Mjc0CWZpbGU6Q21kR1VJXzIuNS4yX3g2NC1zZXR1cC5leGUKaEQ3aHY5SlBhME9UVFN1azBiZE81TjZNTVN4TWdwMkl0MFZFZFlnbXY2MUZ4ODZWQkZFckFDMXE2cWNxL0FneXllN25rRnRjcjZNZ3BIMnFTeDJVQ0E9PQo=",
+      "url": "https://github.com/Harrys-HQ/CMDGui/releases/download/v2.5.2/CmdGUI_2.5.2_x64-setup.exe"
     },
     "windows-x86_64-nsis": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRTFBBRTlkRm42aWFMbXh3YXdYK2ZGMDEzUU1waGZOb3lTMW1oODJFWGhaQ1VNTkc4S2Y5djhjOS9jRnVkVTNzYThDWXEvY3l1QnN5eFVrS1BGUzM3OGlZVVF1SkxhMGdrPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkzNjg1MDc1CWZpbGU6Q21kR1VJXzIuNS4xX3g2NC1zZXR1cC5leGUKYWFpTEFBMlduYklmZVZoU1FRekVLR09UMldEZmhUODVsRTRtOXl2ZTJna1RsRVJ6M3ljRlFFYlRnSXVHYXR2Ti82S0srRU5MMEtDWHlrK2QrQUVsQ1E9PQo=",
-      "url": "https://github.com/Harrys-HQ/CMDGui/releases/download/v2.5.1/CmdGUI_2.5.1_x64-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRTFBBRTlkRm42aWZ2T3UvQ1g0VnVrbTRDbHY2SkFENGo0Q0NneHUwWFVENGhlbytmYnM4T3crZllpV0loTG83azVqbWVvY2k5V1RyMWNYOGRxUUNFVDZBSklqT1c3MWc4PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkzNjg3Mjc0CWZpbGU6Q21kR1VJXzIuNS4yX3g2NC1zZXR1cC5leGUKaEQ3aHY5SlBhME9UVFN1azBiZE81TjZNTVN4TWdwMkl0MFZFZFlnbXY2MUZ4ODZWQkZFckFDMXE2cWNxL0FneXllN25rRnRjcjZNZ3BIMnFTeDJVQ0E9PQo=",
+      "url": "https://github.com/Harrys-HQ/CMDGui/releases/download/v2.5.2/CmdGUI_2.5.2_x64-setup.exe"
     },
     "windows-x86_64-msi": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRTFBBRTlkRm42aWZDZXdDOENzWWpaclR6cy9kUkx5UkswMEdBcGhxbktNV01uNkVGcnBKUEVhRzJxOXg5WlBLQm1qT2N5MC85TjdkY2FzdFEwbUd2cVhTZCtUZ0lyZlFzPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkzNjg1MDc1CWZpbGU6Q21kR1VJXzIuNS4xX3g2NF9lbi1VUy5tc2kKUXZIWXNhVTlVd0VnQ1NOTXJrK0RPbGU1engvOTFnSXhpemJuYU55LzI4RTNMenJVS1lhbHFtWUdXcW9Nd0VvK3YzRDhqTlZEaGt5WkJ2dW9uSmIyREE9PQo=",
-      "url": "https://github.com/Harrys-HQ/CMDGui/releases/download/v2.5.1/CmdGUI_2.5.1_x64_en-US.msi"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRTFBBRTlkRm42aVc3OVQ5RE1sblVOSGRCOERVWmxxOUFWR0w5azl3Q3ZWNTAyWFhFQkpTQ3lyaEROQ3RyOUpJcUF3dzI5OG1KTCtUc0dLS3c3aGs0SXVMKzdjWFkwdUE0PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkzNjg3Mjc0CWZpbGU6Q21kR1VJXzIuNS4yX3g2NF9lbi1VUy5tc2kKQ1ZIYjkwb09yODJNOFlrd0V5L2hOZlFSOXQ3TDdhOERCVnpYbVNSdlI5TUhnU0JlazdkcnJlejJhYW9Bak5tTTRxaWdtekdkNkEyYkxpY2U0MUFOQnc9PQo=",
+      "url": "https://github.com/Harrys-HQ/CMDGui/releases/download/v2.5.2/CmdGUI_2.5.2_x64_en-US.msi"
     }
   }
 }

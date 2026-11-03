@@ -1,3 +1,18 @@
+## 🚀 Release: CmdGUI v2.5.2
+
+### 📐 Dual-Brain Studio Layout Stabilization, Resizer Hit Target Expansion & TitleBar Guard
+- **📐 Dual-Brain Studio Layout Stabilization:**
+  - Fixed pixel-to-percentage panel sizing mismatch in `react-resizable-panels` v4 (`defaultSize="32%"`, `minSize="280px"`, `maxSize="50%"`), eliminating the squeezed 38px sidebar bug.
+  - Right terminal pane now defaults to `68%` with a responsive `minSize="400px"`.
+  - Added anti-distortion styling (`flexShrink: 0`, `whiteSpace: "nowrap"`, `flexWrap: "wrap"`) across orchestrator cards and dispatch mode toggles.
+- **🖱️ Resizer Hit Target Expansion:**
+  - Added generous 10px invisible hit targets (`::after` pseudo-elements) to vertical and horizontal pane separators, enabling effortless cursor grabbing and smooth pane resizing.
+- **🛡️ TitleBar Browser & Dev Environment Guard:**
+  - Safely wrapped `getCurrentWindow()` in `TitleBar.tsx` with error boundary guards and fallbacks, preventing `Cannot read properties of undefined (reading 'metadata')` crashes in browser previews or before Tauri IPC binds.
+- **🏷️ Version Synchronization:** Synchronized version across all configuration files, settings modal, updater manifests, and installer packages.
+
+---
+
 ## 🚀 Release: CmdGUI v2.5.1
 
 ### ⚡ Dual-Brain Mission Control Studio (3-Pane Tri-View) & Native Subscription Orchestration
