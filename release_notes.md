@@ -1,3 +1,27 @@
+## 🚀 Release: CmdGUI v2.5.0
+
+### ⚡ Dual-Brain AI Integration (Gemini 3.8 Flash + GPT 6.1 Sol Medium) & Rust Backend Modernization
+- **⚡ Dual-Brain AI Command Center:**
+  - Added dedicated `⚡ Dual-Brain (Gemini + GPT)` mode to the AI Assistant modal, orchestrating **Gemini 3.8 Flash** and **GPT 6.1 Sol Medium** hand-in-hand.
+  - **Context + Reasoning Presets:**
+    - `🧠 Gemini 3.8 Flash + GPT 6.1 Sol Medium`: Harnesses Gemini 3.8 Flash for ultra-fast, 1M+ token repository-wide context and GPT 6.1 Sol Medium for deep code architecture and reasoning.
+    - `⚡ Dual Fast Loop (Gemini 3.8 + GPT 6.1)`: Rapid edge-case solving and algorithmic bottleneck elimination.
+    - `🔄 Pipeline (Gemini Digest ➔ Antigravity Boost)`: Pipes Gemini 3.8 Flash context extraction directly into Antigravity for boosted agentic execution.
+    - `🛡️ Red-Team (Gemini Audit ➔ GPT 6.1 Sol Repair)`: Dual-model adversarial review and vulnerability remediation.
+    - `📝 Auto-Docs (Gemini Ingestion ➔ GPT 6.1 Sol Polish)`: Comprehensive documentation generation with polished tone.
+  - **Dynamic Command Generation:** Custom prompts in the Dual-Brain tab automatically generate dual-model pair programming invocations with `--editor-model gemini/gemini-3.8-flash` and `--model openai/gpt-6.1-sol-medium`.
+- **🦀 Rust Backend Modernization & Clippy Hardening:**
+  - Cleaned up 18 Rust compiler and Clippy warnings across `project.rs` and `file_op.rs`.
+  - Replaced manual directory iteration checks with idiomatic `read_dir.flatten()`.
+  - Modernized `Command::args` to use Rust 2021 slice syntax.
+  - Upgraded iterator `.last()` on string splits to `.next_back()`.
+  - Replaced redundant pattern matching with `cmd.spawn().is_ok()`.
+  - Passed `cargo clippy` and `cargo check` with zero warnings and zero errors.
+- **🧪 Test Suite Verification:**
+  - 100% test pass rate across 8 test suites (67/67 unit tests passing).
+
+---
+
 ## 🚀 Release: CmdGUI v2.4.9
 
 ### 🖱️ High-DPI Drag-and-Drop Normalization, Tab-Bar Drop Routing & Visual Feedback

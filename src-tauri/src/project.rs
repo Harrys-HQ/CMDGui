@@ -29,11 +29,9 @@ pub async fn get_project_info(project_path: String) -> String {
     };
 
     let mut files = Vec::new();
-    for entry in read_dir {
-        if let Ok(entry) = entry {
-            if let Some(name) = entry.file_name().to_str() {
-                files.push(name.to_lowercase());
-            }
+    for entry in read_dir.flatten() {
+        if let Some(name) = entry.file_name().to_str() {
+            files.push(name.to_lowercase());
         }
     }
 
@@ -141,11 +139,9 @@ pub async fn get_project_details(project_path: String) -> ProjectDetails {
     };
 
     let mut files = Vec::new();
-    for entry in read_dir {
-        if let Ok(entry) = entry {
-            if let Some(name) = entry.file_name().to_str() {
-                files.push(name.to_lowercase());
-            }
+    for entry in read_dir.flatten() {
+        if let Some(name) = entry.file_name().to_str() {
+            files.push(name.to_lowercase());
         }
     }
 
@@ -277,7 +273,7 @@ pub async fn get_project_details(project_path: String) -> ProjectDetails {
 
     let is_git = {
         let mut git_check = Command::new("git");
-        git_check.args(&["rev-parse", "--is-inside-work-tree"])
+        git_check.args(["rev-parse", "--is-inside-work-tree"])
             .current_dir(path);
         #[cfg(target_os = "windows")]
         git_check.creation_flags(CREATE_NO_WINDOW);
@@ -290,7 +286,7 @@ pub async fn get_project_details(project_path: String) -> ProjectDetails {
     if is_git {
         // Run branch
         let mut cmd = Command::new("git");
-        cmd.args(&["branch", "--show-current"])
+        cmd.args(["branch", "--show-current"])
             .current_dir(path);
         #[cfg(target_os = "windows")]
         cmd.creation_flags(CREATE_NO_WINDOW);
@@ -306,7 +302,7 @@ pub async fn get_project_details(project_path: String) -> ProjectDetails {
 
         // Run status
         let mut cmd_status = Command::new("git");
-        cmd_status.args(&["status", "--porcelain"])
+        cmd_status.args(["status", "--porcelain"])
             .current_dir(path);
         #[cfg(target_os = "windows")]
         cmd_status.creation_flags(CREATE_NO_WINDOW);
@@ -340,7 +336,7 @@ pub async fn git_stage_all(project_path: String) -> Result<String, String> {
     const CREATE_NO_WINDOW: u32 = 0x08000000;
 
     let mut cmd = Command::new("git");
-    cmd.args(&["add", "."])
+    cmd.args(["add", "."])
         .current_dir(path);
     #[cfg(target_os = "windows")]
     cmd.creation_flags(CREATE_NO_WINDOW);
@@ -372,7 +368,7 @@ pub async fn git_commit(project_path: String, message: String) -> Result<String,
     const CREATE_NO_WINDOW: u32 = 0x08000000;
 
     let mut cmd = Command::new("git");
-    cmd.args(&["commit", "-m", &message])
+    cmd.args(["commit", "-m", &message])
         .current_dir(path);
     #[cfg(target_os = "windows")]
     cmd.creation_flags(CREATE_NO_WINDOW);
@@ -400,7 +396,7 @@ pub async fn git_pull(project_path: String) -> Result<String, String> {
     const CREATE_NO_WINDOW: u32 = 0x08000000;
 
     let mut cmd = Command::new("git");
-    cmd.args(&["pull"])
+    cmd.args(["pull"])
         .current_dir(path);
     #[cfg(target_os = "windows")]
     cmd.creation_flags(CREATE_NO_WINDOW);
@@ -428,7 +424,7 @@ pub async fn git_push(project_path: String) -> Result<String, String> {
     const CREATE_NO_WINDOW: u32 = 0x08000000;
 
     let mut cmd = Command::new("git");
-    cmd.args(&["push"])
+    cmd.args(["push"])
         .current_dir(path);
     #[cfg(target_os = "windows")]
     cmd.creation_flags(CREATE_NO_WINDOW);
@@ -462,7 +458,7 @@ pub async fn get_active_ports() -> Result<Vec<ActivePort>, String> {
         // 1. Build PID -> Process Name map using tasklist
         let mut pid_map = HashMap::new();
         let mut tasklist_cmd = Command::new("tasklist");
-        tasklist_cmd.args(&["/NH", "/FO", "CSV"]);
+        tasklist_cmd.args(["/NH", "/FO", "CSV"]);
         tasklist_cmd.creation_flags(CREATE_NO_WINDOW);
 
         if let Ok(output) = tasklist_cmd.output() {
@@ -484,7 +480,7 @@ pub async fn get_active_ports() -> Result<Vec<ActivePort>, String> {
         // 2. Query netstat to find listening ports
         let mut active_ports = Vec::new();
         let mut netstat_cmd = Command::new("netstat");
-        netstat_cmd.args(&["-ano", "-p", "tcp"]);
+        netstat_cmd.args(["-ano", "-p", "tcp"]);
         netstat_cmd.creation_flags(CREATE_NO_WINDOW);
 
         if let Ok(output) = netstat_cmd.output() {
@@ -495,7 +491,7 @@ pub async fn get_active_ports() -> Result<Vec<ActivePort>, String> {
                     let local_addr = tokens[1];
                     let pid_str = tokens[4];
 
-                    if let Some(port_str) = local_addr.split(':').last() {
+                    if let Some(port_str) = local_addr.split(':').next_back() {
                         if let (Ok(port), Ok(pid)) = (port_str.parse::<u16>(), pid_str.parse::<u32>()) {
                             let process_name = pid_map.get(&pid).cloned().unwrap_or_else(|| "Unknown".to_string());
                             
@@ -607,7 +603,7 @@ pub async fn kill_process_by_pid(pid: u32) -> Result<String, String> {
         const CREATE_NO_WINDOW: u32 = 0x08000000;
 
         let mut cmd = Command::new("taskkill");
-        cmd.args(&["/F", "/PID", &pid.to_string()]);
+        cmd.args(["/F", "/PID", &pid.to_string()]);
         cmd.creation_flags(CREATE_NO_WINDOW);
 
         match cmd.output() {

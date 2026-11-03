@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Sparkles, ArrowRight, Copy, Check, Play, PlusCircle } from 'lucide-react';
 
-export type AiToolMode = 'agy' | 'claude' | 'gemini' | 'aider' | 'shell';
+export type AiToolMode = 'dual' | 'agy' | 'claude' | 'gemini' | 'aider' | 'shell';
 
 interface AiAssistantModalProps {
   isOpen: boolean;
@@ -17,6 +17,38 @@ interface PresetChip {
 }
 
 const PRESETS_BY_MODE: Record<AiToolMode, PresetChip[]> = {
+  dual: [
+    {
+      label: '🧠 Gemini 3.8 Flash + GPT 6.1 Sol Medium',
+      prompt: 'Refactor architecture with full codebase context',
+      command: 'aider --model openai/gpt-6.1-sol-medium --editor-model gemini/gemini-3.8-flash --message "Refactor architecture with full codebase context"',
+      explanation: 'Uses Gemini 3.8 Flash for ultra-fast full repository context and GPT 6.1 Sol Medium for deep code architecture and reasoning.',
+    },
+    {
+      label: '⚡ Dual Fast Loop (Gemini 3.8 + GPT 6.1)',
+      prompt: 'Identify and resolve algorithmic bottlenecks and edge cases',
+      command: 'aider --model openai/gpt-6.1-sol-medium --editor-model gemini/gemini-3.8-flash --message "Identify and resolve algorithmic bottlenecks and edge cases"',
+      explanation: 'Combines GPT 6.1 Sol Medium step-by-step reasoning with Gemini 3.8 Flash repository memory.',
+    },
+    {
+      label: '🔄 Pipeline: Gemini 3.8 Digest ➔ Antigravity Boost',
+      prompt: 'Digest codebase architecture and pass to Antigravity /boost',
+      command: 'gemini -m gemini-3.8-flash "Extract core constraints, data flow, and architecture in markdown" | agy /boost "Refactor according to this architecture summary"',
+      explanation: 'Pipes Gemini 3.8 Flash context extraction directly into Antigravity for boosted agentic execution.',
+    },
+    {
+      label: '🛡️ Red-Team: Gemini 3.8 Audit ➔ GPT 6.1 Sol Repair',
+      prompt: 'Audit project for security vulnerabilities and let GPT 6.1 Sol fix them',
+      command: 'gemini -m gemini-3.8-flash "Audit this repository for security risks, race conditions, and unhandled errors" | aider --model openai/gpt-6.1-sol-medium --message "Fix all reported vulnerabilities and add unit tests"',
+      explanation: 'Uses Gemini 3.8 Flash as an adversarial reviewer and GPT 6.1 Sol Medium to patch vulnerabilities with tests.',
+    },
+    {
+      label: '📝 Auto-Docs: Gemini 3.8 Flash ➔ GPT 6.1 Sol Polish',
+      prompt: 'Generate documentation from full repo and polish tone with GPT 6.1 Sol',
+      command: 'gemini -m gemini-3.8-flash "Analyze entire repo and draft comprehensive API docs" | aider --model openai/gpt-6.1-sol-medium --message "Format and polish into professional markdown documentation"',
+      explanation: 'Gemini 3.8 Flash ingests repo files and GPT 6.1 Sol Medium crafts refined documentation.',
+    },
+  ],
   agy: [
     {
       label: '🚀 /boost (Fast Deep Coding)',
@@ -203,7 +235,10 @@ const AiAssistantModal: React.FC<AiAssistantModalProps> = ({
       let exp = '';
       const cleanPrompt = query.replace(/"/g, '\\"');
 
-      if (mode === 'agy') {
+      if (mode === 'dual') {
+        cmd = `aider --model openai/gpt-6.1-sol-medium --editor-model gemini/gemini-3.8-flash --message "${cleanPrompt}"`;
+        exp = 'Launches Dual-Brain pair programming: Gemini 3.8 Flash provides fast repository context while GPT 6.1 Sol Medium delivers deep reasoning and architecture.';
+      } else if (mode === 'agy') {
         if (query.startsWith('/')) {
           cmd = `agy ${query}`;
           exp = 'Runs Antigravity slash command workflow.';
@@ -323,6 +358,7 @@ const AiAssistantModal: React.FC<AiAssistantModalProps> = ({
           <div style={{ display: 'flex', gap: '6px', marginBottom: '16px', flexWrap: 'wrap' }}>
             {(
               [
+                { id: 'dual', label: '⚡ Dual-Brain (Gemini + GPT)' },
                 { id: 'agy', label: '🤖 Antigravity (agy)' },
                 { id: 'claude', label: '🧠 Claude Code' },
                 { id: 'gemini', label: '♊ Gemini CLI' },
@@ -395,7 +431,9 @@ const AiAssistantModal: React.FC<AiAssistantModalProps> = ({
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
                 placeholder={
-                  mode === 'agy'
+                  mode === 'dual'
+                    ? 'Enter task for Dual-Brain (Gemini 3.8 Flash Context + GPT 6.1 Sol Medium Reasoning)...'
+                    : mode === 'agy'
                     ? 'Enter Antigravity task or slash command (/boost, /goal, /plan)...'
                     : mode === 'claude'
                     ? 'Describe what you want Claude Code to do...'

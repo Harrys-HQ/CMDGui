@@ -129,18 +129,16 @@ pub async fn fs_list_directory(dir_path: String) -> Result<Vec<FileEntry>, Strin
     let read_dir = fs::read_dir(path).map_err(|e| e.to_string())?;
     let mut entries = Vec::new();
 
-    for entry in read_dir {
-        if let Ok(entry) = entry {
-            let file_name = entry.file_name().to_string_lossy().to_string();
-            let is_dir = entry.file_type().map(|t| t.is_dir()).unwrap_or(false);
-            let absolute_path = entry.path().to_string_lossy().to_string();
-            
-            entries.push(FileEntry {
-                name: file_name,
-                is_directory: is_dir,
-                path: absolute_path,
-            });
-        }
+    for entry in read_dir.flatten() {
+        let file_name = entry.file_name().to_string_lossy().to_string();
+        let is_dir = entry.file_type().map(|t| t.is_dir()).unwrap_or(false);
+        let absolute_path = entry.path().to_string_lossy().to_string();
+        
+        entries.push(FileEntry {
+            name: file_name,
+            is_directory: is_dir,
+            path: absolute_path,
+        });
     }
 
     Ok(entries)
@@ -174,7 +172,7 @@ pub async fn shell_open_path(file_path: String) -> Result<bool, String> {
                     // Fallback to start if ShellExecuteW had an issue
                     let escaped_url = path_str.replace("^", "^^").replace("&", "^&");
                     let _ = Command::new("cmd.exe")
-                        .args(&["/c", "start", "", &escaped_url])
+                        .args(["/c", "start", "", &escaped_url])
                         .spawn();
                 }
             }
@@ -285,7 +283,7 @@ pub fn app_relaunch_admin(app_handle: tauri::AppHandle) {
             #[cfg(target_os = "windows")]
             const CREATE_NO_WINDOW: u32 = 0x08000000;
             let mut cmd = Command::new("powershell.exe");
-            cmd.args(&[
+            cmd.args([
                 "Start-Process",
                 &format!("\"{}\"", current_exe.display()),
                 "-Verb",
@@ -300,7 +298,7 @@ pub fn app_relaunch_admin(app_handle: tauri::AppHandle) {
         if let Ok(current_exe) = std::env::current_exe() {
             let mut cmd = Command::new("pkexec");
             cmd.arg(current_exe.display().to_string());
-            if let Ok(_) = cmd.spawn() {
+            if cmd.spawn().is_ok() {
                 app_handle.exit(0);
             }
         }
@@ -329,7 +327,7 @@ pub async fn open_in_vscode(path: String) -> Result<(), String> {
         const CREATE_NO_WINDOW: u32 = 0x08000000;
         #[cfg(target_os = "windows")]
         let spawn_res = Command::new("cmd.exe")
-            .args(&["/c", "code", &target_path])
+            .args(["/c", "code", &target_path])
             .creation_flags(CREATE_NO_WINDOW)
             .spawn();
         #[cfg(not(target_os = "windows"))]
