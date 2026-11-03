@@ -27,6 +27,7 @@ interface UseCommandsProps {
   onLoadWorkspace: (id: string) => void;
   onRefreshDisplay: () => void;
   onOpenAiAssistant?: () => void;
+  onToggleDualBrainStudio?: () => void;
   onToggleYoloMode?: () => void;
   onToggleStayAwake?: () => void;
   workspaces: Workspace[];
@@ -49,6 +50,7 @@ export const useCommands = ({
   onLoadWorkspace,
   onRefreshDisplay,
   onOpenAiAssistant,
+  onToggleDualBrainStudio,
   onToggleYoloMode,
   onToggleStayAwake,
   workspaces,
@@ -64,6 +66,14 @@ export const useCommands = ({
         icon: '✨',
         shortcut: 'Ctrl+K',
         action: () => onOpenAiAssistant && onOpenAiAssistant(),
+      },
+      {
+        id: 'toggle-dual-brain-studio',
+        name: 'AI: Toggle Dual-Brain Mission Control Studio',
+        category: 'AI & Coding',
+        icon: '⚡',
+        shortcut: 'Ctrl+Shift+D',
+        action: () => onToggleDualBrainStudio && onToggleDualBrainStudio(),
       },
       {
         id: 'toggle-yolo-mode',
@@ -260,6 +270,7 @@ export const useCommands = ({
     onToggleSidebar,
     onRefreshDisplay,
     onOpenAiAssistant,
+    onToggleDualBrainStudio,
     onToggleYoloMode,
     onToggleStayAwake,
     workspaces,

@@ -9,6 +9,7 @@ import TopTabBar from './components/TopTabBar';
 import Breadcrumbs from './components/Breadcrumbs';
 import QuickSwitcher from './components/QuickSwitcher';
 import AiAssistantModal from './components/AiAssistantModal';
+import DualBrainStudio from './components/DualBrainStudio';
 import ToastContainer from './components/ToastContainer';
 import WelcomeDashboard from './components/WelcomeDashboard';
 import { useToast } from './hooks/useToast';
@@ -257,6 +258,7 @@ const App: React.FC = () => {
 
   // AI Assistant Modal State
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
+  const [isDualBrainStudioOpen, setIsDualBrainStudioOpen] = useState(false);
 
   // Modal States
   const [promptModal, setPromptModal] = useState<{
@@ -442,6 +444,7 @@ const App: React.FC = () => {
     onLoadWorkspace: loadWorkspace,
     onRefreshDisplay: handleRefreshDisplay,
     onOpenAiAssistant: () => setIsAiModalOpen(true),
+    onToggleDualBrainStudio: () => setIsDualBrainStudioOpen((prev) => !prev),
     onToggleYoloMode: () => {
       setIsYoloModeEnabled((prev) => {
         const next = !prev;
@@ -572,6 +575,10 @@ const App: React.FC = () => {
         setZoomedPaneId((prev) => (prev ? null : 'active'));
         showToast(zoomedPaneId ? 'Exited Pane Zoom' : 'Zoomed Active Pane', 'info');
       }
+      if (e.ctrlKey && e.shiftKey && (e.key === 'D' || e.key === 'd')) {
+        e.preventDefault();
+        setIsDualBrainStudioOpen((prev) => !prev);
+      }
       if (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'i')) {
         e.preventDefault();
         setIsBroadcastMode((prev) => {
@@ -602,6 +609,8 @@ const App: React.FC = () => {
         onOpenAiAssistant={() => setIsAiModalOpen(true)}
         onRefreshDisplay={handleRefreshDisplay}
         onOpenQuickSwitcher={() => setIsQuickSwitcherOpen(true)}
+        onToggleDualBrainStudio={() => setIsDualBrainStudioOpen((prev) => !prev)}
+        isDualBrainStudioActive={isDualBrainStudioOpen}
       />
       <div className="workspace-layout">
         <ActivityBar
@@ -667,7 +676,20 @@ const App: React.FC = () => {
               otherTabs.forEach((t) => handleCloseTab(t.id));
             }}
           />
-          {!isAppReady ? (
+          {isDualBrainStudioOpen ? (
+            <DualBrainStudio
+              cwd={activeTab && activeTab.panes ? activeTab.panes[Object.keys(activeTab.panes)[0]]?.cwd : projects[0]?.path}
+              onClose={() => setIsDualBrainStudioOpen(false)}
+              terminalTheme={terminalTheme}
+              customTheme={customTheme}
+              terminalFontSize={terminalFontSize}
+              terminalScrollback={terminalScrollback}
+              keymap={keymap}
+              isGPUAccelerationEnabled={isGPUAccelerationEnabled}
+              terminalRendererType={terminalRendererType}
+              isYoloModeEnabled={isYoloModeEnabled}
+            />
+          ) : !isAppReady ? (
             <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-root)', color: '#888' }}>
               Loading workspace...
             </div>

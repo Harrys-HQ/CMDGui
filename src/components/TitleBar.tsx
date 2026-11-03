@@ -1,17 +1,21 @@
 import React, { useEffect, useState } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { Terminal, Sparkles, RotateCw, Minus, Square, Copy, X, Search } from 'lucide-react';
+import { Terminal, Sparkles, RotateCw, Minus, Square, Copy, X, Search, Zap } from 'lucide-react';
 
 interface TitleBarProps {
   onOpenAiAssistant?: () => void;
   onRefreshDisplay?: () => void;
   onOpenQuickSwitcher?: () => void;
+  onToggleDualBrainStudio?: () => void;
+  isDualBrainStudioActive?: boolean;
 }
 
 const TitleBar: React.FC<TitleBarProps> = ({
   onOpenAiAssistant,
   onRefreshDisplay,
   onOpenQuickSwitcher,
+  onToggleDualBrainStudio,
+  isDualBrainStudioActive,
 }) => {
   const [isMaximized, setIsMaximized] = useState(false);
   const appWindow = getCurrentWindow();
@@ -52,6 +56,23 @@ const TitleBar: React.FC<TitleBarProps> = ({
             title="Open AI Command Generator (Alt+A / Ctrl+K)"
           >
             <Sparkles size={12} /> AI Hub
+          </button>
+        )}
+
+        {onToggleDualBrainStudio && (
+          <button
+            className={`titlebar-ai-chip non-draggable ${isDualBrainStudioActive ? 'active' : ''}`}
+            onClick={onToggleDualBrainStudio}
+            title="Toggle Dual-Brain Mission Control (Orchestrator + Gemini + Codex)"
+            style={{
+              background: isDualBrainStudioActive
+                ? 'linear-gradient(135deg, rgba(59, 130, 246, 0.3), rgba(139, 92, 246, 0.3))'
+                : undefined,
+              borderColor: isDualBrainStudioActive ? 'var(--neon-amber)' : undefined,
+              color: isDualBrainStudioActive ? '#fff' : undefined,
+            }}
+          >
+            <Zap size={12} style={{ color: 'var(--neon-amber)' }} /> Dual-Brain Studio
           </button>
         )}
 
