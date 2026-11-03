@@ -1,3 +1,17 @@
+## 🚀 Release: CmdGUI v2.5.1
+
+### ⚡ Dual-Brain Mission Control Studio (3-Pane Tri-View) & Native Subscription Orchestration
+- **⚡ Dual-Brain Mission Control Studio:**
+  - Added dedicated 3-pane Tri-View Studio layout toggleable via top TitleBar (`⚡ Dual-Brain Studio`) or shortcut (`Ctrl+Shift+D`).
+  - **Left Window (Orchestrator):** Autonomous project director with Lead Brain selector (`♊ Gemini` vs `🟢 Codex`), live workflow step ledger, and prompt dispatch bar.
+  - **Top Right Window:** Live interactive Antigravity CLI (`agy`) terminal running Gemini 3.8 Flash.
+  - **Bottom Right Window:** Live interactive OpenAI Codex CLI (`codex`) terminal running GPT 6.1 Sol.
+  - **Autonomous Relay Loop:** Ingests context with Gemini, hands off architectural dossier to Codex to implement and verify tests, and reports deliverables to the Left pane.
+- **🔐 Zero API Keys Required:** Runs directly via your existing Google Antigravity and ChatGPT Plus login authentications.
+- **🏷️ Version Synchronization:** Synchronized version across all app configs, settings modal, updater manifests, and installer packages.
+
+---
+
 ## 🚀 Release: CmdGUI v2.5.0
 
 ### ⚡ Dual-Brain AI Integration (Gemini 3.8 Flash + GPT 6.1 Sol Medium) & Rust Backend Modernization
