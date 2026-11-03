@@ -2,10 +2,11 @@ use std::fs;
 use std::path::PathBuf;
 
 pub(crate) fn get_settings_path() -> PathBuf {
+    let app_dir = if cfg!(debug_assertions) { "CmdGUI-Dev" } else { "CmdGUI" };
     let base_dir = if let Ok(appdata) = std::env::var("APPDATA") {
-        PathBuf::from(appdata).join("CmdGUI")
+        PathBuf::from(appdata).join(app_dir)
     } else if let Ok(home) = std::env::var("HOME") {
-        PathBuf::from(home).join(".config").join("CmdGUI")
+        PathBuf::from(home).join(".config").join(app_dir)
     } else {
         PathBuf::from(".")
     };

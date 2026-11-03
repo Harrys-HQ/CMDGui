@@ -1,4 +1,5 @@
 @echo off
+cd /d "%~dp0"
 echo Starting CmdGUI...
-npm run dev
+call npm run dev
 pause

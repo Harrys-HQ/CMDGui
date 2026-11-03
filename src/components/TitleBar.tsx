@@ -103,7 +103,7 @@ const TitleBar: React.FC<TitleBarProps> = ({
           <button
             className={`titlebar-ai-chip non-draggable ${isDualBrainStudioActive ? 'active' : ''}`}
             onClick={onToggleDualBrainStudio}
-            title="Toggle Dual-Brain Mission Control (Orchestrator + Gemini + Codex)"
+            title="Open Mission Control: route tasks, automate handoffs, and validate results"
             style={{
               background: isDualBrainStudioActive
                 ? 'linear-gradient(135deg, rgba(59, 130, 246, 0.3), rgba(139, 92, 246, 0.3))'
@@ -112,7 +112,7 @@ const TitleBar: React.FC<TitleBarProps> = ({
               color: isDualBrainStudioActive ? '#fff' : undefined,
             }}
           >
-            <Zap size={12} style={{ color: 'var(--neon-amber)' }} /> Dual-Brain Studio
+            <Zap size={12} style={{ color: 'var(--neon-amber)' }} /> Mission Control
           </button>
         )}
 

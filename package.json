@@ -1,12 +1,13 @@
 {
   "name": "cmd-gui",
-  "version": "2.5.2",
+  "version": "2.6.0",
   "description": "A modern, persistent workspace manager and terminal emulator built with Tauri and React.",
   "scripts": {
     "dev": "tauri dev",
     "build": "tsc && vite build",
     "tauri": "tauri",
     "dist": "dotenv -e .env tauri build",
+    "release:prepare": "node scripts/prepare-release.cjs",
     "lint": "eslint .",
     "format": "prettier --write .",
     "test": "vitest"

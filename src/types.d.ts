@@ -162,6 +162,7 @@ export interface ElectronAPI {
   getLaunchArgs: () => Promise<string[]>;
   onSingleInstance: (callback: (argv: string[], cwd: string) => void) => () => void;
   readClipboard: () => Promise<string>;
+    writeClipboard: (text: string) => Promise<void>;
   setQuakeMode: (enabled: boolean) => void;
   setStayAwake: (enabled: boolean) => void;
   updateActiveContext: (context: {

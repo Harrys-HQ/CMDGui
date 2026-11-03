@@ -7,6 +7,7 @@ interface AiAssistantModalProps {
   isOpen: boolean;
   onClose: () => void;
   onRunCommand: (command: string, inNewTab?: boolean) => void;
+  onOpenStudio: (prompt: string) => void;
 }
 
 interface PresetChip {
@@ -19,34 +20,29 @@ interface PresetChip {
 const PRESETS_BY_MODE: Record<AiToolMode, PresetChip[]> = {
   dual: [
     {
-      label: '🧠 Antigravity (Gemini) ➔ Codex (GPT 6.1 Sol)',
+      label: '🧠 Investigate → Implement → Validate',
       prompt: 'Analyze repository architecture and implement feature cleanly',
-      command: 'agy "Analyze repository architecture, schemas, and contracts, then output implementation blueprint" | codex "Implement the blueprint cleanly"',
-      explanation: 'Uses Antigravity (Gemini 3.8 Flash) for full repo context and Codex (GPT 6.1 Sol) for code execution via your ChatGPT Plus subscription—no API keys required.',
+      explanation: 'Configure the models and checks in Mission Control before starting the automated handoff.',
     },
     {
       label: '🛡️ Red-Team: Antigravity Audit ➔ Codex Repair',
       prompt: 'Audit project for security vulnerabilities and let Codex fix them',
-      command: 'agy "Audit this repository for security risks, race conditions, and unhandled errors" | codex "Fix all reported vulnerabilities and add unit tests"',
-      explanation: 'Antigravity audits code for edge cases and Codex patches vulnerabilities using ChatGPT Plus login.',
+      explanation: 'Open Mission Control to scope an audit and implementation task.',
     },
     {
-      label: '⚡ Codex Interactive (GPT 6.1 Sol)',
+      label: '⚡ Scoped refactor',
       prompt: 'Refactor state architecture and optimize performance',
-      command: 'codex "Refactor state architecture and optimize performance"',
-      explanation: 'Launches OpenAI Codex CLI powered directly by your ChatGPT Plus login authentication.',
+      explanation: 'Choose direct Codex routing for a refactor with known files.',
     },
     {
-      label: '🚀 Antigravity Boost (Gemini 3.8)',
-      prompt: '/boost Refactor codebase and verify all tests pass',
-      command: 'agy /boost "Refactor codebase and verify all tests pass"',
-      explanation: 'Launches Antigravity with boosted strategic planning via your Google login.',
+      label: '🚀 Feature planning',
+      prompt: 'Investigate the feature architecture and produce a bounded implementation plan',
+      explanation: 'Choose investigation-only routing when you need a plan without implementation.',
     },
     {
       label: '📝 Auto-Docs: Antigravity Ingest ➔ Codex Polish',
       prompt: 'Generate documentation from full repo and polish tone with Codex',
-      command: 'agy "Extract complete API schemas and component props in markdown" | codex "Format into clean developer documentation"',
-      explanation: 'Antigravity extracts repository contracts and Codex crafts polished markdown documentation.',
+      explanation: 'Configure a focused documentation task in Mission Control.',
     },
   ],
   agy: [
@@ -197,6 +193,7 @@ const AiAssistantModal: React.FC<AiAssistantModalProps> = ({
   isOpen,
   onClose,
   onRunCommand,
+  onOpenStudio,
 }) => {
   const [mode, setMode] = useState<AiToolMode>('agy');
   const [prompt, setPrompt] = useState('');
@@ -217,6 +214,7 @@ const AiAssistantModal: React.FC<AiAssistantModalProps> = ({
 
   const handleSelectPreset = (chip: PresetChip) => {
     setPrompt(chip.prompt);
+    setGeneratedCommand('');
     if (chip.command) {
       setGeneratedCommand(chip.command);
       setExplanation(chip.explanation || '');
@@ -228,6 +226,12 @@ const AiAssistantModal: React.FC<AiAssistantModalProps> = ({
     const query = prompt.trim();
     if (!query) return;
 
+    if (mode === 'dual') {
+      onOpenStudio(query);
+      onClose();
+      return;
+    }
+
     setIsGenerating(true);
 
     setTimeout(() => {
@@ -235,10 +239,7 @@ const AiAssistantModal: React.FC<AiAssistantModalProps> = ({
       let exp = '';
       const cleanPrompt = query.replace(/"/g, '\\"');
 
-      if (mode === 'dual') {
-        cmd = `codex "${cleanPrompt}"`;
-        exp = 'Launches OpenAI Codex CLI session powered directly by your ChatGPT Plus login authentication.';
-      } else if (mode === 'agy') {
+      if (mode === 'agy') {
         if (query.startsWith('/')) {
           cmd = `agy ${query}`;
           exp = 'Runs Antigravity slash command workflow.';
@@ -358,7 +359,7 @@ const AiAssistantModal: React.FC<AiAssistantModalProps> = ({
           <div style={{ display: 'flex', gap: '6px', marginBottom: '16px', flexWrap: 'wrap' }}>
             {(
               [
-                { id: 'dual', label: '⚡ Dual-Brain (Gemini + GPT)' },
+                { id: 'dual', label: '⚡ Mission Control' },
                 { id: 'agy', label: '🤖 Antigravity (agy)' },
                 { id: 'claude', label: '🧠 Claude Code' },
                 { id: 'gemini', label: '♊ Gemini CLI' },
@@ -432,7 +433,7 @@ const AiAssistantModal: React.FC<AiAssistantModalProps> = ({
                 onChange={(e) => setPrompt(e.target.value)}
                 placeholder={
                   mode === 'dual'
-                    ? 'Enter task for Dual-Brain (Antigravity Gemini + OpenAI Codex GPT 6.1)...'
+                    ? 'Describe a task to configure in Mission Control...'
                     : mode === 'agy'
                     ? 'Enter Antigravity task or slash command (/boost, /goal, /plan)...'
                     : mode === 'claude'
@@ -472,7 +473,7 @@ const AiAssistantModal: React.FC<AiAssistantModalProps> = ({
                   opacity: isGenerating || !prompt.trim() ? 0.6 : 1,
                 }}
               >
-                {isGenerating ? 'Generating...' : 'Generate'} <ArrowRight size={15} />
+                {isGenerating ? 'Generating...' : mode === 'dual' ? 'Open Mission Control' : 'Generate'} <ArrowRight size={15} />
               </button>
             </div>
           </form>

@@ -259,6 +259,7 @@ const App: React.FC = () => {
   // AI Assistant Modal State
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
   const [isDualBrainStudioOpen, setIsDualBrainStudioOpen] = useState(false);
+  const [studioInitialPrompt, setStudioInitialPrompt] = useState('');
 
   // Modal States
   const [promptModal, setPromptModal] = useState<{
@@ -678,6 +679,7 @@ const App: React.FC = () => {
           />
           {isDualBrainStudioOpen ? (
             <DualBrainStudio
+              initialPrompt={studioInitialPrompt}
               cwd={activeTab && activeTab.panes ? activeTab.panes[Object.keys(activeTab.panes)[0]]?.cwd : projects[0]?.path}
               onClose={() => setIsDualBrainStudioOpen(false)}
               terminalTheme={terminalTheme}
@@ -813,6 +815,7 @@ const App: React.FC = () => {
         />
       )}
       <AiAssistantModal
+        onOpenStudio={(task) => { setStudioInitialPrompt(task); setIsDualBrainStudioOpen(true); }}
         isOpen={isAiModalOpen}
         onClose={() => setIsAiModalOpen(false)}
         onRunCommand={(cmd, inNewTab) => {

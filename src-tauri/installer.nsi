@@ -20,7 +20,13 @@ SetCompressor /SOLID "{{compression}}"
 !include "Win\Propkey.nsh"
 !include "StrFunc.nsh"
 ${StrCase}
-${StrLoc}\1\1{{#if installer_hooks}}\1!include "{{installer_hooks}}"\1{{/if}}\1!define WEBVIEW2APPGUID "{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}"
+${StrLoc}
+
+{{#if installer_hooks}}
+!include "{{installer_hooks}}"
+{{/if}}
+
+!define WEBVIEW2APPGUID "{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}"
 
 !define MANUFACTURER "{{manufacturer}}"
 !define PRODUCTNAME "{{product_name}}"

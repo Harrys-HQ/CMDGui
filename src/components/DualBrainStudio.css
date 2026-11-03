@@ -1,0 +1,510 @@
+.mission-control {
+  user-select: text;
+  -webkit-user-select: text;
+  width: 100%;
+  flex: 1;
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-root);
+  color: var(--fg-primary);
+  font-size: 13px;
+}
+
+.mission-control ::selection {
+  background: var(--accent-primary);
+  color: white;
+}
+.mission-copy-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 12px;
+}
+.mission-control :is(p, pre, code, h2, h3, time),
+.mission-history-row > span {
+  user-select: text;
+  -webkit-user-select: text;
+}
+.mission-control button {
+  user-select: none;
+  -webkit-user-select: none;
+}
+.mission-check-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 12px 0;
+  font-size: 11px;
+  line-height: 1.6;
+}
+.mission-control .mission-check-option input {
+  width: auto;
+  margin-top: 3px;
+}
+.mission-session-picker {
+  margin-top: 14px;
+}
+.mission-session-picker .mission-button {
+  margin: 6px 6px 0 0;
+}
+.mission-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 26px;
+  border-bottom: 1px solid var(--border-color);
+  gap: 16px;
+}
+.mission-eyebrow {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  color: var(--fg-secondary);
+}
+.mission-header h1 {
+  margin: 6px 0 0;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  font-size: 20px;
+  letter-spacing: -0.03em;
+  color: var(--fg-active);
+}
+.mission-layout {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(290px, 350px) minmax(0, 1fr);
+}
+.mission-compose {
+  padding: 22px;
+  overflow-y: auto;
+  border-right: 1px solid var(--border-color);
+  background: var(--bg-root);
+}
+.mission-project {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 22px;
+  color: var(--fg-active);
+}
+.mission-project > span:first-of-type {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mission-tag {
+  font-size: 10px;
+  color: var(--fg-secondary);
+  border: 1px solid var(--border-color);
+  padding: 2px 7px;
+  border-radius: 4px;
+  margin-left: auto;
+}
+.mission-label {
+  display: block;
+  margin: 16px 0 7px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--fg-primary);
+}
+.mission-label span {
+  color: var(--fg-secondary);
+  font-weight: 400;
+  font-size: 10px;
+}
+.mission-control input,
+.mission-control textarea,
+.mission-control select {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 10px;
+  background: var(--bg-root);
+  color: var(--fg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  font: inherit;
+}
+.mission-control textarea {
+  resize: vertical;
+  line-height: 1.65;
+  min-height: 60px;
+}
+.mission-control textarea::placeholder,
+.mission-control input::placeholder {
+  color: var(--text-muted);
+}
+.mission-control :is(input, textarea, select, button, summary):focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 3px;
+}
+.mission-route {
+  margin: 18px 0 12px;
+  padding: 14px;
+  border: 1px solid var(--border-color);
+  border-left: 3px solid var(--accent-primary);
+  border-radius: 6px;
+  background: var(--bg-hover);
+}
+.mission-route strong {
+  display: block;
+  color: var(--fg-active);
+  margin: 7px 0;
+}
+.mission-route p,
+.mission-settings p,
+.mission-hint {
+  font-size: 11px;
+  color: var(--fg-secondary);
+  line-height: 1.65;
+  margin: 8px 0;
+}
+.mission-settings {
+  border-bottom: 1px solid var(--border-color);
+  padding: 8px 0 14px;
+}
+.mission-settings summary {
+  cursor: pointer;
+  color: var(--fg-primary);
+  font-size: 12px;
+}
+.mission-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 9px 12px;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--fg-primary);
+  border: 1px solid var(--border-color);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.mission-button:hover {
+  background: var(--bg-hover);
+}
+.mission-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.mission-actions {
+  position: sticky;
+  bottom: -22px;
+  z-index: 1;
+  padding: 12px 0 22px;
+  margin-top: 8px;
+  background: var(--bg-root);
+}
+.mission-primary {
+  width: 100%;
+  margin-top: 12px;
+  background: var(--accent-primary);
+  color: white;
+  border-color: transparent;
+  font-weight: 600;
+}
+.mission-primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+.mission-primary svg:last-child {
+  margin-left: auto;
+}
+.mission-stop {
+  color: var(--neon-rose);
+}
+.mission-workspace {
+  padding: 25px 30px;
+  overflow: auto;
+  min-width: 0;
+}
+.mission-empty {
+  padding: 50px 20px;
+  max-width: 570px;
+  margin: 0 auto;
+  text-align: center;
+}
+.mission-empty > svg {
+  color: var(--accent-primary);
+  margin-bottom: 12px;
+}
+.mission-empty h2 {
+  color: var(--fg-active);
+  font-size: 24px;
+  letter-spacing: -0.035em;
+}
+.mission-empty p {
+  color: var(--fg-secondary);
+  line-height: 1.8;
+}
+.mission-empty-route {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 15px;
+  margin-top: 28px;
+  font-size: 11px;
+  color: var(--fg-secondary);
+}
+.mission-empty-route span {
+  border: 1px solid var(--border-color);
+  border-radius: 5px;
+  padding: 9px;
+}
+.mission-error,
+.mission-notice {
+  padding: 12px;
+  margin-bottom: 16px;
+  border-radius: 6px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.mission-error {
+  color: var(--neon-rose);
+  border: 1px solid var(--neon-rose);
+}
+.mission-notice {
+  border: 1px solid var(--border-color);
+  color: var(--fg-secondary);
+  font-size: 11px;
+}
+.mission-notice button {
+  color: var(--accent-hover);
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+.mission-run-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+.mission-run-heading h2 {
+  font-size: 20px;
+  letter-spacing: -0.03em;
+  color: var(--fg-active);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  margin: 12px 0 7px;
+}
+.mission-run-heading p {
+  color: var(--fg-secondary);
+  font-size: 12px;
+  line-height: 1.7;
+}
+.mission-status {
+  font-size: 10px;
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--fg-secondary);
+}
+.mission-status.running {
+  color: var(--accent-hover);
+}
+.mission-status.verified,
+.mission-status.planned {
+  color: var(--neon-run);
+}
+.mission-status.failed {
+  color: var(--neon-rose);
+}
+.mission-status.needs-review,
+.mission-status.interrupted {
+  color: var(--neon-amber);
+}
+.mission-stages {
+  display: flex;
+  gap: 10px;
+  margin: 24px 0;
+}
+.mission-stage {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 14px;
+  border: 1px solid var(--border-color);
+  border-radius: 7px;
+  flex: 1;
+  min-width: 0;
+}
+.mission-stage > span {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+.mission-stage strong {
+  font-size: 11px;
+  display: block;
+}
+.mission-stage small {
+  display: block;
+  margin-top: 5px;
+  color: var(--fg-secondary);
+  font-size: 10px;
+  overflow-wrap: anywhere;
+}
+.mission-stage.current {
+  border-color: var(--accent-primary);
+  background: var(--bg-hover);
+}
+.mission-stage.done > span {
+  color: var(--neon-run);
+}
+.mission-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border-color);
+  gap: 20px;
+}
+.mission-tabs button {
+  border: 0;
+  border-bottom: 2px solid transparent;
+  padding: 11px 0;
+  color: var(--fg-secondary);
+  background: none;
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+}
+.mission-tabs button[aria-selected='true'] {
+  color: var(--fg-active);
+  border-bottom-color: var(--accent-primary);
+}
+.mission-detail {
+  padding: 16px 0;
+  min-height: 200px;
+  line-height: 1.7;
+}
+.mission-detail pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-family: var(--font-family-mono);
+  font-size: 11px;
+  margin: 0;
+  max-height: 400px;
+  overflow: auto;
+  padding: 15px;
+  background: var(--bg-hover);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+}
+.mission-check-list > div {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border-color);
+  font-size: 11px;
+}
+.mission-check-list code {
+  overflow-wrap: anywhere;
+  flex: 1;
+}
+.mission-pass {
+  color: var(--neon-run);
+}
+.mission-fail {
+  color: var(--neon-rose);
+}
+.mission-usage {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 25px;
+  margin: 22px 0;
+  font-size: 10px;
+  color: var(--fg-secondary);
+}
+.mission-usage strong {
+  display: block;
+  margin-top: 6px;
+  color: var(--fg-primary);
+  font-size: 15px;
+  font-weight: 500;
+}
+.mission-history {
+  border-top: 1px solid var(--border-color);
+  margin-top: 26px;
+  padding-top: 18px;
+}
+.mission-section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.mission-section-heading h3 {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+}
+.mission-section-heading > span {
+  font-size: 10px;
+  color: var(--fg-secondary);
+}
+.mission-history-row {
+  width: 100%;
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  padding: 12px 9px;
+  border: 0;
+  border-bottom: 1px solid var(--border-color);
+  background: none;
+  color: var(--fg-primary);
+  text-align: left;
+  cursor: pointer;
+}
+.mission-history-row.selected,
+.mission-history-row:hover {
+  background: var(--bg-hover);
+}
+.mission-history-row > span:nth-child(2) {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+}
+.mission-history-row time {
+  font-size: 10px;
+  color: var(--fg-secondary);
+  white-space: nowrap;
+}
+@media (max-width: 1000px) {
+  .mission-workspace {
+    padding: 20px;
+  }
+  .mission-stages {
+    flex-direction: column;
+  }
+  .mission-history-row time {
+    display: none;
+  }
+}
+@media (max-width: 720px) {
+  .mission-layout {
+    display: block;
+    overflow: auto;
+  }
+  .mission-compose,
+  .mission-workspace {
+    overflow: visible;
+  }
+  .mission-compose {
+    border-right: 0;
+    border-bottom: 1px solid var(--border-color);
+  }
+  .mission-header {
+    padding: 16px;
+  }
+  .mission-header h1 {
+    font-size: 17px;
+  }
+  .mission-run-heading {
+    flex-direction: column;
+  }
+}

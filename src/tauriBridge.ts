@@ -6,6 +6,7 @@ import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
 import { getVersion as getTauriAppVersion } from '@tauri-apps/api/app';
 import { check, type Update } from '@tauri-apps/plugin-updater';
 import { relaunch } from '@tauri-apps/plugin-process';
+import type { CodexSession, SessionContext, WorkflowOptions, WorkflowRun } from './workflows';
 
 let activeUpdate: Update | null = null;
 const updateStatusCallbacks = new Set<(data: any) => void>();
@@ -293,6 +294,14 @@ function createContextMenu(items: { label?: string; action?: string; callback?: 
 }
 
 export const tauriBridge = {
+  codexSessionsList: (cwd: string, cursor?: string | null) => invoke<{ sessions: CodexSession[]; nextCursor: string | null }>('codex_sessions_list', { cwd, cursor: cursor ?? null }),
+  codexSessionContext: (cwd: string, id: string) => invoke<SessionContext>('codex_session_context', { cwd, id }),
+  writeClipboard: (text: string) => invoke<void>('write_clipboard', { text }),
+  workflowStart: (options: WorkflowOptions) => invoke<WorkflowRun>('workflow_start', { options }),
+  workflowList: () => invoke<WorkflowRun[]>('workflow_list'),
+  workflowCancel: (id: string) => invoke<void>('workflow_cancel', { id }),
+  workflowOpenArtifacts: (id: string) => invoke<void>('workflow_open_artifacts', { id }),
+  workflowModels: (provider: 'agy' | 'codex') => invoke<{ id: string; label: string; efforts: string[] }[]>('workflow_models', { provider }),
   createTerminal: async (options?: {
     cols?: number;
     rows?: number;

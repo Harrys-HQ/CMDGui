@@ -665,7 +665,7 @@ dependencies = [
 
 [[package]]
 name = "cmdgui"
-version = "2.5.2"
+version = "2.6.0"
 dependencies = [
  "arboard",
  "log",
@@ -679,7 +679,9 @@ dependencies = [
  "tauri-plugin-process",
  "tauri-plugin-single-instance",
  "tauri-plugin-updater",
+ "tempfile",
  "tokio",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]

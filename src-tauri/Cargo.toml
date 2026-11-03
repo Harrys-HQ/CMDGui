@@ -1,6 +1,6 @@
 [package]
 name = "cmdgui"
-version = "2.5.2"
+version = "2.6.0"
 description = "A Tauri App"
 authors = ["HarrysHQ"]
 license = ""
@@ -30,5 +30,11 @@ portable-pty = "0.8"
 tokio = { version = "1", features = ["full"] }
 arboard = "3"
 rfd = "0.15"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_System_JobObjects", "Win32_System_Threading", "Win32_Security"] }
+
+[dev-dependencies]
+tempfile = "3"
 
 

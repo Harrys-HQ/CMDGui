@@ -2,6 +2,8 @@ mod project;
 mod terminal;
 mod settings;
 mod file_op;
+mod workflow;
+mod codex_sessions;
 
 use terminal::TerminalState;
 use tauri::{Emitter, Manager};
@@ -102,6 +104,13 @@ pub fn run() {
     }
   }
 
+  let mut context = tauri::generate_context!();
+  // Keep native single-instance detection and WebView storage separate from
+  // the installed release, including when launched with `tauri dev` directly.
+  if cfg!(debug_assertions) {
+    context.config_mut().identifier.push_str(".dev");
+  }
+
   tauri::Builder::default()
     .manage(TerminalState::default())
     .manage(file_op::StayAwakeState::default())
@@ -122,7 +131,13 @@ pub fn run() {
           let _ = window.set_focus();
         }
       }))?;
+      // Recover saved runs only after the single-instance plugin accepts this
+      // process. A duplicate launch must not interrupt the active run's record.
+      app.manage(workflow::WorkflowState::new());
       if let Some(window) = app.get_webview_window("main") {
+        if cfg!(debug_assertions) {
+          window.set_title("CmdGUI (Development)")?;
+        }
         let _ = window.unminimize();
         let _ = window.show();
         let _ = window.set_focus();
@@ -136,6 +151,13 @@ pub fn run() {
     .invoke_handler(tauri::generate_handler![
       get_launch_args,
       get_platform,
+      workflow::workflow_start,
+      workflow::workflow_list,
+      workflow::workflow_cancel,
+      workflow::workflow_open_artifacts,
+      workflow::workflow_models,
+      codex_sessions::codex_sessions_list,
+      codex_sessions::codex_session_context,
       project::get_project_info,
       project::get_project_details,
       project::git_stage_all,
@@ -164,7 +186,8 @@ pub fn run() {
       file_op::open_in_vscode,
       file_op::set_stay_awake,
       file_op::read_clipboard,
+      file_op::write_clipboard,
     ])
-    .run(tauri::generate_context!())
+    .run(context)
     .expect("error while running tauri application");
 }

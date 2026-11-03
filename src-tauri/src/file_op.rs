@@ -414,5 +414,11 @@ pub async fn read_clipboard() -> Result<String, String> {
     ctx.get_text().map_err(|e| e.to_string())
 }
 
+#[tauri::command]
+pub async fn write_clipboard(text: String) -> Result<(), String> {
+    let mut clipboard = arboard::Clipboard::new().map_err(|e| e.to_string())?;
+    clipboard.set_text(text).map_err(|e| e.to_string())
+}
+
 
 

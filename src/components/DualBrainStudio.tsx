@@ -1,44 +1,16 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Panel, Group, Separator } from 'react-resizable-panels';
-import Terminal from './Terminal';
-import {
-  Sparkles,
-  Play,
-  ArrowRight,
-  CheckCircle2,
-  Clock,
-  RefreshCw,
-  X,
-  ChevronDown,
-  Layers,
-  Terminal as TermIcon,
-  Shield,
-  Send,
-  Check,
-  Bot,
-  Zap,
-} from 'lucide-react';
-import { globalPtyRegistry } from '../utils/terminalUtils';
+import React, { useEffect, useRef, useState } from 'react';
+import { ArrowRight, Bot, CheckCircle2, FolderOpen, Play, Square, X } from 'lucide-react';
 import { tauriBridge } from '../tauriBridge';
-import { TerminalTheme, TerminalRendererType } from '../types';
+import { resolveRoute, taskProfiles, TaskType, WorkflowMode, WorkflowRun } from '../workflows';
+import { TerminalRendererType, TerminalTheme } from '../types';
 import { Keymap } from '../hooks/useKeybindings';
-
-export type LeadBrain = 'gemini' | 'codex';
-export type WorkflowStage = 'idle' | 'agy-running' | 'codex-running' | 'completed';
-
-export interface WorkflowItem {
-  id: string;
-  userPrompt: string;
-  leadBrain: LeadBrain;
-  status: 'running' | 'completed' | 'failed';
-  timestamp: string;
-  stage: WorkflowStage;
-  agySummary?: string;
-  codexSummary?: string;
-}
+import './DualBrainStudio.css';
+import CodexSessionPicker, { SessionSelection } from './CodexSessionPicker';
+import CopyTextButton from './CopyTextButton';
 
 interface DualBrainStudioProps {
   cwd?: string;
+  initialPrompt?: string;
   onClose: () => void;
   terminalTheme?: string;
   customTheme?: TerminalTheme;
@@ -50,723 +22,728 @@ interface DualBrainStudioProps {
   isYoloModeEnabled?: boolean;
 }
 
-const DualBrainStudio: React.FC<DualBrainStudioProps> = ({
-  cwd,
-  onClose,
-  terminalTheme,
-  customTheme,
-  terminalFontSize = 13,
-  terminalScrollback = 2000,
-  keymap,
-  isGPUAccelerationEnabled = true,
-  terminalRendererType = 'webgl',
-  isYoloModeEnabled = false,
-}) => {
-  const [leadBrain, setLeadBrain] = useState<LeadBrain>('gemini');
-  const [prompt, setPrompt] = useState('');
-  const [activeWorkflow, setActiveWorkflow] = useState<WorkflowItem | null>(null);
-  const [history, setHistory] = useState<WorkflowItem[]>([]);
-  const [dispatchMode, setDispatchMode] = useState<'pipeline' | 'agy-only' | 'codex-only'>('pipeline');
-  const [isLeadMenuOpen, setIsLeadMenuOpen] = useState(false);
-  const [activeRightTab, setActiveRightTab] = useState<'both' | 'agy' | 'codex'>('both');
+type Models = { agyModel: string; codexModel: string; codexEffort: string };
+interface Preferences {
+  taskType: TaskType;
+  override: 'auto' | WorkflowMode;
+  checks: string;
+  timeoutMinutes: number;
+  models: Record<TaskType, Models>;
+}
 
-  const chatBottomRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLTextAreaElement>(null);
+const defaults = (): Preferences => ({
+  taskType: 'discovery',
+  override: 'auto',
+  checks: '',
+  timeoutMinutes: 15,
+  models: Object.fromEntries(
+    Object.entries(taskProfiles).map(([key, p]) => [
+      key,
+      {
+        agyModel: p.agyModel,
+        codexModel: p.codexModel,
+        codexEffort: p.codexEffort,
+      },
+    ])
+  ) as Record<TaskType, Models>,
+});
 
-  // Auto-scroll chat stream
+const statusLabels: Record<WorkflowRun['status'], string> = {
+  running: 'Running',
+  verified: 'Checks passed',
+  planned: 'Brief ready',
+  failed: 'Failed',
+  cancelled: 'Cancelled',
+  interrupted: 'Interrupted',
+  'needs-review': 'Needs validation',
+};
+
+const routeLabels = {
+  pipeline: 'AGY → Codex → Checks',
+  'codex-only': 'Codex → Checks',
+  'agy-only': 'AGY → Brief',
+};
+
+const DualBrainStudio: React.FC<DualBrainStudioProps> = ({ cwd, initialPrompt = '', onClose }) => {
+  const [preferences, setPreferences] = useState<Preferences>(defaults);
+  const [loaded, setLoaded] = useState(false);
+  const [prompt, setPrompt] = useState(initialPrompt);
+  const [catalogs, setCatalogs] = useState<
+    Record<string, { id: string; label: string; efforts: string[] }[]>
+  >({});
+  const [loadingCatalog, setLoadingCatalog] = useState<string | null>(null);
+  const [runs, setRuns] = useState<WorkflowRun[]>([]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [pending, setPending] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
+  const [error, setError] = useState('');
+  const [view, setView] = useState<'summary' | 'brief' | 'output'>('summary');
+  const [sessionSelection, setSessionSelection] = useState<SessionSelection | null>(null);
+  const [sessionLoading, setSessionLoading] = useState(false);
+  const detailRef = useRef<HTMLDivElement>(null);
+  const starting = useRef(false);
+  const outputRef = useRef<HTMLPreElement>(null);
+  const route = resolveRoute(preferences.taskType, preferences.override);
+  const models = preferences.models[preferences.taskType];
+  const supportedEfforts = catalogs.codex
+    ?.find((m) => m.id === models.codexModel)
+    ?.efforts.filter((e) => ['low', 'medium', 'high', 'xhigh'].includes(e));
+  const active = runs.find((r) => r.status === 'running');
+  const projectRuns = runs.filter((r) => normalizePath(r.options.cwd) === normalizePath(cwd || ''));
+  const selected =
+    runs.find((r) => r.id === selectedId) ||
+    projectRuns.find((r) => r.status === 'running') ||
+    projectRuns[0];
+
   useEffect(() => {
-    chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [activeWorkflow, history]);
+    setPrompt(initialPrompt);
+  }, [initialPrompt]);
 
-  // Dispatch a command into a specific terminal PTY
-  const sendToTerminal = useCallback((paneId: string, cmd: string) => {
-    const entry = globalPtyRegistry[paneId];
-    if (entry && entry.pid) {
-      tauriBridge.writeTerminal(entry.pid, `${cmd}\r`);
-      return true;
+  const loadCatalog = async (provider: 'agy' | 'codex') => {
+    setLoadingCatalog(provider);
+    setError('');
+    try {
+      const choices = await tauriBridge.workflowModels(provider);
+      setCatalogs((prev) => ({ ...prev, [provider]: choices }));
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setLoadingCatalog(null);
     }
-    return false;
+  };
+
+  useEffect(() => {
+    let disposed = false;
+    setLoaded(false);
+    setError('');
+    setSelectedId(null);
+    setSessionSelection(null);
+    const load = async () => {
+      try {
+        const saved = await tauriBridge.settingsGet<Preferences>(`workflow:${cwd}`);
+        let next = defaults();
+        if (saved && saved.taskType in taskProfiles) {
+          next = {
+            ...next,
+            ...saved,
+            models: Object.fromEntries(
+              Object.keys(taskProfiles).map((key) => [
+                key,
+                {
+                  ...next.models[key as TaskType],
+                  ...saved.models?.[key as TaskType],
+                },
+              ])
+            ) as Preferences['models'],
+          };
+        } else if (cwd) {
+          const details = await tauriBridge.getProjectDetails(cwd);
+          const checks = [];
+          if (details.scripts?.build) checks.push('npm run build');
+          // Only suggest a one-shot test command when the runner is known.
+          if (/\bvitest\b/.test(details.scripts?.test || '')) checks.push('npm test -- --run');
+          next.checks = checks.join('\n');
+        }
+        if (!disposed) setPreferences(next);
+      } catch (e) {
+        if (!disposed) {
+          setPreferences(defaults());
+          setError(`Could not load project preferences: ${String(e)}`);
+        }
+      } finally {
+        if (!disposed) setLoaded(true);
+      }
+    };
+    void load();
+    return () => {
+      disposed = true;
+    };
+  }, [cwd]);
+
+  useEffect(() => {
+    let disposed = false;
+    let timer: ReturnType<typeof setTimeout>;
+    const refresh = async () => {
+      try {
+        const result = await tauriBridge.workflowList();
+        if (!disposed) setRuns(result);
+      } catch (e) {
+        if (!disposed) setError(`Cannot read workflows: ${String(e)}`);
+      }
+      if (!disposed) timer = setTimeout(refresh, 1000);
+    };
+    void refresh();
+    return () => {
+      disposed = true;
+      clearTimeout(timer);
+    };
   }, []);
 
-  const handleStartWorkflow = (customText?: string) => {
-    const textToRun = (customText || prompt).trim();
-    if (!textToRun) return;
+  useEffect(() => {
+    if (view === 'output' && outputRef.current)
+      outputRef.current.scrollTop = outputRef.current.scrollHeight;
+  }, [selected?.output, view]);
 
-    const newWorkflow: WorkflowItem = {
-      id: Date.now().toString(),
-      userPrompt: textToRun,
-      leadBrain,
-      status: 'running',
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      stage: dispatchMode === 'codex-only' ? 'codex-running' : 'agy-running',
-    };
+  const changeModel = (field: keyof Models, value: string) =>
+    setPreferences((p) => ({
+      ...p,
+      models: { ...p.models, [p.taskType]: { ...p.models[p.taskType], [field]: value } },
+    }));
 
-    setActiveWorkflow(newWorkflow);
-    setPrompt('');
-
-    // Execute first stage
-    if (dispatchMode === 'codex-only') {
-      sendToTerminal('dual-studio-codex', `codex "${textToRun.replace(/"/g, '\\"')}"`);
-    } else if (dispatchMode === 'agy-only') {
-      sendToTerminal('dual-studio-agy', `agy "${textToRun.replace(/"/g, '\\"')}"`);
-    } else {
-      // Pipeline: agy first, then handoff
-      sendToTerminal(
-        'dual-studio-agy',
-        `agy "Analyze repository architecture, schemas, and contracts relevant to: ${textToRun.replace(/"/g, '\\"')}, then produce an architectural implementation dossier"`
-      );
+  const start = async () => {
+    if (!cwd || !prompt.trim() || active || starting.current || !loaded || sessionLoading) return;
+    starting.current = true;
+    setPending(true);
+    setError('');
+    try {
+      await tauriBridge.settingsSet(`workflow:${cwd}`, preferences);
+      const run = await tauriBridge.workflowStart({
+        cwd,
+        prompt: prompt.trim(),
+        mode: route.mode,
+        checks:
+          route.mode === 'agy-only'
+            ? []
+            : preferences.checks
+                .split('\n')
+                .map((s) => s.trim())
+                .filter(Boolean),
+        timeoutMinutes: preferences.timeoutMinutes,
+        ...models,
+        taskType: preferences.taskType,
+        routingReason: route.reason,
+        sessionId: sessionSelection?.id ?? null,
+        sessionContext: sessionSelection?.context ?? '',
+        resumeSession: route.mode !== 'agy-only' && (sessionSelection?.resume ?? false),
+      });
+      setRuns((prev) => [run, ...prev.filter((r) => r.id !== run.id)]);
+      setSelectedId(run.id);
+      setPrompt('');
+      setView('output');
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      starting.current = false;
+      setPending(false);
     }
   };
 
-  const handleHandoffToCodex = () => {
-    if (!activeWorkflow) return;
-    setActiveWorkflow((prev) => (prev ? { ...prev, stage: 'codex-running', agySummary: 'Gemini architecture ingestion complete.' } : null));
-
-    const promptText = activeWorkflow.userPrompt.replace(/"/g, '\\"');
-    sendToTerminal(
-      'dual-studio-codex',
-      `codex "Implement the following feature based on current repository context and verify tests: ${promptText}"`
-    );
+  const cancel = async () => {
+    if (!active) return;
+    setCancelling(true);
+    try {
+      await tauriBridge.workflowCancel(active.id);
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setCancelling(false);
+    }
   };
 
-  const handleCompleteWorkflow = () => {
-    if (!activeWorkflow) return;
-    const completed: WorkflowItem = {
-      ...activeWorkflow,
-      status: 'completed',
-      stage: 'completed',
-      codexSummary: 'Codex implementation & verification finished successfully.',
-    };
-    setHistory((prev) => [completed, ...prev]);
-    setActiveWorkflow(null);
-  };
-
-  const handleRestartPanes = () => {
-    sendToTerminal('dual-studio-agy', 'clear');
-    sendToTerminal('dual-studio-codex', 'clear');
-  };
+  const selectedStages =
+    selected?.options.mode === 'agy-only'
+      ? ['planning']
+      : selected?.options.mode === 'codex-only'
+        ? ['implementing', 'validating']
+        : ['planning', 'implementing', 'validating'];
+  const stageIndex = selectedStages.indexOf(selected?.stage || '');
 
   return (
-    <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--bg-canvas)' }}>
-      {/* Studio Header Bar */}
-      <div
-        style={{
-          height: '42px',
-          background: 'var(--bg-surface-l1)',
-          borderBottom: '1px solid var(--border-color)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '0 16px',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              fontWeight: 700,
-              fontSize: '13px',
-              color: 'var(--fg-active)',
-              background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(139, 92, 246, 0.15))',
-              padding: '4px 10px',
-              borderRadius: '6px',
-              border: '1px solid rgba(139, 92, 246, 0.3)',
-            }}
-          >
-            <Zap size={14} style={{ color: 'var(--neon-amber)' }} />
-            Dual-Brain Mission Control
-          </div>
-
-          {/* Lead Brain Selector */}
-          <div style={{ position: 'relative' }}>
-            <button
-              onClick={() => setIsLeadMenuOpen((prev) => !prev)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                fontSize: '11px',
-                fontWeight: 600,
-                padding: '4px 10px',
-                borderRadius: '6px',
-                background: 'var(--bg-surface-l2)',
-                border: '1px solid var(--border-color)',
-                color: 'var(--fg-primary)',
-                cursor: 'pointer',
-              }}
-            >
-              <span>Lead:</span>
-              <span style={{ color: leadBrain === 'gemini' ? '#60a5fa' : '#34d399' }}>
-                {leadBrain === 'gemini' ? '♊ Gemini (agy)' : '🟢 GPT 6.1 (codex)'}
-              </span>
-              <ChevronDown size={12} />
-            </button>
-
-            {isLeadMenuOpen && (
-              <div
-                style={{
-                  position: 'absolute',
-                  top: '100%',
-                  left: 0,
-                  marginTop: '4px',
-                  background: 'var(--bg-surface-l2)',
-                  border: '1px solid var(--border-color)',
-                  borderRadius: '6px',
-                  boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
-                  zIndex: 50,
-                  minWidth: '180px',
-                  overflow: 'hidden',
-                }}
-              >
-                <div
-                  onClick={() => {
-                    setLeadBrain('gemini');
-                    setIsLeadMenuOpen(false);
-                  }}
-                  style={{
-                    padding: '8px 12px',
-                    fontSize: '11px',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    color: leadBrain === 'gemini' ? 'var(--fg-active)' : 'var(--fg-secondary)',
-                    background: leadBrain === 'gemini' ? 'var(--bg-surface-active)' : 'transparent',
-                  }}
-                >
-                  <span>♊ Gemini 3.8 Flash (agy)</span>
-                  {leadBrain === 'gemini' && <Check size={12} />}
-                </div>
-                <div
-                  onClick={() => {
-                    setLeadBrain('codex');
-                    setIsLeadMenuOpen(false);
-                  }}
-                  style={{
-                    padding: '8px 12px',
-                    fontSize: '11px',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    color: leadBrain === 'codex' ? 'var(--fg-active)' : 'var(--fg-secondary)',
-                    background: leadBrain === 'codex' ? 'var(--bg-surface-active)' : 'transparent',
-                  }}
-                >
-                  <span>🟢 GPT 6.1 Sol (codex)</span>
-                  {leadBrain === 'codex' && <Check size={12} />}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Active CWD badge */}
-          {cwd && (
-            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-              Folder: <code style={{ color: 'var(--fg-secondary)' }}>{cwd.split(/[\\/]/).pop()}</code>
+    <section className="mission-control" aria-label="Dual-Brain Mission Control">
+      <header className="mission-header">
+        <div>
+          <span className="mission-eyebrow">CMDGUI / AGENT WORKSPACE</span>
+          <h1>
+            <Bot size={21} /> Mission Control
+          </h1>
+        </div>
+        <button className="mission-button" onClick={onClose}>
+          <X size={14} /> Back to terminals
+        </button>
+      </header>
+      <div className="mission-layout">
+        <aside className="mission-compose">
+          <div className="mission-project">
+            <FolderOpen size={16} />
+            <span title={cwd}>
+              {cwd
+                ?.replace(/[\\/]$/, '')
+                .split(/[\\/]/)
+                .pop() || 'Select a project first'}
             </span>
-          )}
-        </div>
-
-        {/* Right Header Actions */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <div style={{ display: 'flex', background: 'var(--bg-surface-l2)', borderRadius: '6px', padding: '2px', border: '1px solid var(--border-color)' }}>
-            {(['both', 'agy', 'codex'] as const).map((view) => (
-              <button
-                key={view}
-                onClick={() => setActiveRightTab(view)}
-                style={{
-                  padding: '3px 8px',
-                  fontSize: '10px',
-                  fontWeight: activeRightTab === view ? 600 : 400,
-                  borderRadius: '4px',
-                  border: 'none',
-                  background: activeRightTab === view ? 'var(--accent-primary)' : 'transparent',
-                  color: activeRightTab === view ? '#fff' : 'var(--fg-secondary)',
-                  cursor: 'pointer',
-                }}
-              >
-                {view === 'both' ? 'Split View' : view === 'agy' ? 'Gemini Only' : 'Codex Only'}
-              </button>
-            ))}
+            <span className="mission-tag">Local</span>
           </div>
-
-          <button
-            onClick={handleRestartPanes}
-            title="Clear terminal screens"
-            style={{
-              background: 'transparent',
-              border: '1px solid var(--border-color)',
-              color: 'var(--fg-secondary)',
-              padding: '4px 8px',
-              borderRadius: '6px',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px',
-              fontSize: '11px',
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              void start();
             }}
           >
-            <RefreshCw size={12} /> Clear
-          </button>
-
-          <button
-            onClick={onClose}
-            title="Return to standard tabs"
-            style={{
-              background: 'transparent',
-              border: '1px solid var(--border-color)',
-              color: 'var(--fg-secondary)',
-              padding: '4px 8px',
-              borderRadius: '6px',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px',
-              fontSize: '11px',
-            }}
-          >
-            <X size={13} /> Exit Studio
-          </button>
-        </div>
-      </div>
-
-      {/* Main 3-Pane Body */}
-      <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
-        <Group orientation="horizontal" style={{ width: '100%', height: '100%' }}>
-          {/* ================= LEFT PANE: ORCHESTRATOR ================= */}
-          <Panel
-            defaultSize="32%"
-            minSize="280px"
-            maxSize="50%"
-            style={{ display: 'flex', flexDirection: 'column', height: '100%', minWidth: 0, background: 'var(--bg-surface-l1)' }}
-          >
-            {/* Orchestrator Top Summary */}
-            <div
-              style={{
-                padding: '12px 16px',
-                borderBottom: '1px solid var(--border-color)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                background: 'var(--bg-surface-l2)',
-              }}
+            <label className="mission-label" htmlFor="mission-task-type">
+              What kind of task?
+            </label>
+            <select
+              id="mission-task-type"
+              value={preferences.taskType}
+              disabled={!loaded || pending}
+              onChange={(e) =>
+                setPreferences((p) => ({ ...p, taskType: e.target.value as TaskType }))
+              }
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
-                <Bot size={16} style={{ color: 'var(--accent-primary)', flexShrink: 0 }} />
-                <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--fg-active)', whiteSpace: 'nowrap' }}>
-                  Autonomous Orchestrator
-                </span>
-              </div>
-              <span
-                style={{
-                  fontSize: '10px',
-                  fontWeight: 600,
-                  padding: '2px 8px',
-                  borderRadius: '12px',
-                  background: activeWorkflow ? 'rgba(16, 185, 129, 0.2)' : 'rgba(255, 255, 255, 0.05)',
-                  color: activeWorkflow ? 'var(--neon-run)' : 'var(--text-muted)',
-                  border: `1px solid ${activeWorkflow ? 'var(--neon-run)' : 'var(--border-color)'}`,
-                  flexShrink: 0,
-                }}
-              >
-                {activeWorkflow ? `● Step: ${activeWorkflow.stage.replace('-running', '')}` : '○ Ready'}
-              </span>
-            </div>
-
-            {/* Workflow Stream / Activity Ledger */}
-            <div style={{ flex: 1, overflowY: 'auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              {/* If no tasks active and history empty */}
-              {!activeWorkflow && history.length === 0 && (
-                <div
-                  style={{
-                    padding: '24px 16px',
-                    textAlign: 'center',
-                    border: '1px dashed var(--border-color)',
-                    borderRadius: '8px',
-                    color: 'var(--text-muted)',
-                    fontSize: '12px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    gap: '8px',
-                  }}
-                >
-                  <Sparkles size={20} style={{ color: 'var(--accent-primary)', opacity: 0.7 }} />
-                  <div>
-                    <strong style={{ color: 'var(--fg-secondary)', display: 'block', marginBottom: '4px' }}>
-                      Dual-Brain Pipeline Ready
-                    </strong>
-                    Type a task below or pick a preset chip to let Gemini ingest & Codex implement.
-                  </div>
-                </div>
-              )}
-
-              {/* Active Workflow Card */}
-              {activeWorkflow && (
-                <div
-                  style={{
-                    padding: '14px',
-                    borderRadius: '8px',
-                    background: 'var(--bg-surface-l2)',
-                    border: '1px solid var(--accent-primary)',
-                    boxShadow: '0 4px 16px rgba(59, 130, 246, 0.15)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '10px',
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <span style={{ fontSize: '10px', color: 'var(--accent-hover)', fontWeight: 600 }}>
-                      ACTIVE WORKFLOW
-                    </span>
-                    <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
-                      {activeWorkflow.timestamp}
-                    </span>
-                  </div>
-
-                  <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--fg-active)' }}>
-                    "{activeWorkflow.userPrompt}"
-                  </div>
-
-                  {/* Flow Stages */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '4px' }}>
-                    {/* Stage 1: Gemini */}
-                    <div
-                      style={{
-                        padding: '8px 10px',
-                        borderRadius: '6px',
-                        background: activeWorkflow.stage === 'agy-running' ? 'rgba(59, 130, 246, 0.15)' : 'var(--bg-surface-l3)',
-                        border: `1px solid ${activeWorkflow.stage === 'agy-running' ? 'var(--accent-primary)' : 'var(--border-color)'}`,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11px' }}>
-                        <span>♊ Phase 1: Gemini 3.8 Flash Context</span>
-                      </div>
-                      <span style={{ fontSize: '10px', color: activeWorkflow.stage === 'agy-running' ? 'var(--accent-hover)' : 'var(--neon-run)', fontWeight: 600 }}>
-                        {activeWorkflow.stage === 'agy-running' ? 'Working in top pane...' : '✓ Done'}
-                      </span>
-                    </div>
-
-                    {/* Stage 2: Codex */}
-                    <div
-                      style={{
-                        padding: '8px 10px',
-                        borderRadius: '6px',
-                        background: activeWorkflow.stage === 'codex-running' ? 'rgba(16, 185, 129, 0.15)' : 'var(--bg-surface-l3)',
-                        border: `1px solid ${activeWorkflow.stage === 'codex-running' ? 'var(--neon-run)' : 'var(--border-color)'}`,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11px' }}>
-                        <span>🟢 Phase 2: GPT 6.1 Sol Implementation</span>
-                      </div>
-                      <span style={{ fontSize: '10px', color: activeWorkflow.stage === 'codex-running' ? 'var(--neon-run)' : 'var(--text-muted)', fontWeight: 600 }}>
-                        {activeWorkflow.stage === 'codex-running' ? 'Coding in bottom pane...' : 'Waiting'}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Workflow Action Controls */}
-                  <div style={{ display: 'flex', gap: '8px', marginTop: '6px' }}>
-                    {activeWorkflow.stage === 'agy-running' && (
-                      <button
-                        onClick={handleHandoffToCodex}
-                        style={{
-                          flex: 1,
-                          padding: '6px 10px',
-                          borderRadius: '6px',
-                          fontSize: '11px',
-                          fontWeight: 600,
-                          background: 'linear-gradient(135deg, var(--neon-run), #059669)',
-                          color: '#fff',
-                          border: 'none',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: '6px',
-                        }}
-                      >
-                        Hand Off to Codex <ArrowRight size={13} />
-                      </button>
-                    )}
-
-                    <button
-                      onClick={handleCompleteWorkflow}
-                      style={{
-                        padding: '6px 12px',
-                        borderRadius: '6px',
-                        fontSize: '11px',
-                        background: 'var(--bg-surface-l3)',
-                        color: 'var(--fg-secondary)',
-                        border: '1px solid var(--border-color)',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '4px',
-                      }}
-                    >
-                      <CheckCircle2 size={12} /> Mark Complete
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* History Items */}
-              {history.map((item) => (
-                <div
-                  key={item.id}
-                  style={{
-                    padding: '12px',
-                    borderRadius: '8px',
-                    background: 'var(--bg-surface-l2)',
-                    border: '1px solid var(--border-color)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '6px',
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: '10px', color: 'var(--neon-run)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <CheckCircle2 size={11} /> COMPLETED WORKFLOW
-                    </span>
-                    <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{item.timestamp}</span>
-                  </div>
-                  <div style={{ fontSize: '12px', color: 'var(--fg-primary)' }}>{item.userPrompt}</div>
-                  <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
-                    Dual-Brain execution completed across Gemini 3.8 Flash & GPT 6.1 Sol.
-                  </div>
-                </div>
+              {Object.entries(taskProfiles).map(([key, p]) => (
+                <option key={key} value={key}>
+                  {p.label}
+                </option>
               ))}
-
-              <div ref={chatBottomRef} />
+            </select>
+            <label className="mission-label" htmlFor="mission-prompt">
+              Task
+            </label>
+            <textarea
+              id="mission-prompt"
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              rows={5}
+              maxLength={8000}
+              placeholder="Describe the desired behavior, relevant files, and how we will know it works."
+            />
+            <CodexSessionPicker
+              cwd={cwd}
+              disabled={pending || !!active}
+              selection={sessionSelection}
+              onChange={setSessionSelection}
+              onError={setError}
+              implementation={route.mode !== 'agy-only'}
+              onBusyChange={setSessionLoading}
+            />
+            <div className="mission-route">
+              <span className="mission-eyebrow">SELECTED ROUTE</span>
+              <strong>{routeLabels[route.mode]}</strong>
+              <p>{route.reason}</p>
+              {route.mode !== 'codex-only' && (
+                <p>
+                  Planner: <code>{models.agyModel || 'AGY CLI default'}</code>
+                </p>
+              )}
+              {route.mode !== 'agy-only' && (
+                <p>
+                  Coder: <code>{models.codexModel || 'Codex CLI default'}</code> ·{' '}
+                  {models.codexEffort || 'default'} effort
+                </p>
+              )}
             </div>
-
-            {/* Prompt Dispatcher & Action Chips */}
-            <div style={{ padding: '14px', borderTop: '1px solid var(--border-color)', background: 'var(--bg-surface-l2)' }}>
-              {/* Fast Action Preset Chips */}
-              <div style={{ display: 'flex', gap: '6px', overflowX: 'auto', paddingBottom: '8px', marginBottom: '8px', scrollbarWidth: 'thin' }}>
-                {[
-                  { label: '🚀 Full Refactor Loop', prompt: 'Refactor feature architecture and verify with unit tests' },
-                  { label: '🛡️ Security & Bug Audit', prompt: 'Audit repository for security vulnerabilities and race conditions' },
-                  { label: '📝 Auto-Docs & API Dossier', prompt: 'Map full repository data models and output clean developer documentation' },
-                  { label: '⚡ Interactive Codex', prompt: 'codex' },
-                  { label: '♊ Interactive Antigravity', prompt: 'agy' },
-                ].map((chip) => (
+            <details className="mission-settings">
+              <summary>Models & routing</summary>
+              <p>
+                Starting preferences, not measured rankings. Choose models available to your
+                account. Unsupported models fail without a silent fallback.
+              </p>
+              <label className="mission-label" htmlFor="mission-route">
+                Route override
+              </label>
+              <select
+                id="mission-route"
+                value={preferences.override}
+                onChange={(e) =>
+                  setPreferences((p) => ({
+                    ...p,
+                    override: e.target.value as Preferences['override'],
+                  }))
+                }
+              >
+                <option value="auto">Use task preference</option>
+                <option value="pipeline">AGY → Codex</option>
+                <option value="codex-only">Codex only</option>
+                <option value="agy-only">AGY investigation only</option>
+              </select>
+              {route.mode !== 'codex-only' && (
+                <>
+                  <label className="mission-label" htmlFor="mission-agy">
+                    AGY model
+                  </label>
+                  <input
+                    id="mission-agy"
+                    list="mission-agy-models"
+                    value={models.agyModel}
+                    placeholder="CLI default"
+                    onChange={(e) => changeModel('agyModel', e.target.value)}
+                  />
+                  <datalist id="mission-agy-models">
+                    {catalogs.agy?.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.label}
+                      </option>
+                    ))}
+                  </datalist>
                   <button
-                    key={chip.label}
-                    onClick={() => {
-                      if (chip.prompt === 'codex') {
-                        sendToTerminal('dual-studio-codex', 'codex');
-                      } else if (chip.prompt === 'agy') {
-                        sendToTerminal('dual-studio-agy', 'agy');
-                      } else {
-                        handleStartWorkflow(chip.prompt);
-                      }
-                    }}
-                    style={{
-                      whiteSpace: 'nowrap',
-                      flexShrink: 0,
-                      padding: '4px 8px',
-                      borderRadius: '12px',
-                      fontSize: '10px',
-                      background: 'var(--bg-surface-l3)',
-                      border: '1px solid var(--border-color)',
-                      color: 'var(--fg-secondary)',
-                      cursor: 'pointer',
-                    }}
+                    type="button"
+                    className="mission-button"
+                    disabled={!!loadingCatalog}
+                    onClick={() => void loadCatalog('agy')}
                   >
-                    {chip.label}
+                    {loadingCatalog === 'agy' ? 'Loading…' : 'Load AGY models'}
+                  </button>
+                </>
+              )}
+              {route.mode !== 'agy-only' && (
+                <>
+                  <label className="mission-label" htmlFor="mission-codex">
+                    Codex model
+                  </label>
+                  <input
+                    id="mission-codex"
+                    list="mission-codex-models"
+                    value={models.codexModel}
+                    placeholder="CLI default"
+                    onChange={(e) => changeModel('codexModel', e.target.value)}
+                  />
+                  <datalist id="mission-codex-models">
+                    {catalogs.codex?.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.label}
+                      </option>
+                    ))}
+                  </datalist>
+                  <button
+                    type="button"
+                    className="mission-button"
+                    disabled={!!loadingCatalog}
+                    onClick={() => void loadCatalog('codex')}
+                  >
+                    {loadingCatalog === 'codex' ? 'Loading…' : 'Load Codex models'}
+                  </button>
+                  <label className="mission-label" htmlFor="mission-effort">
+                    Codex reasoning effort
+                  </label>
+                  <select
+                    id="mission-effort"
+                    value={models.codexEffort}
+                    onChange={(e) => changeModel('codexEffort', e.target.value)}
+                  >
+                    <option value="">CLI default</option>
+                    {(supportedEfforts?.length
+                      ? Array.from(
+                          new Set([...supportedEfforts, models.codexEffort].filter(Boolean))
+                        )
+                      : ['low', 'medium', 'high', 'xhigh']
+                    ).map((effort) => (
+                      <option key={effort}>{effort}</option>
+                    ))}
+                  </select>
+                </>
+              )}
+              <p>
+                Catalogs do not run inference. A listed model still needs account access when the
+                task runs.
+              </p>
+            </details>
+            {route.mode !== 'agy-only' && (
+              <>
+                <label className="mission-label" htmlFor="mission-checks">
+                  Validation checks <span>one command per line</span>
+                </label>
+                <textarea
+                  id="mission-checks"
+                  rows={3}
+                  value={preferences.checks}
+                  onChange={(e) => setPreferences((p) => ({ ...p, checks: e.target.value }))}
+                  placeholder="npm run build&#10;npm test -- --run"
+                />
+                <p className="mission-hint">
+                  These commands run locally after implementation. An empty list leaves the result
+                  unverified.
+                </p>
+              </>
+            )}
+            <label className="mission-label" htmlFor="mission-timeout">
+              Time limit per stage (minutes)
+            </label>
+            <input
+              id="mission-timeout"
+              type="number"
+              min={1}
+              max={120}
+              required
+              value={preferences.timeoutMinutes}
+              onChange={(e) =>
+                setPreferences((p) => ({ ...p, timeoutMinutes: Number(e.target.value) }))
+              }
+            />
+            <div className="mission-actions">
+              <p className="mission-hint">
+                One worker at a time. Handoff waits for AGY to exit. Existing edits are preserved.
+              </p>
+              {active && (
+                <div className="mission-notice" role="status">
+                  A workflow is running in {active.options.cwd}.{' '}
+                  <button type="button" onClick={() => setSelectedId(active.id)}>
+                    View run
+                  </button>
+                </div>
+              )}
+              <button
+                className="mission-button mission-primary"
+                type="submit"
+                disabled={
+                  !cwd || !prompt.trim() || !!active || pending || !loaded || sessionLoading
+                }
+              >
+                <Play size={14} /> {pending ? 'Starting…' : 'Start task'}
+                <ArrowRight size={14} />
+              </button>
+            </div>
+          </form>
+        </aside>
+        <main className="mission-workspace">
+          {error && (
+            <div className="mission-error" role="alert">
+              {error}
+            </div>
+          )}
+          {!selected ? (
+            <div className="mission-empty">
+              <Bot size={36} />
+              <h2>One task. The right route.</h2>
+              <p>
+                Send a clear task to one coding model, or let AGY investigate before Codex
+                implements. The handoff and validation run automatically.
+              </p>
+              <div className="mission-empty-route">
+                <span>Investigate</span>
+                <ArrowRight size={16} />
+                <span>Implement</span>
+                <ArrowRight size={16} />
+                <span>Validate</span>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="mission-run-heading">
+                <div>
+                  <span className={`mission-status ${selected.status}`}>
+                    {statusLabels[selected.status]}
+                  </span>
+                  <h2>{selected.options.prompt}</h2>
+                  <p>{selected.message}</p>
+                </div>
+                {selected.status === 'running' && (
+                  <button
+                    className="mission-button mission-stop"
+                    disabled={cancelling}
+                    onClick={() => void cancel()}
+                  >
+                    <Square size={13} /> {cancelling ? 'Stopping…' : 'Cancel run'}
+                  </button>
+                )}
+              </div>
+              <div className="mission-stages">
+                {selectedStages.map((stage, index) => {
+                  const done =
+                    (selected.status === 'verified' ||
+                      selected.status === 'planned' ||
+                      selected.status === 'needs-review' ||
+                      index < stageIndex) &&
+                    (stage !== 'validating' ||
+                      (selected.options.checks.length > 0 &&
+                        selected.checks.length === selected.options.checks.length &&
+                        selected.checks.every((c) => c.passed)));
+                  return (
+                    <div
+                      key={stage}
+                      className={`mission-stage ${done ? 'done' : ''} ${selected.stage === stage && selected.status === 'running' ? 'current' : ''}`}
+                    >
+                      <span>
+                        {done ? <CheckCircle2 size={16} /> : String(index + 1).padStart(2, '0')}
+                      </span>
+                      <div>
+                        <strong>
+                          {stage === 'planning'
+                            ? 'AGY brief'
+                            : stage === 'implementing'
+                              ? 'Codex implementation'
+                              : 'Project checks'}
+                        </strong>
+                        <small>
+                          {stage === 'planning'
+                            ? selected.options.agyModel || 'CLI default'
+                            : stage === 'implementing'
+                              ? `${selected.options.codexModel || 'CLI default'} · ${selected.options.codexEffort || 'default'} effort`
+                              : `${selected.checks.filter((c) => c.passed).length}/${selected.options.checks.length} passed`}
+                        </small>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="mission-tabs" role="tablist" aria-label="Run details">
+                {(['summary', 'brief', 'output'] as const).map((tab) => (
+                  <button
+                    key={tab}
+                    role="tab"
+                    aria-selected={view === tab}
+                    aria-controls="mission-detail"
+                    id={`mission-tab-${tab}`}
+                    onClick={() => setView(tab)}
+                  >
+                    {tab === 'summary'
+                      ? 'Result & checks'
+                      : tab === 'brief'
+                        ? 'Handoff brief'
+                        : 'Live output'}
                   </button>
                 ))}
               </div>
-
-              {/* Input Form */}
-              <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end' }}>
-                <textarea
-                  ref={inputRef}
-                  value={prompt}
-                  onChange={(e) => setPrompt(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault();
-                      handleStartWorkflow();
+              <div
+                ref={detailRef}
+                className="mission-detail"
+                id="mission-detail"
+                role="tabpanel"
+                aria-labelledby={`mission-tab-${view}`}
+              >
+                <div className="mission-copy-toolbar">
+                  <CopyTextButton
+                    text={
+                      view === 'output'
+                        ? selected.output
+                        : view === 'brief'
+                          ? selected.brief || ''
+                          : [
+                              selected.summary || selected.message,
+                              ...selected.checks.map(
+                                (c) =>
+                                  `${c.passed ? 'PASS' : 'FAIL'} ${c.command} (exit ${c.exitCode ?? 'unknown'})`
+                              ),
+                            ].join('\n')
                     }
-                  }}
-                  placeholder="Enter task... (Gemini will ingest context, Codex will implement)"
-                  rows={2}
-                  style={{
-                    flex: 1,
-                    minWidth: 0,
-                    resize: 'none',
-                    padding: '8px 12px',
-                    borderRadius: '8px',
-                    background: 'var(--bg-root)',
-                    border: '1px solid var(--border-color)',
-                    color: 'var(--fg-active)',
-                    fontSize: '12px',
-                    outline: 'none',
-                  }}
-                />
-
+                    label={
+                      view === 'output'
+                        ? 'Copy output'
+                        : view === 'brief'
+                          ? 'Copy brief'
+                          : 'Copy result'
+                    }
+                    selectionRoot={detailRef}
+                    onError={setError}
+                  />
+                </div>
+                {view === 'output' ? (
+                  <pre ref={outputRef} className="mission-output">
+                    {selected.output || 'Waiting for worker output…'}
+                  </pre>
+                ) : view === 'brief' ? (
+                  <pre>
+                    {selected.brief ||
+                      (selected.options.mode === 'codex-only'
+                        ? 'Direct implementation: no planning tokens spent.'
+                        : 'AGY’s validated brief will appear here before handoff.')}
+                  </pre>
+                ) : (
+                  <>
+                    <p>{selected.summary || selected.message}</p>
+                    {selected.codexSessionId && (
+                      <p className="mission-hint">
+                        Codex session: <code>{selected.codexSessionId}</code>
+                      </p>
+                    )}
+                    {selected.options.sessionId && (
+                      <p className="mission-hint">
+                        Imported session: <code>{selected.options.sessionId}</code> ·{' '}
+                        {selected.options.resumeSession
+                          ? 'Original thread resumed'
+                          : 'Context excerpt imported'}
+                      </p>
+                    )}
+                    <p className="mission-hint">{selected.options.routingReason}</p>
+                    <div className="mission-check-list">
+                      {selected.checks.map((check, index) => (
+                        <div key={index}>
+                          <span className={check.passed ? 'mission-pass' : 'mission-fail'}>
+                            {check.passed ? 'PASS' : 'FAIL'}
+                          </span>
+                          <code>{check.command}</code>
+                          <span>exit {check.exitCode ?? 'unknown'}</span>
+                        </div>
+                      ))}
+                    </div>
+                    {!selected.options.checks.length && selected.options.mode !== 'agy-only' && (
+                      <p className="mission-hint">No validation checks configured.</p>
+                    )}
+                    <div className="mission-usage">
+                      <span>
+                        Codex input{' '}
+                        <strong>
+                          {selected.usage?.inputTokens?.toLocaleString() ?? 'Unavailable'}
+                        </strong>
+                      </span>
+                      <span>
+                        Cached input{' '}
+                        <strong>
+                          {selected.usage?.cachedInputTokens?.toLocaleString() ?? 'Unavailable'}
+                        </strong>
+                      </span>
+                      <span>
+                        Codex output{' '}
+                        <strong>
+                          {selected.usage?.outputTokens?.toLocaleString() ?? 'Unavailable'}
+                        </strong>
+                      </span>
+                    </div>
+                    <p className="mission-hint">
+                      AGY token usage is not measured in this version. Model labels show requested
+                      models. Checks passing verifies only the configured checks.
+                    </p>
+                    <button
+                      className="mission-button"
+                      onClick={() =>
+                        void tauriBridge
+                          .workflowOpenArtifacts(selected.id)
+                          .catch((e) => setError(String(e)))
+                      }
+                    >
+                      <FolderOpen size={14} /> Open run artifacts
+                    </button>
+                  </>
+                )}
+              </div>
+            </>
+          )}
+          <section className="mission-history" aria-label="Run history">
+            <div className="mission-section-heading">
+              <h3>Project history</h3>
+              <span>{projectRuns.length} runs</span>
+            </div>
+            {projectRuns.length === 0 ? (
+              <p className="mission-hint">
+                Runs and briefs stay available after restarting CmdGUI.
+              </p>
+            ) : (
+              projectRuns.map((run) => (
                 <button
-                  onClick={() => handleStartWorkflow()}
-                  disabled={!prompt.trim()}
-                  style={{
-                    height: '48px',
-                    padding: '0 16px',
-                    borderRadius: '8px',
-                    background: prompt.trim()
-                      ? 'linear-gradient(135deg, var(--accent-primary), var(--accent-hover))'
-                      : 'var(--bg-surface-l3)',
-                    color: prompt.trim() ? '#fff' : 'var(--text-muted)',
-                    border: 'none',
-                    fontWeight: 600,
-                    fontSize: '12px',
-                    cursor: prompt.trim() ? 'pointer' : 'not-allowed',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    flexShrink: 0,
+                  key={run.id}
+                  className={`mission-history-row ${selected?.id === run.id ? 'selected' : ''}`}
+                  onClick={() => {
+                    if (!window.getSelection()?.toString()) setSelectedId(run.id);
                   }}
                 >
-                  <Send size={14} /> Send
+                  <span className={`mission-status ${run.status}`}>{statusLabels[run.status]}</span>
+                  <span>{run.options.prompt}</span>
+                  <time>{new Date(run.startedAt).toLocaleString()}</time>
                 </button>
-              </div>
-
-              {/* Mode toggles */}
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px 12px', marginTop: '8px', fontSize: '10px', color: 'var(--text-muted)' }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
-                  <input
-                    type="radio"
-                    name="dispatchMode"
-                    checked={dispatchMode === 'pipeline'}
-                    onChange={() => setDispatchMode('pipeline')}
-                  />
-                  Auto-Pipeline (agy ➔ codex)
-                </label>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
-                  <input
-                    type="radio"
-                    name="dispatchMode"
-                    checked={dispatchMode === 'agy-only'}
-                    onChange={() => setDispatchMode('agy-only')}
-                  />
-                  Antigravity Only
-                </label>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
-                  <input
-                    type="radio"
-                    name="dispatchMode"
-                    checked={dispatchMode === 'codex-only'}
-                    onChange={() => setDispatchMode('codex-only')}
-                  />
-                  Codex Only
-                </label>
-              </div>
-            </div>
-          </Panel>
-
-          <Separator className="pane-resizer-vertical" />
-
-          {/* ================= RIGHT PANE: DUAL LIVE TERMINALS ================= */}
-          <Panel defaultSize="68%" minSize="400px" style={{ height: '100%', background: 'var(--bg-canvas)' }}>
-            <Group orientation="vertical" style={{ width: '100%', height: '100%' }}>
-              {/* TOP RIGHT: ANTIGRAVITY (GEMINI) */}
-              {(activeRightTab === 'both' || activeRightTab === 'agy') && (
-                <Panel defaultSize="50%" minSize="20%" style={{ position: 'relative', display: 'flex', flexDirection: 'column', height: '100%' }}>
-                  <div
-                    style={{
-                      height: '28px',
-                      background: 'var(--bg-surface-l2)',
-                      borderBottom: '1px solid var(--border-color)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      padding: '0 12px',
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', fontWeight: 600, color: '#60a5fa' }}>
-                      <TermIcon size={12} /> ♊ Antigravity CLI (Gemini 3.8 Flash Context Engine)
-                    </div>
-                    <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Live Terminal (agy)</span>
-                  </div>
-
-                  <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
-                    <Terminal
-                      paneId="dual-studio-agy"
-                      cwd={cwd}
-                      initialCommand="agy"
-                      isActive={true}
-                      theme={terminalTheme}
-                      customTheme={customTheme}
-                      fontSize={terminalFontSize}
-                      scrollback={terminalScrollback}
-                      keymap={keymap}
-                      isGPUAccelerationEnabled={isGPUAccelerationEnabled}
-                      terminalRendererType={terminalRendererType}
-                      isYoloModeEnabled={isYoloModeEnabled}
-                      showPaneControls={false}
-                    />
-                  </div>
-                </Panel>
-              )}
-
-              {activeRightTab === 'both' && <Separator className="pane-resizer-horizontal" />}
-
-              {/* BOTTOM RIGHT: OPENAI CODEX (GPT 6.1 SOL) */}
-              {(activeRightTab === 'both' || activeRightTab === 'codex') && (
-                <Panel defaultSize="50%" minSize="20%" style={{ position: 'relative', display: 'flex', flexDirection: 'column', height: '100%' }}>
-                  <div
-                    style={{
-                      height: '28px',
-                      background: 'var(--bg-surface-l2)',
-                      borderBottom: '1px solid var(--border-color)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      padding: '0 12px',
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', fontWeight: 600, color: '#34d399' }}>
-                      <TermIcon size={12} /> 🟢 OpenAI Codex CLI (GPT 6.1 Sol Reasoning Engine)
-                    </div>
-                    <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Live Terminal (codex)</span>
-                  </div>
-
-                  <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
-                    <Terminal
-                      paneId="dual-studio-codex"
-                      cwd={cwd}
-                      initialCommand="codex"
-                      isActive={true}
-                      theme={terminalTheme}
-                      customTheme={customTheme}
-                      fontSize={terminalFontSize}
-                      scrollback={terminalScrollback}
-                      keymap={keymap}
-                      isGPUAccelerationEnabled={isGPUAccelerationEnabled}
-                      terminalRendererType={terminalRendererType}
-                      isYoloModeEnabled={isYoloModeEnabled}
-                      showPaneControls={false}
-                    />
-                  </div>
-                </Panel>
-              )}
-            </Group>
-          </Panel>
-        </Group>
+              ))
+            )}
+          </section>
+        </main>
       </div>
-    </div>
+    </section>
   );
 };
+
+function normalizePath(path: string) {
+  return path
+    .replace(/^\\\\\?\\/, '')
+    .replace(/\\/g, '/')
+    .replace(/\/$/, '')
+    .toLowerCase();
+}
 
 export default DualBrainStudio;

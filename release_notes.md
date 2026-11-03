@@ -1,3 +1,17 @@
+## 🚀 Release: CmdGUI v2.6.0
+
+### Mission Control, Codex Session Continuation & Text Copying
+
+- Replaced terminal-injected handoffs with a native AGY → Codex → validation pipeline. Codex starts only after AGY exits, its structured brief validates, and the project fingerprint still matches.
+- Added direct Codex and AGY investigation routes, task-specific model and reasoning preferences, live model catalogs, timeouts, cancellation, persistent history, and recorded Codex token usage.
+- Added a project-scoped Codex session picker. Review and edit a bounded excerpt of recent visible messages for AGY, then resume the original Codex thread or start a fresh thread from the excerpt. Session browsing does not run inference.
+- Added selectable Mission Control output, briefs, results and history, plus Copy buttons that prefer selected text. Terminal Ctrl+C, Ctrl+Shift+C and context-menu Copy use the native clipboard and preserve the highlight; Ctrl+C without a selection still interrupts the terminal process.
+- Added a responsive Mission Control layout, automatic npm check suggestions, and statuses based on real worker exits and validation results.
+- Isolated development app identity and settings from the installed release, fixed duplicate-launch recovery ordering, and corrected `start.bat` working-directory handling.
+- Production builds retain the existing app identity and local workspace settings, so this update can be installed over the previous release for testing with existing projects.
+
+---
+
 ## 🚀 Release: CmdGUI v2.5.2
 
 ### 📐 Dual-Brain Studio Layout Stabilization, Resizer Hit Target Expansion & TitleBar Guard

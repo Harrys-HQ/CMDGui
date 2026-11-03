@@ -15,6 +15,7 @@ import {
   sanitizeLinkTarget,
 } from '../utils/terminalUtils';
 import { detectYoloPrompt, stripAnsi } from '../utils/yoloEngine';
+import { copyText } from '../utils/clipboard';
 
 interface TerminalProps {
   paneId: string;
@@ -624,8 +625,7 @@ const Terminal: React.FC<TerminalProps> = ({
         e.preventDefault();
         const selection = term.getSelection();
         if (selection) {
-          navigator.clipboard.writeText(selection);
-          term.clearSelection();
+          void copyText(selection).catch((error) => console.error('Clipboard copy failed:', error));
         }
         return false;
       }
@@ -635,8 +635,7 @@ const Terminal: React.FC<TerminalProps> = ({
         const selection = term.getSelection();
         if (selection && selection.length > 0) {
           e.preventDefault();
-          navigator.clipboard.writeText(selection);
-          term.clearSelection();
+          void copyText(selection).catch((error) => console.error('Clipboard copy failed:', error));
           return false;
         }
         return true;
@@ -1177,8 +1176,7 @@ const Terminal: React.FC<TerminalProps> = ({
         case 'copy': {
           const selection = term.getSelection();
           if (selection) {
-            navigator.clipboard.writeText(selection);
-            term.clearSelection();
+            void copyText(selection).catch((error) => console.error('Clipboard copy failed:', error));
           }
           break;
         }
