@@ -1,6 +1,7 @@
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { useTabs } from './useTabs';
+import { loadState } from './usePersistence';
 import { ElectronAPI } from '../types';
 
 // Mock localStorage persistence to avoid side effects
@@ -27,6 +28,38 @@ describe('useTabs Hook', () => {
     await waitFor(() => expect(result.current.tabs).toHaveLength(1));
     expect(result.current.tabs[0].title).toBe('Terminal');
     expect(result.current.activeTabId).toBe(result.current.tabs[0].id);
+  });
+
+  it('keeps restored background terminals deferred until their views open', async () => {
+    const restored = ['first', 'second', 'third'].map((id) => ({
+      id,
+      title: id,
+      layout: { type: 'terminal', paneId: id },
+      panes: { [id]: { id, initialCommand: 'git status' } },
+    }));
+    vi.mocked(loadState)
+      .mockResolvedValueOnce(restored)
+      .mockResolvedValueOnce('first')
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce(null);
+    const { result } = renderHook(() => useTabs());
+    await waitFor(() => expect(result.current.isLoaded).toBe(true));
+    expect(result.current.tabs).toHaveLength(3);
+    expect(result.current.activeTabId).toBe('first');
+    act(() => result.current.markTerminalTabOpened('first'));
+    expect(result.current.deferredTabIds).toEqual(new Set(['second', 'third']));
+
+    act(() => {
+      result.current.setActiveTabId('second');
+      result.current.markTerminalTabOpened('second');
+      result.current.setActiveTabId('first');
+    });
+    expect(result.current.deferredTabIds).toEqual(new Set(['third']));
+    expect(result.current.tabs[1].panes.second.initialCommand).toBe('git status');
+
+    act(() => result.current.closeTab('third'));
+    expect(result.current.deferredTabIds.size).toBe(0);
+    expect(result.current.tabs.map((tab) => tab.id)).toEqual(['first', 'second']);
   });
 
   it('should add a new tab', async () => {
@@ -179,6 +212,7 @@ describe('useTabs Hook', () => {
       // Pane ID must be regenerated and not match the old killed ID
       expect(loadedPaneId).not.toBe(originalPaneId);
       expect(result.current.tabs).toHaveLength(1);
+      expect(result.current.deferredTabIds.has(result.current.tabs[0].id)).toBe(true);
     });
   });
 });

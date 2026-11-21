@@ -14,9 +14,4 @@ describe('StatusBar', () => {
     expect(screen.getByText('My Project')).toBeInTheDocument();
   });
 
-  it('renders RAM footprint and active tab title', () => {
-    render(<StatusBar status="Ready" activeTabTitle="Tab 1" tabCount={5} />);
-    expect(screen.getByText('⚡ RAM: ~140MB')).toBeInTheDocument();
-    expect(screen.getByText('Tab 1')).toBeInTheDocument();
-  });
 });

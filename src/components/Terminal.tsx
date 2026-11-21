@@ -1,3 +1,6 @@
+import { createPromptResponder } from './terminal/promptResponder';
+import TerminalSearch from './terminal/TerminalSearch';
+import { registerTerminalLinks } from './terminal/terminalLinks';
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Terminal as Xterm } from 'xterm';
 import { FitAddon } from 'xterm-addon-fit';
@@ -11,11 +14,18 @@ import {
   globalPtyRegistry,
   isPaneKilled,
   cleanupKilledPane,
-  extractTerminalLinks,
   sanitizeLinkTarget,
 } from '../utils/terminalUtils';
-import { detectYoloPrompt, stripAnsi } from '../utils/yoloEngine';
+import { stripAnsi } from '../utils/yoloEngine';
 import { copyText } from '../utils/clipboard';
+import { createTerminalDropHandler } from './terminal/terminalDrop';
+
+type TerminalWithCore = Xterm & {
+  _core?: {
+    _renderService?: { dimensions: { css: { cell: { width: number; height: number } } } };
+    viewport?: { scrollBarWidth: number };
+  };
+};
 
 interface TerminalProps {
   paneId: string;
@@ -109,6 +119,8 @@ const Terminal: React.FC<TerminalProps> = ({
   isYoloModeEnabled = false,
 }) => {
   const terminalRef = useRef<HTMLDivElement>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const dropHandlerRef = useRef<ReturnType<typeof createTerminalDropHandler> | null>(null);
   const xtermRef = useRef<Xterm | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
   const searchAddonRef = useRef<SearchAddon | null>(null);
@@ -130,8 +142,6 @@ const Terminal: React.FC<TerminalProps> = ({
       }
     };
   }, [isActive, paneId]);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchOptions, setSearchOptions] = useState({ caseSensitive: false, wholeWord: false });
   const dataBuffer = useRef<string[]>([]);
   const writeBuffer = useRef<string>('');
   const isDirtyRef = useRef(false);
@@ -154,18 +164,14 @@ const Terminal: React.FC<TerminalProps> = ({
 
   const envVarsString = JSON.stringify(envVars);
 
-  const fitTimeoutRef = useRef<any>(null);
+  const fitTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isSettingUpRef = useRef(false);
   const writeRafId = useRef<number | null>(null);
-  const rollingPtyBufferRef = useRef<string>('');
-  const lastAutoResponseTimeRef = useRef<number>(0);
-  const lastAutoRespondedPromptRef = useRef<string>('');
-  const rendererAddonRef = useRef<any>(null);
-  const yoloAutoResponseTimerRef = useRef<any>(null);
+  const rendererAddonRef = useRef<WebglAddon | CanvasAddon | null>(null);
   const pendingInitialCommandRef = useRef<string | null>(
     globalPtyRegistry[paneId] ? null : initialCommand || null
   );
-  const initialCommandTimeoutRef = useRef<any>(null);
+  const initialCommandTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const keymapRef = useRef<Keymap>(keymap);
 
   useEffect(() => {
@@ -274,7 +280,7 @@ const Terminal: React.FC<TerminalProps> = ({
     fitTimeoutRef.current = setTimeout(() => {
       if (!xtermRef.current || !isActiveRef.current) return;
       try {
-        const core = (xtermRef.current as any)._core;
+        const core = (xtermRef.current as TerminalWithCore)._core;
         const dims = core?._renderService?.dimensions;
         
         let newCols: number | undefined;
@@ -414,184 +420,7 @@ const Terminal: React.FC<TerminalProps> = ({
       return false;
     });
 
-    // Helper to get full wrapped line range and text around bufferLineNumber
-    // Helper to get full wrapped line range and text around bufferLineNumber
-    const getWrappedLineText = (lineNum: number) => {
-      const buffer = term.buffer.active;
-      let startLineIdx = lineNum - 1;
-
-      // In xterm.js, line.isWrapped is TRUE on line N if line N is a continuation of line N-1.
-      while (startLineIdx > 0 && buffer.getLine(startLineIdx)?.isWrapped) {
-        startLineIdx--;
-      }
-
-      let endLineIdx = lineNum - 1;
-      while (endLineIdx + 1 < buffer.length && buffer.getLine(endLineIdx + 1)?.isWrapped) {
-        endLineIdx++;
-      }
-
-      let fullText = '';
-      const lineOffsets: { lineIdx: number; startChar: number; length: number }[] = [];
-      for (let i = startLineIdx; i <= endLineIdx; i++) {
-        const l = buffer.getLine(i);
-        if (l) {
-          // translateToString(true) trims trailing whitespace from each terminal row
-          const text = l.translateToString(true).replace(/[\r\n]+/g, '');
-          lineOffsets.push({ lineIdx: i, startChar: fullText.length, length: text.length });
-          fullText += text;
-        }
-      }
-
-      return { startLineIdx, endLineIdx, fullText, lineOffsets };
-    };
-
-    // Convert character offset in fullText to { x, y } xterm 1-indexed coordinates
-    const getCharPosition = (charIdx: number, lineOffsets: { lineIdx: number; startChar: number; length: number }[]) => {
-      for (let i = 0; i < lineOffsets.length; i++) {
-        const line = lineOffsets[i];
-        const nextStart = i + 1 < lineOffsets.length ? lineOffsets[i + 1].startChar : Infinity;
-        if (charIdx >= line.startChar && charIdx < nextStart) {
-          const localCol = charIdx - line.startChar;
-          return { x: localCol + 1, y: line.lineIdx + 1 };
-        }
-      }
-      const last = lineOffsets[lineOffsets.length - 1];
-      return { x: last.length + 1, y: last.lineIdx + 1 };
-    };
-
-    // Helper to safely activate any web URL, file URI, or local path
-    const handleLinkActivation = (target: string) => {
-      const sanitized = sanitizeLinkTarget(target);
-      if (sanitized.type === 'external') {
-        if (window.electron && window.electron.openExternal) {
-          window.electron.openExternal(sanitized.path);
-        }
-      } else {
-        if (window.electron && window.electron.openLocalPath) {
-          window.electron.openLocalPath(sanitized.path);
-        }
-      }
-    };
-
-    // 1. Register a provider for Markdown links, URLs, file URLs, tilde paths, and Windows paths across wrapped lines
-    term.registerLinkProvider({
-      provideLinks(bufferLineNumber, callback) {
-        const lineIdx = bufferLineNumber - 1;
-        const { fullText, lineOffsets } = getWrappedLineText(bufferLineNumber);
-        const extracted = extractTerminalLinks(fullText);
-        const links: any[] = [];
-
-        for (const item of extracted) {
-          const startPos = getCharPosition(item.start, lineOffsets);
-          const endPos = getCharPosition(item.end - 1, lineOffsets);
-
-          if (lineIdx >= startPos.y - 1 && lineIdx <= endPos.y - 1) {
-            let segStartX = 1;
-            let segEndX = term.cols;
-
-            if (lineIdx === startPos.y - 1) {
-              segStartX = startPos.x;
-            }
-            if (lineIdx === endPos.y - 1) {
-              segEndX = endPos.x;
-            }
-
-            links.push({
-              text: item.target,
-              range: {
-                start: { x: segStartX, y: bufferLineNumber },
-                end: { x: segEndX, y: bufferLineNumber },
-              },
-              activate() {
-                handleLinkActivation(item.target);
-              },
-            });
-          }
-        }
-
-        callback(links.length > 0 ? links : undefined);
-      },
-    });
-
-    // 2. Register an asynchronous provider for active workspace relative files across wrapped lines
-    term.registerLinkProvider({
-      provideLinks(bufferLineNumber, callback) {
-        const lineIdx = bufferLineNumber - 1;
-        const { fullText, lineOffsets } = getWrappedLineText(bufferLineNumber);
-        const links: any[] = [];
-
-        // Match possible relative paths: e.g. src/App.tsx, package.json, CmdGUI_2.1.1_x64-setup.exe, setup.exe
-        const relativePathRegex = /(?:[a-zA-Z0-9_.\-/\\]+)\.(?:exe|msi|bat|cmd|ps1|tsx|ts|jsx|js|json|md|txt|log|png|jpg|css|html)/gi;
-        const relativeMatches: { text: string; matchStart: number }[] = [];
-        let match;
-        while ((match = relativePathRegex.exec(fullText)) !== null) {
-          let matchedStr = match[0];
-          const matchStart = match.index;
-          
-          // Avoid duplicate matching if it has file:/// prefix or C:\ prefix or ~ prefix
-          const prevStr = fullText.substring(Math.max(0, matchStart - 8), matchStart);
-          if (prevStr.includes('file:///')) {
-            continue;
-          }
-          if (/[a-zA-Z]:\\/.test(fullText.substring(Math.max(0, matchStart - 3), matchStart + 3))) {
-            continue;
-          }
-          if (matchedStr.startsWith('file:///') || /^[a-zA-Z]:[/\\]/.test(matchedStr) || matchedStr.startsWith('~')) {
-            continue;
-          }
-          
-          matchedStr = matchedStr.replace(/[)\].,;:]+$/, '');
-          relativeMatches.push({ text: matchedStr, matchStart });
-        }
-
-        const currentCwd = activeCwdRef.current;
-        if (currentCwd && relativeMatches.length > 0) {
-          const promises = relativeMatches.map(async (m) => {
-            const separator = currentCwd.includes('/') ? '/' : '\\';
-            const cleanRel = m.text.replace(/[/\\]/g, separator);
-            const fullPath = `${currentCwd}${separator}${cleanRel}`;
-            
-            try {
-              const info = await window.electron.getProjectInfo(fullPath);
-              if (info) {
-                const matchStart = m.matchStart;
-                const matchEnd = matchStart + m.text.length;
-                const startPos = getCharPosition(matchStart, lineOffsets);
-                const endPos = getCharPosition(matchEnd - 1, lineOffsets);
-
-                if (lineIdx >= startPos.y - 1 && lineIdx <= endPos.y - 1) {
-                  let segStartX = 1;
-                  let segEndX = term.cols;
-                  if (lineIdx === startPos.y - 1) segStartX = startPos.x;
-                  if (lineIdx === endPos.y - 1) segEndX = endPos.x;
-
-                  links.push({
-                    text: fullPath,
-                    range: {
-                      start: { x: segStartX, y: bufferLineNumber },
-                      end: { x: segEndX, y: bufferLineNumber }
-                    },
-                    activate() {
-                      if (window.electron && window.electron.openLocalPath) {
-                        window.electron.openLocalPath(fullPath);
-                      }
-                    }
-                  });
-                }
-              }
-            } catch {
-              // Ignore folder check failure
-            }
-          });
-          
-          Promise.all(promises).then(() => {
-            callback(links.length > 0 ? links : undefined);
-          });
-        } else {
-          callback(undefined);
-        }
-      }
-    });
+    registerTerminalLinks(term, () => activeCwdRef.current);
 
     xtermRef.current = term;
     fitAddonRef.current = fitAddon;
@@ -727,6 +556,12 @@ const Terminal: React.FC<TerminalProps> = ({
       });
 
     let isUnmounted = false;
+    const promptResponder = createPromptResponder({
+      isEnabled: () => isYoloModeRef.current,
+      isActive: () => isActiveRef.current,
+      getPid: () => pidRef.current,
+      notify: type => onNotificationRef.current?.(type),
+    });
     const setupPty = async () => {
       if (isSettingUpRef.current) return;
       isSettingUpRef.current = true;
@@ -754,7 +589,7 @@ const Terminal: React.FC<TerminalProps> = ({
         let initRows = term.rows || 24;
         if (term.element && terminalRef.current) {
           try {
-            const core = (term as any)._core;
+            const core = (term as TerminalWithCore)._core;
             const dims = core?._renderService?.dimensions;
             if (dims && dims.css.cell.width > 0 && dims.css.cell.height > 0) {
               const scrollBarWidth = term.options.scrollback === 0 ? 0 : (core.viewport?.scrollBarWidth || 12);
@@ -848,63 +683,12 @@ const Terminal: React.FC<TerminalProps> = ({
           }
         }
 
-        // Maintain rolling recent PTY output buffer for robust prompt detection
-        rollingPtyBufferRef.current = (rollingPtyBufferRef.current + data).slice(-4096);
-
-        // Cancel any pending automated response because the CLI is still actively outputting data
-        if (yoloAutoResponseTimerRef.current) {
-          clearTimeout(yoloAutoResponseTimerRef.current);
-          yoloAutoResponseTimerRef.current = null;
-        }
-
-        const promptMatch = detectYoloPrompt(rollingPtyBufferRef.current);
-
-        if (promptMatch && onNotificationRef.current) {
-          const { isDestructive, matchedPattern } = promptMatch;
-          const now = Date.now();
-          const isDuplicateTrigger =
-            now - lastAutoResponseTimeRef.current < 1500 &&
-            lastAutoRespondedPromptRef.current === matchedPattern;
-
-          if (isYoloModeRef.current && pidRef.current !== null && !isDuplicateTrigger) {
-            if (isDestructive) {
-              console.warn('[YOLO Guardrail] Automated approval blocked due to destructive command pattern match.');
-              onNotificationRef.current('confirmation');
-            } else {
-              // Wait for output quiescence (500ms of output silence) so the CLI finishes streaming its prompt
-              yoloAutoResponseTimerRef.current = setTimeout(() => {
-                if (!isUnmounted && pidRef.current !== null) {
-                  const finalMatch = detectYoloPrompt(rollingPtyBufferRef.current);
-                  if (finalMatch && !finalMatch.isDestructive) {
-                    lastAutoResponseTimeRef.current = Date.now();
-                    lastAutoRespondedPromptRef.current = finalMatch.matchedPattern;
-                    rollingPtyBufferRef.current = '';
-                    window.electron.writeTerminal(pidRef.current, finalMatch.responseKey);
-                  }
-                }
-                yoloAutoResponseTimerRef.current = null;
-              }, 500);
-            }
-          } else if (!isYoloModeRef.current || isDestructive) {
-            // Standard confirmation notification when YOLO is disabled or destructive command requires manual review
-            onNotificationRef.current('confirmation');
-          }
-        }
-
-        if (!isActiveRef.current && onNotificationRef.current) {
-          const cleanTail = stripAnsi(rollingPtyBufferRef.current).toLowerCase().slice(-500);
-          const patterns = ['password', 'sudo', 'confirm', 'error:', 'failed', 'exception', '[y/n]', 'proceed?', 'are you sure', 'requesting permission'];
-          const match = patterns.find((p) => cleanTail.includes(p));
-          if (match) {
-            if (['password', 'sudo', 'confirm', '[y/n]', 'proceed?', 'are you sure', 'requesting permission'].includes(match))
-              onNotificationRef.current('confirmation');
-            else onNotificationRef.current('alert');
-          }
-        }
+        promptResponder.handleOutput(data);
       });
 
       const cleanupExit = window.electron.onTerminalExit(pid, () => {
         if (isUnmounted) return;
+        promptResponder.dispose();
         if (term.element) term.write('\r\n\x1b[31mTerminal exited.\x1b[0m\r\n');
         if (onExitRef.current) onExitRef.current();
         delete globalPtyRegistry[paneId];
@@ -962,7 +746,7 @@ const Terminal: React.FC<TerminalProps> = ({
     return () => {
       isUnmounted = true;
       if (fitTimeoutRef.current) clearTimeout(fitTimeoutRef.current);
-      if (yoloAutoResponseTimerRef.current) clearTimeout(yoloAutoResponseTimerRef.current);
+      promptResponder.dispose();
       if (initialCommandTimeoutRef.current) clearTimeout(initialCommandTimeoutRef.current);
       window.removeEventListener('resize', handleResize);
       window.removeEventListener('focus', handleFocus);
@@ -993,7 +777,7 @@ const Terminal: React.FC<TerminalProps> = ({
 
   useEffect(() => {
     let rafId: number;
-    let timerId: any;
+    let timerId: ReturnType<typeof setTimeout>;
     if (isActive && terminalRef.current && xtermRef.current) {
       rafId = requestAnimationFrame(() => {
         const el = terminalRef.current;
@@ -1210,41 +994,36 @@ const Terminal: React.FC<TerminalProps> = ({
   }, [onSplitHorizontal, onSplitVertical, paneId]);
 
   useEffect(() => {
-    if (!window.electron?.onFileDrop) return;
-    const cleanup = window.electron.onFileDrop((paths, position) => {
+    const dropHandler = createTerminalDropHandler((text) => {
       if (!isActiveRef.current || !xtermRef.current) return;
-      // In a split layout, if another pane in this tab is specifically focused, let that pane handle it
-      if (activeFocusedPaneId && activeFocusedPaneId !== paneId) {
+      activeFocusedPaneId = paneId;
+      xtermRef.current.focus();
+      xtermRef.current.paste(text);
+    });
+    dropHandlerRef.current = dropHandler;
+    const cleanup = window.electron?.onFileDrop?.((paths, position) => {
+      if (!isActiveRef.current || !wrapperRef.current) return;
+      if (position) {
+        const target = document.elementFromPoint(position.x, position.y)?.closest('.terminal-wrapper');
+        if (target !== wrapperRef.current) return;
+      } else if (activeFocusedPaneId) {
+        if (activeFocusedPaneId !== paneId) return;
+      } else if (document.querySelector('.terminal-wrapper.active') !== wrapperRef.current) {
         return;
       }
-      // If position was over the sidebar, allow App/sidebar handler to take priority
-      if (position) {
-        const sidebarEl = document.querySelector('.sidebar');
-        if (sidebarEl) {
-          const rect = sidebarEl.getBoundingClientRect();
-          if (position.x <= rect.right) return;
-        }
-        // If position was over top header (TitleBar / TopTabBar / Breadcrumbs), let App tab-opener handler take priority
-        const termContainerEl = document.querySelector('.terminal-container');
-        if (termContainerEl) {
-          const termRect = termContainerEl.getBoundingClientRect();
-          if (position.y < termRect.top) return;
-        }
-      }
-      const formatted = paths
-        .map((p) => (p.includes(' ') ? `"${p}"` : p))
-        .join(' ');
-      if (formatted) {
-        xtermRef.current.focus();
-        xtermRef.current.paste(formatted + ' ');
-      }
+      dropHandler.file(paths);
     });
 
-    return cleanup;
+    return () => {
+      cleanup?.();
+      dropHandler.dispose();
+      dropHandlerRef.current = null;
+    };
   }, [paneId]);
 
   return (
     <div
+      ref={wrapperRef}
       className={`terminal-wrapper ${isActive ? 'active' : ''} ${isAdmin ? 'admin-session' : ''} ${isYoloModeEnabled ? 'yolo-active' : ''} ${isDragOver ? 'drag-over-active' : ''}`}
       style={{ width: '100%', height: '100%', position: 'relative' }}
       onContextMenu={handleContextMenu}
@@ -1259,12 +1038,7 @@ const Terminal: React.FC<TerminalProps> = ({
       onDrop={(e) => {
         e.preventDefault();
         setIsDragOver(false);
-        const text = e.dataTransfer.getData('text/plain');
-        const hasFiles = e.dataTransfer.types && Array.from(e.dataTransfer.types).includes('Files');
-        if (text && !hasFiles && xtermRef.current) {
-          xtermRef.current.focus();
-          xtermRef.current.paste(text);
-        }
+        dropHandlerRef.current?.text(e.dataTransfer);
       }}
       onClick={() => {
         activeFocusedPaneId = paneId;
@@ -1379,71 +1153,10 @@ const Terminal: React.FC<TerminalProps> = ({
           </div>
         )}
       </div>
-      {isSearchOpen && (
-        <div className="terminal-search-bar" onClick={(e) => e.stopPropagation()}>
-          <input
-            autoFocus
-            type="text"
-            placeholder="Search..."
-            value={searchQuery}
-            onChange={(e) => {
-              setSearchQuery(e.target.value);
-              searchAddonRef.current?.findNext(e.target.value, searchOptions);
-            }}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                if (e.shiftKey) {
-                  searchAddonRef.current?.findPrevious(searchQuery, searchOptions);
-                } else {
-                  searchAddonRef.current?.findNext(searchQuery, searchOptions);
-                }
-              }
-              if (e.key === 'Escape') {
-                setIsSearchOpen(false);
-                xtermRef.current?.focus();
-              }
-            }}
-          />
-          <button
-            title="Case Sensitive"
-            className={searchOptions.caseSensitive ? 'active-search-opt' : ''}
-            onClick={() => {
-              const newOpts = { ...searchOptions, caseSensitive: !searchOptions.caseSensitive };
-              setSearchOptions(newOpts);
-              searchAddonRef.current?.findNext(searchQuery, newOpts);
-            }}
-            style={{
-              fontSize: '10px',
-              padding: '2px 4px',
-              border: searchOptions.caseSensitive ? '1px solid var(--accent-primary)' : 'none',
-            }}
-          >
-            Aa
-          </button>
-          <div style={{ width: '1px', height: '16px', background: '#444' }} />
-          <button
-            onClick={() => searchAddonRef.current?.findPrevious(searchQuery, searchOptions)}
-            title="Previous Match (Shift+Enter)"
-          >
-            ↑
-          </button>
-          <button
-            onClick={() => searchAddonRef.current?.findNext(searchQuery, searchOptions)}
-            title="Next Match (Enter)"
-          >
-            ↓
-          </button>
-          <button
-            onClick={() => {
-              setIsSearchOpen(false);
-              xtermRef.current?.focus();
-            }}
-            title="Close"
-          >
-            ×
-          </button>
-        </div>
-      )}
+      {isSearchOpen && <TerminalSearch searchAddon={searchAddonRef.current} onClose={() => {
+        setIsSearchOpen(false);
+        xtermRef.current?.focus();
+      }} />}
       <div
         ref={terminalRef}
         style={{

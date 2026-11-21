@@ -33,6 +33,7 @@ export interface Project {
   gitBranch?: string;
   gitDirty?: boolean;
   gitFiles?: string[];
+  metadataVersion?: string;
 }
 
 export interface ActivePort {
@@ -48,6 +49,14 @@ export interface ProjectDetails {
   gitBranch: string | null;
   gitDirty: boolean;
   gitFiles: string[];
+}
+
+export interface ProjectUpdate {
+  gitBranch: string | null;
+  gitDirty: boolean;
+  gitFiles: string[];
+  metadata: Pick<ProjectDetails, 'type' | 'scripts' | 'envVars'> | null;
+  metadataVersion: string;
 }
 
 export interface Workspace {
@@ -142,6 +151,7 @@ export interface ElectronAPI {
   selectFolder: () => Promise<string | null>;
   getProjectInfo: (path: string) => Promise<string>;
   getProjectDetails: (path: string) => Promise<ProjectDetails>;
+  getProjectUpdate: (path: string, previousMetadataVersion?: string) => Promise<ProjectUpdate>;
   gitStageAll: (projectPath: string) => Promise<string>;
   gitCommit: (projectPath: string, message: string) => Promise<string>;
   gitPull: (projectPath: string) => Promise<string>;
@@ -174,7 +184,9 @@ export interface ElectronAPI {
     projectsCount?: number;
   }) => void;
   settingsGet: <T>(key: string) => Promise<T | null>;
+  settingsGetMany: (keys: string[]) => Promise<Record<string, unknown>>;
   settingsSet: (key: string, value: unknown) => Promise<void>;
+  settingsSetMany: (changes: Record<string, unknown>) => Promise<void>;
 
   // File Operations
   fileCreate: (path: string) => Promise<{ success: boolean; error?: string }>;

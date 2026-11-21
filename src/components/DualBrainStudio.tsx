@@ -1,7 +1,15 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ArrowRight, Bot, CheckCircle2, FolderOpen, Play, Square, X } from 'lucide-react';
 import { tauriBridge } from '../tauriBridge';
-import { resolveRoute, taskProfiles, TaskType, WorkflowMode, WorkflowRun } from '../workflows';
+import {
+  resolveRoute,
+  taskProfiles,
+  TaskType,
+  WorkflowCheckpoint,
+  WorkflowMode,
+  WorkflowRun,
+  WorkflowSummary,
+} from '../workflows';
 import { TerminalRendererType, TerminalTheme } from '../types';
 import { Keymap } from '../hooks/useKeybindings';
 import './DualBrainStudio.css';
@@ -29,9 +37,11 @@ interface Preferences {
   checks: string;
   timeoutMinutes: number;
   models: Record<TaskType, Models>;
+  yoloMode: boolean;
 }
 
-const defaults = (): Preferences => ({
+const defaults = (yoloMode = false): Preferences => ({
+  yoloMode,
   taskType: 'discovery',
   override: 'auto',
   checks: '',
@@ -55,45 +65,60 @@ const statusLabels: Record<WorkflowRun['status'], string> = {
   failed: 'Failed',
   cancelled: 'Cancelled',
   interrupted: 'Interrupted',
-  'needs-review': 'Needs validation',
+  'needs-review': 'Needs review',
 };
 
 const routeLabels = {
   pipeline: 'AGY → Codex → Checks',
   'codex-only': 'Codex → Checks',
   'agy-only': 'AGY → Brief',
+  'copilot-pipeline': 'Copilot → Codex → Checks',
 };
 
-const DualBrainStudio: React.FC<DualBrainStudioProps> = ({ cwd, initialPrompt = '', onClose }) => {
-  const [preferences, setPreferences] = useState<Preferences>(defaults);
+const DualBrainStudio: React.FC<DualBrainStudioProps> = ({
+  cwd,
+  initialPrompt = '',
+  onClose,
+  isYoloModeEnabled = false,
+}) => {
+  const [preferences, setPreferences] = useState<Preferences>(() => defaults(isYoloModeEnabled));
   const [loaded, setLoaded] = useState(false);
   const [prompt, setPrompt] = useState(initialPrompt);
   const [catalogs, setCatalogs] = useState<
     Record<string, { id: string; label: string; efforts: string[] }[]>
   >({});
   const [loadingCatalog, setLoadingCatalog] = useState<string | null>(null);
-  const [runs, setRuns] = useState<WorkflowRun[]>([]);
+  const [projectRuns, setProjectRuns] = useState<WorkflowSummary[]>([]);
+  const [active, setActive] = useState<WorkflowSummary | null>(null);
+  const [selected, setSelected] = useState<WorkflowRun | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [compactPanel, setCompactPanel] = useState<'task' | 'run'>('task');
   const [pending, setPending] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [error, setError] = useState('');
   const [view, setView] = useState<'summary' | 'brief' | 'output'>('summary');
   const [sessionSelection, setSessionSelection] = useState<SessionSelection | null>(null);
   const [sessionLoading, setSessionLoading] = useState(false);
+  const [handoff, setHandoff] = useState('');
+  const [checkpoint, setCheckpoint] = useState<WorkflowCheckpoint | null>(null);
+  const [checkpointSession, setCheckpointSession] = useState<string | null>(null);
+  const [resumeCheckpoint, setResumeCheckpoint] = useState(false);
+  const [loadingCheckpoint, setLoadingCheckpoint] = useState(false);
+  const checkpointRequest = useRef(0);
   const detailRef = useRef<HTMLDivElement>(null);
   const starting = useRef(false);
   const outputRef = useRef<HTMLPreElement>(null);
   const route = resolveRoute(preferences.taskType, preferences.override);
+  const usesAgy = route.mode === 'pipeline' || route.mode === 'agy-only';
   const models = preferences.models[preferences.taskType];
   const supportedEfforts = catalogs.codex
     ?.find((m) => m.id === models.codexModel)
     ?.efforts.filter((e) => ['low', 'medium', 'high', 'xhigh'].includes(e));
-  const active = runs.find((r) => r.status === 'running');
-  const projectRuns = runs.filter((r) => normalizePath(r.options.cwd) === normalizePath(cwd || ''));
-  const selected =
-    runs.find((r) => r.id === selectedId) ||
-    projectRuns.find((r) => r.status === 'running') ||
-    projectRuns[0];
+  const projectName =
+    cwd
+      ?.replace(/[\\/]$/, '')
+      .split(/[\\/]/)
+      .pop() || 'Select a project';
 
   useEffect(() => {
     setPrompt(initialPrompt);
@@ -114,14 +139,23 @@ const DualBrainStudio: React.FC<DualBrainStudioProps> = ({ cwd, initialPrompt = 
 
   useEffect(() => {
     let disposed = false;
+    const pendingCheckpoint = checkpointRequest;
     setLoaded(false);
     setError('');
     setSelectedId(null);
+    setSelected(null);
+    setProjectRuns([]);
+    setCompactPanel('task');
     setSessionSelection(null);
+    setHandoff('');
+    setCheckpoint(null);
+    setCheckpointSession(null);
+    setResumeCheckpoint(false);
+    setLoadingCheckpoint(false);
     const load = async () => {
       try {
         const saved = await tauriBridge.settingsGet<Preferences>(`workflow:${cwd}`);
-        let next = defaults();
+        let next = defaults(isYoloModeEnabled);
         if (saved && saved.taskType in taskProfiles) {
           next = {
             ...next,
@@ -147,7 +181,7 @@ const DualBrainStudio: React.FC<DualBrainStudioProps> = ({ cwd, initialPrompt = 
         if (!disposed) setPreferences(next);
       } catch (e) {
         if (!disposed) {
-          setPreferences(defaults());
+          setPreferences(defaults(isYoloModeEnabled));
           setError(`Could not load project preferences: ${String(e)}`);
         }
       } finally {
@@ -157,27 +191,35 @@ const DualBrainStudio: React.FC<DualBrainStudioProps> = ({ cwd, initialPrompt = 
     void load();
     return () => {
       disposed = true;
+      pendingCheckpoint.current++;
     };
-  }, [cwd]);
+  }, [cwd, isYoloModeEnabled]);
 
   useEffect(() => {
     let disposed = false;
     let timer: ReturnType<typeof setTimeout>;
-    const refresh = async () => {
+    const refresh = async (includeHistory: boolean) => {
       try {
-        const result = await tauriBridge.workflowList();
-        if (!disposed) setRuns(result);
+        const result = await tauriBridge.workflowList(cwd, selectedId, includeHistory);
+        if (disposed) return;
+        if (result.history) setProjectRuns(result.history);
+        if (result.selected || includeHistory) setSelected(result.selected);
+        setActive(result.active);
+        if (result.active) timer = setTimeout(() => void refresh(false), 1000);
+        else if (!includeHistory) void refresh(true);
       } catch (e) {
-        if (!disposed) setError(`Cannot read workflows: ${String(e)}`);
+        if (!disposed) {
+          setError(`Cannot read workflows: ${String(e)}`);
+          if (!includeHistory) timer = setTimeout(() => void refresh(false), 1000);
+        }
       }
-      if (!disposed) timer = setTimeout(refresh, 1000);
     };
-    void refresh();
+    void refresh(true);
     return () => {
       disposed = true;
       clearTimeout(timer);
     };
-  }, []);
+  }, [cwd, selectedId]);
 
   useEffect(() => {
     if (view === 'output' && outputRef.current)
@@ -190,8 +232,43 @@ const DualBrainStudio: React.FC<DualBrainStudioProps> = ({ cwd, initialPrompt = 
       models: { ...p.models, [p.taskType]: { ...p.models[p.taskType], [field]: value } },
     }));
 
+  const loadCheckpoint = async (id: string) => {
+    const request = ++checkpointRequest.current;
+    setLoadingCheckpoint(true);
+    setError('');
+    try {
+      const result = await tauriBridge.workflowCheckpoint(id);
+      if (request !== checkpointRequest.current) return;
+      setCheckpoint(result);
+      setHandoff(result.handoff);
+      setCheckpointSession(result.codexSessionId);
+      setResumeCheckpoint(false);
+      setSessionSelection(null);
+      setPrompt(result.prompt);
+      setCompactPanel('task');
+      setPreferences((p) => ({
+        ...p,
+        override: 'codex-only',
+        checks: result.checks.length ? result.checks.join('\n') : p.checks,
+      }));
+    } catch (e) {
+      if (request === checkpointRequest.current) setError(String(e));
+    } finally {
+      if (request === checkpointRequest.current) setLoadingCheckpoint(false);
+    }
+  };
+
   const start = async () => {
-    if (!cwd || !prompt.trim() || active || starting.current || !loaded || sessionLoading) return;
+    if (
+      !cwd ||
+      !prompt.trim() ||
+      active ||
+      starting.current ||
+      !loaded ||
+      sessionLoading ||
+      loadingCheckpoint
+    )
+      return;
     starting.current = true;
     setPending(true);
     setError('');
@@ -209,16 +286,36 @@ const DualBrainStudio: React.FC<DualBrainStudioProps> = ({ cwd, initialPrompt = 
                 .map((s) => s.trim())
                 .filter(Boolean),
         timeoutMinutes: preferences.timeoutMinutes,
+        yoloMode: preferences.yoloMode,
         ...models,
         taskType: preferences.taskType,
         routingReason: route.reason,
-        sessionId: sessionSelection?.id ?? null,
+        sessionId:
+          checkpoint && resumeCheckpoint && route.mode !== 'agy-only'
+            ? checkpointSession
+            : (sessionSelection?.id ?? null),
         sessionContext: sessionSelection?.context ?? '',
-        resumeSession: route.mode !== 'agy-only' && (sessionSelection?.resume ?? false),
+        resumeSession:
+          route.mode !== 'agy-only' &&
+          (checkpoint ? resumeCheckpoint : (sessionSelection?.resume ?? false)),
+        handoff: handoff.trim(),
+        continuation: checkpoint?.continuation,
       });
-      setRuns((prev) => [run, ...prev.filter((r) => r.id !== run.id)]);
+      setSelected(run);
+      setActive({
+        id: run.id,
+        cwd: run.options.cwd,
+        status: run.status,
+        prompt: run.options.prompt,
+        startedAt: run.startedAt,
+      });
       setSelectedId(run.id);
+      setCompactPanel('run');
       setPrompt('');
+      setHandoff('');
+      setCheckpoint(null);
+      setCheckpointSession(null);
+      setResumeCheckpoint(false);
       setView('output');
     } catch (e) {
       setError(String(e));
@@ -251,28 +348,40 @@ const DualBrainStudio: React.FC<DualBrainStudioProps> = ({ cwd, initialPrompt = 
   return (
     <section className="mission-control" aria-label="Dual-Brain Mission Control">
       <header className="mission-header">
-        <div>
-          <span className="mission-eyebrow">CMDGUI / AGENT WORKSPACE</span>
-          <h1>
-            <Bot size={21} /> Mission Control
-          </h1>
-        </div>
+        <h1>
+          <Bot size={21} /> Mission Control
+        </h1>
         <button className="mission-button" onClick={onClose}>
           <X size={14} /> Back to terminals
         </button>
       </header>
-      <div className="mission-layout">
-        <aside className="mission-compose">
-          <div className="mission-project">
-            <FolderOpen size={16} />
-            <span title={cwd}>
-              {cwd
-                ?.replace(/[\\/]$/, '')
-                .split(/[\\/]/)
-                .pop() || 'Select a project first'}
-            </span>
-            <span className="mission-tag">Local</span>
-          </div>
+      <div className="mission-panel-switch" role="group" aria-label="Mission Control view">
+        <button
+          type="button"
+          className="mission-button"
+          aria-pressed={compactPanel === 'task'}
+          aria-controls="mission-task-panel"
+          onClick={() => setCompactPanel('task')}
+        >
+          Task setup
+        </button>
+        <button
+          type="button"
+          className="mission-button"
+          aria-pressed={compactPanel === 'run'}
+          aria-controls="mission-run-panel"
+          onClick={() => setCompactPanel('run')}
+        >
+          {active ? 'Running task' : 'Run details'}
+        </button>
+      </div>
+      {error && (
+        <div className="mission-error" role="alert">
+          {error}
+        </div>
+      )}
+      <div className="mission-layout" data-panel={compactPanel}>
+        <aside className="mission-compose" id="mission-task-panel" aria-label="Task setup">
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -307,23 +416,88 @@ const DualBrainStudio: React.FC<DualBrainStudioProps> = ({ cwd, initialPrompt = 
               maxLength={8000}
               placeholder="Describe the desired behavior, relevant files, and how we will know it works."
             />
-            <CodexSessionPicker
-              cwd={cwd}
-              disabled={pending || !!active}
-              selection={sessionSelection}
-              onChange={setSessionSelection}
-              onError={setError}
-              implementation={route.mode !== 'agy-only'}
-              onBusyChange={setSessionLoading}
-            />
-            <div className="mission-route">
-              <span className="mission-eyebrow">SELECTED ROUTE</span>
-              <strong>{routeLabels[route.mode]}</strong>
+            <details className="mission-settings" open={checkpoint ? true : undefined}>
+              <summary>Handoff from another run or provider</summary>
+              <label className="mission-label" htmlFor="mission-handoff">
+                Handoff notes
+              </label>
+              <textarea
+                id="mission-handoff"
+                rows={7}
+                maxLength={24000}
+                value={handoff}
+                disabled={pending || !!active}
+                onChange={(e) => setHandoff(e.target.value)}
+                placeholder="Paste a plan or a summary of completed and remaining work."
+              />
+              <CopyTextButton text={handoff} label="Copy handoff" onError={setError} />
+              {checkpoint && (
+                <>
+                  <button
+                    type="button"
+                    className="mission-button"
+                    disabled={pending || !!active || loadingCheckpoint}
+                    onClick={() => void loadCheckpoint(checkpoint.continuation.runId)}
+                  >
+                    Refresh checkpoint
+                  </button>
+                  <button
+                    type="button"
+                    className="mission-button"
+                    disabled={pending || !!active}
+                    onClick={() => {
+                      setCheckpoint(null);
+                      setCheckpointSession(null);
+                      setResumeCheckpoint(false);
+                      setHandoff('');
+                    }}
+                  >
+                    Clear checkpoint
+                  </button>
+                  {checkpointSession && route.mode !== 'agy-only' && (
+                    <label className="mission-check-option">
+                      <input
+                        type="checkbox"
+                        checked={resumeCheckpoint}
+                        disabled={pending || !!active}
+                        onChange={(e) => setResumeCheckpoint(e.target.checked)}
+                      />
+                      Resume this run’s Codex thread
+                    </label>
+                  )}
+                  <details className="mission-settings">
+                    <summary>Review tracked changes</summary>
+                    <pre
+                      className="mission-output"
+                      style={{ maxHeight: '16rem', overflow: 'auto' }}
+                    >
+                      {checkpoint.diff || 'No tracked changes in this working tree.'}
+                    </pre>
+                  </details>
+                </>
+              )}
+            </details>
+            {!checkpoint && (
+              <CodexSessionPicker
+                cwd={cwd}
+                disabled={pending || !!active}
+                selection={sessionSelection}
+                onChange={setSessionSelection}
+                onError={setError}
+                implementation={route.mode !== 'agy-only'}
+                onBusyChange={setSessionLoading}
+              />
+            )}
+            <details className="mission-settings">
+              <summary>Models & routing</summary>
               <p>{route.reason}</p>
-              {route.mode !== 'codex-only' && (
+              {usesAgy && (
                 <p>
-                  Planner: <code>{models.agyModel || 'AGY CLI default'}</code>
+                  Planner: <code>{models.agyModel || 'AGY CLI default'}</code> · Gemini API billing
                 </p>
+              )}
+              {route.mode === 'copilot-pipeline' && (
+                <p>Planner: GitHub Copilot CLI default model</p>
               )}
               {route.mode !== 'agy-only' && (
                 <p>
@@ -331,13 +505,6 @@ const DualBrainStudio: React.FC<DualBrainStudioProps> = ({ cwd, initialPrompt = 
                   {models.codexEffort || 'default'} effort
                 </p>
               )}
-            </div>
-            <details className="mission-settings">
-              <summary>Models & routing</summary>
-              <p>
-                Starting preferences, not measured rankings. Choose models available to your
-                account. Unsupported models fail without a silent fallback.
-              </p>
               <label className="mission-label" htmlFor="mission-route">
                 Route override
               </label>
@@ -352,11 +519,12 @@ const DualBrainStudio: React.FC<DualBrainStudioProps> = ({ cwd, initialPrompt = 
                 }
               >
                 <option value="auto">Use task preference</option>
-                <option value="pipeline">AGY → Codex</option>
+                <option value="copilot-pipeline">Copilot → Codex (pilot)</option>
+                <option value="pipeline">AGY via Gemini API → Codex</option>
                 <option value="codex-only">Codex only</option>
-                <option value="agy-only">AGY investigation only</option>
+                <option value="agy-only">AGY via Gemini API, investigation only</option>
               </select>
-              {route.mode !== 'codex-only' && (
+              {usesAgy && (
                 <>
                   <label className="mission-label" htmlFor="mission-agy">
                     AGY model
@@ -455,6 +623,20 @@ const DualBrainStudio: React.FC<DualBrainStudioProps> = ({ cwd, initialPrompt = 
                 </p>
               </>
             )}
+            <label className="mission-label mission-check-option" htmlFor="mission-yolo">
+              <input
+                id="mission-yolo"
+                type="checkbox"
+                checked={preferences.yoloMode}
+                disabled={!loaded || pending || !!active}
+                onChange={(e) => setPreferences((p) => ({ ...p, yoloMode: e.target.checked }))}
+              />{' '}
+              YOLO mode — auto-approve worker permissions
+            </label>
+            <p className="mission-hint">
+              AGY and Codex run without permission prompts or their CLI sandboxes. The Copilot
+              planner uses read tools only. Saved per project.
+            </p>
             <label className="mission-label" htmlFor="mission-timeout">
               Time limit per stage (minutes)
             </label>
@@ -470,22 +652,37 @@ const DualBrainStudio: React.FC<DualBrainStudioProps> = ({ cwd, initialPrompt = 
               }
             />
             <div className="mission-actions">
-              <p className="mission-hint">
-                One worker at a time. Handoff waits for AGY to exit. Existing edits are preserved.
-              </p>
               {active && (
                 <div className="mission-notice" role="status">
-                  A workflow is running in {active.options.cwd}.{' '}
-                  <button type="button" onClick={() => setSelectedId(active.id)}>
+                  A workflow is running in {active.cwd}.{' '}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedId(active.id);
+                      setCompactPanel('run');
+                    }}
+                  >
                     View run
                   </button>
                 </div>
               )}
+              <div className="mission-launch-context" aria-label="Selected project and route">
+                <span title={cwd}>
+                  <FolderOpen size={14} /> {projectName}
+                </span>
+                <strong>{routeLabels[route.mode]}</strong>
+              </div>
               <button
                 className="mission-button mission-primary"
                 type="submit"
                 disabled={
-                  !cwd || !prompt.trim() || !!active || pending || !loaded || sessionLoading
+                  !cwd ||
+                  !prompt.trim() ||
+                  !!active ||
+                  pending ||
+                  !loaded ||
+                  sessionLoading ||
+                  loadingCheckpoint
                 }
               >
                 <Play size={14} /> {pending ? 'Starting…' : 'Start task'}
@@ -494,27 +691,12 @@ const DualBrainStudio: React.FC<DualBrainStudioProps> = ({ cwd, initialPrompt = 
             </div>
           </form>
         </aside>
-        <main className="mission-workspace">
-          {error && (
-            <div className="mission-error" role="alert">
-              {error}
-            </div>
-          )}
+        <main className="mission-workspace" id="mission-run-panel" aria-label="Run details">
           {!selected ? (
             <div className="mission-empty">
               <Bot size={36} />
-              <h2>One task. The right route.</h2>
-              <p>
-                Send a clear task to one coding model, or let AGY investigate before Codex
-                implements. The handoff and validation run automatically.
-              </p>
-              <div className="mission-empty-route">
-                <span>Investigate</span>
-                <ArrowRight size={16} />
-                <span>Implement</span>
-                <ArrowRight size={16} />
-                <span>Validate</span>
-              </div>
+              <h2>No runs for this project</h2>
+              <p>Start a task to see its progress and validation results here.</p>
             </div>
           ) : (
             <>
@@ -525,6 +707,16 @@ const DualBrainStudio: React.FC<DualBrainStudioProps> = ({ cwd, initialPrompt = 
                   </span>
                   <h2>{selected.options.prompt}</h2>
                   <p>{selected.message}</p>
+                  {selected.status !== 'running' &&
+                    projectRuns.some((run) => run.id === selected.id) && (
+                      <button
+                        className="mission-button"
+                        disabled={!!active || !loaded || pending || loadingCheckpoint}
+                        onClick={() => void loadCheckpoint(selected.id)}
+                      >
+                        {loadingCheckpoint ? 'Loading checkpoint…' : 'Continue with…'}
+                      </button>
+                    )}
                 </div>
                 {selected.status === 'running' && (
                   <button
@@ -558,14 +750,18 @@ const DualBrainStudio: React.FC<DualBrainStudioProps> = ({ cwd, initialPrompt = 
                       <div>
                         <strong>
                           {stage === 'planning'
-                            ? 'AGY brief'
+                            ? selected.options.mode === 'copilot-pipeline'
+                              ? 'Copilot brief'
+                              : 'AGY brief'
                             : stage === 'implementing'
                               ? 'Codex implementation'
                               : 'Project checks'}
                         </strong>
                         <small>
                           {stage === 'planning'
-                            ? selected.options.agyModel || 'CLI default'
+                            ? selected.options.mode === 'copilot-pipeline'
+                              ? 'CLI default'
+                              : selected.options.agyModel || 'CLI default'
                             : stage === 'implementing'
                               ? `${selected.options.codexModel || 'CLI default'} · ${selected.options.codexEffort || 'default'} effort`
                               : `${selected.checks.filter((c) => c.passed).length}/${selected.options.checks.length} passed`}
@@ -609,6 +805,7 @@ const DualBrainStudio: React.FC<DualBrainStudioProps> = ({ cwd, initialPrompt = 
                           ? selected.brief || ''
                           : [
                               selected.summary || selected.message,
+                              ...(selected.unresolved ?? []),
                               ...selected.checks.map(
                                 (c) =>
                                   `${c.passed ? 'PASS' : 'FAIL'} ${c.command} (exit ${c.exitCode ?? 'unknown'})`
@@ -635,11 +832,21 @@ const DualBrainStudio: React.FC<DualBrainStudioProps> = ({ cwd, initialPrompt = 
                     {selected.brief ||
                       (selected.options.mode === 'codex-only'
                         ? 'Direct implementation: no planning tokens spent.'
-                        : 'AGY’s validated brief will appear here before handoff.')}
+                        : 'The validated brief will appear here before handoff.')}
                   </pre>
                 ) : (
                   <>
                     <p>{selected.summary || selected.message}</p>
+                    {!!selected.unresolved?.length && (
+                      <>
+                        <h3>Remaining work</h3>
+                        <ul>
+                          {selected.unresolved.map((item, index) => (
+                            <li key={index}>{item}</li>
+                          ))}
+                        </ul>
+                      </>
+                    )}
                     {selected.codexSessionId && (
                       <p className="mission-hint">
                         Codex session: <code>{selected.codexSessionId}</code>
@@ -689,8 +896,7 @@ const DualBrainStudio: React.FC<DualBrainStudioProps> = ({ cwd, initialPrompt = 
                       </span>
                     </div>
                     <p className="mission-hint">
-                      AGY token usage is not measured in this version. Model labels show requested
-                      models. Checks passing verifies only the configured checks.
+                      Token counts are reported by Codex. Checks cover the configured commands.
                     </p>
                     <button
                       className="mission-button"
@@ -726,7 +932,7 @@ const DualBrainStudio: React.FC<DualBrainStudioProps> = ({ cwd, initialPrompt = 
                   }}
                 >
                   <span className={`mission-status ${run.status}`}>{statusLabels[run.status]}</span>
-                  <span>{run.options.prompt}</span>
+                  <span>{run.prompt}</span>
                   <time>{new Date(run.startedAt).toLocaleString()}</time>
                 </button>
               ))
@@ -737,13 +943,5 @@ const DualBrainStudio: React.FC<DualBrainStudioProps> = ({ cwd, initialPrompt = 
     </section>
   );
 };
-
-function normalizePath(path: string) {
-  return path
-    .replace(/^\\\\\?\\/, '')
-    .replace(/\\/g, '/')
-    .replace(/\/$/, '')
-    .toLowerCase();
-}
 
 export default DualBrainStudio;

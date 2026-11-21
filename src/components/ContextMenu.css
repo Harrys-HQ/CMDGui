@@ -1,0 +1,33 @@
+.app-context-menu {
+  position: fixed;
+  z-index: 99999;
+  min-width: 150px;
+  padding: 4px 0;
+  color: var(--fg-primary, #ccc);
+  background: var(--bg-secondary, #1e1e1e);
+  border: 1px solid var(--border-color, #3c3c3c);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px #0008;
+  font-size: 13px;
+}
+.app-context-menu button {
+  display: block;
+  width: 100%;
+  padding: 6px 12px;
+  text-align: left;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+.app-context-menu button:hover,
+.app-context-menu button:focus-visible {
+  color: white;
+  background: var(--accent-primary, #007acc);
+  outline: none;
+}
+.app-context-menu-separator {
+  height: 1px;
+  margin: 4px 0;
+  background: #3c3c3c;
+}

@@ -1,15 +1,26 @@
+import { openContextMenu, type MenuItem } from './utils/contextMenu';
+import type {
+  ProjectDetails,
+  ProjectUpdate,
+  ActivePort,
+  FileEntry,
+  SidebarAction,
+  UpdateStatus,
+  UpdateInfo,
+  ContextMenuData,
+  ElectronAPI,
+} from './types';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { getCurrentWebview } from '@tauri-apps/api/webview';
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
 import { getVersion as getTauriAppVersion } from '@tauri-apps/api/app';
 import { check, type Update } from '@tauri-apps/plugin-updater';
 import { relaunch } from '@tauri-apps/plugin-process';
-import type { CodexSession, SessionContext, WorkflowOptions, WorkflowRun } from './workflows';
+import type { CodexSession, SessionContext, WorkflowCheckpoint, WorkflowOptions, WorkflowOverview, WorkflowRun } from './workflows';
 
 let activeUpdate: Update | null = null;
-const updateStatusCallbacks = new Set<(data: any) => void>();
+const updateStatusCallbacks = new Set<(data: UpdateStatus) => void>();
 
 // Capture right-click mouse coordinates globally
 let lastMouseX = 0;
@@ -25,26 +36,17 @@ window.addEventListener(
 
 // Map to hold listeners for terminal/sidebar callbacks
 const terminalCallbacks = new Set<(action: string) => void>();
-const sidebarCallbacks = new Set<(data: any) => void>();
+const sidebarCallbacks = new Set<(data: SidebarAction) => void>();
 const fileDropCallbacks = new Set<(paths: string[], position?: { x: number; y: number }) => void>();
 let isFileDropInitialized = false;
-let lastDropTimestamp = 0;
-let lastDropSignature = '';
 
 function dispatchFileDrop(paths: string[], position?: { x: number; y: number }) {
   if (!paths || paths.length === 0) return;
-  const now = Date.now();
-  const signature = paths.join('|');
-  // Deduplicate triggers within 300ms for identical paths
-  if (now - lastDropTimestamp < 300 && signature === lastDropSignature) {
-    return;
-  }
-  lastDropTimestamp = now;
-  lastDropSignature = signature;
-
   // Bring window to focus so user can immediately interact with dropped content
   try {
-    getCurrentWindow().setFocus().catch(() => {});
+    getCurrentWindow()
+      .setFocus()
+      .catch(() => {});
   } catch {
     /* ignore */
   }
@@ -58,250 +60,86 @@ function dispatchFileDrop(paths: string[], position?: { x: number; y: number }) 
   });
 }
 
-function cleanDroppedPath(p: string): string {
-  if (typeof p !== "string") return "";
-  let cleaned = p.trim();
-  if (cleaned.startsWith("file:///")) {
-    cleaned = decodeURI(cleaned.replace(/^file:\/\/\/?/, ""));
-    if (/^[a-zA-Z]:\//.test(cleaned)) {
-      cleaned = cleaned.replace(/\//g, "\\");
-    }
-  }
-  return cleaned;
-}
+let fileDropCleanup: (() => void) | undefined;
+let fileDropGeneration = 0;
+const preventDropNavigation = (event: DragEvent) => {
+  event.preventDefault();
+};
 
-function extractPathsAndPosition(payload: any): { paths: string[]; position?: { x: number; y: number } } {
-  if (!payload) return { paths: [] };
-  let pos: { x: number; y: number } | undefined;
-  if (payload.position && typeof payload.position.x === "number" && typeof payload.position.y === "number") {
-    // Tauri v2 onDragDropEvent delivers PhysicalPosition in physical pixels.
-    // Convert to CSS logical coordinates so DOM getBoundingClientRect() comparisons align.
-    const dpr = typeof window !== "undefined" && window.devicePixelRatio ? window.devicePixelRatio : 1;
-    if (typeof payload.position.toLogical === "function") {
-      try {
-        const logical = payload.position.toLogical(dpr);
-        pos = { x: logical.x, y: logical.y };
-      } catch {
-        pos = { x: payload.position.x / dpr, y: payload.position.y / dpr };
-      }
-    } else {
-      pos = { x: payload.position.x / dpr, y: payload.position.y / dpr };
-    }
-  }
-
-  let rawPaths: string[] = [];
-  if (Array.isArray(payload) && typeof payload[0] === "string") {
-    rawPaths = payload;
-  } else if (payload.type === "drop" && Array.isArray(payload.paths)) {
-    rawPaths = payload.paths;
-  } else if (Array.isArray(payload.paths)) {
-    rawPaths = payload.paths;
-  }
-
-  const paths = rawPaths.map(cleanDroppedPath).filter(Boolean);
-  return { paths, position: pos };
+function stopFileDropListeners() {
+  fileDropGeneration++;
+  fileDropCleanup?.();
+  fileDropCleanup = undefined;
+  isFileDropInitialized = false;
+  window.removeEventListener('dragover', preventDropNavigation);
+  window.removeEventListener('drop', preventDropNavigation);
 }
 
 function initFileDropListeners() {
   if (isFileDropInitialized) return;
   isFileDropInitialized = true;
-
-  // Global window dragover / drop preventDefault to eliminate WebView2 URL navigation
-  if (typeof window !== 'undefined') {
-    window.addEventListener(
-      'dragover',
-      (e) => {
-        e.preventDefault();
-        if (e.dataTransfer) {
-          e.dataTransfer.dropEffect = 'copy';
-        }
-      },
-      false
-    );
-    window.addEventListener(
-      'drop',
-      (e) => {
-        e.preventDefault();
-        // If native DOM dataTransfer has files with .path (e.g. Electron or patched webview)
-        if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-          const domPaths = [];
-          for (let i = 0; i < e.dataTransfer.files.length; i++) {
-            const file = e.dataTransfer.files[i] as unknown as { path?: string };
-            if (file && typeof file.path === 'string' && file.path.length > 0) {
-              domPaths.push(file.path);
-            }
-          }
-          if (domPaths.length > 0) {
-            dispatchFileDrop(domPaths, { x: e.clientX, y: e.clientY });
-          }
-        }
-      },
-      false
-    );
-  }
-
-  // 1. WebviewWindow onDragDropEvent
+  const generation = ++fileDropGeneration;
+  window.addEventListener('dragover', preventDropNavigation);
+  window.addEventListener('drop', preventDropNavigation);
+  // A single native Webview listener receives physical coordinates in Tauri v2.
   try {
-    const webviewWindow = getCurrentWebviewWindow();
-    if (webviewWindow && typeof webviewWindow.onDragDropEvent === 'function') {
-      webviewWindow
-        .onDragDropEvent((event) => {
-          const { paths, position } = extractPathsAndPosition(event.payload);
-          if (paths.length > 0) dispatchFileDrop(paths, position);
-        })
-        .catch((err) => console.warn('WebviewWindow drag-drop listener failed:', err));
-    }
-  } catch (e) {
-    console.warn('getCurrentWebviewWindow failed:', e);
-  }
-
-  // 2. Window onDragDropEvent
-  try {
-    const appWindow = getCurrentWindow();
-    if (appWindow && typeof appWindow.onDragDropEvent === 'function') {
-      appWindow
-        .onDragDropEvent((event) => {
-          const { paths, position } = extractPathsAndPosition(event.payload);
-          if (paths.length > 0) dispatchFileDrop(paths, position);
-        })
-        .catch((err) => console.warn('Window drag-drop listener failed:', err));
-    }
-  } catch (e) {
-    console.warn('getCurrentWindow failed:', e);
-  }
-
-  // 3. Webview onDragDropEvent
-  try {
-    const webview = getCurrentWebview();
-    if (webview && typeof webview.onDragDropEvent === 'function') {
-      webview
-        .onDragDropEvent((event) => {
-          const { paths, position } = extractPathsAndPosition(event.payload);
-          if (paths.length > 0) dispatchFileDrop(paths, position);
-        })
-        .catch((err) => console.warn('Webview drag-drop listener failed:', err));
-    }
-  } catch (e) {
-    console.warn('getCurrentWebview failed:', e);
-  }
-
-  // 4. Raw tauri://drag-drop event with target 'main'
-  try {
-    listen(
-      'tauri://drag-drop',
-      (event) => {
-        const { paths, position } = extractPathsAndPosition(event.payload);
-        if (paths.length > 0) dispatchFileDrop(paths, position);
-      },
-      { target: 'main' }
-    ).catch((err) => console.warn('Raw drag-drop (main) failed:', err));
-  } catch (e) {
-    console.warn('listen tauri://drag-drop (main) failed:', e);
-  }
-
-  // 5. Raw tauri://drag-drop event without target filter
-  try {
-    listen('tauri://drag-drop', (event) => {
-      const { paths, position } = extractPathsAndPosition(event.payload);
-      if (paths.length > 0) dispatchFileDrop(paths, position);
-    }).catch((err) => console.warn('Raw drag-drop (any) failed:', err));
-  } catch (e) {
-    console.warn('listen tauri://drag-drop (any) failed:', e);
+    getCurrentWebview()
+      .onDragDropEvent((event) => {
+        if (generation !== fileDropGeneration) return;
+        if (event.payload.type !== 'drop') return;
+        const { paths, position } = event.payload;
+        const dpr = window.devicePixelRatio || 1;
+        dispatchFileDrop(paths, { x: position.x / dpr, y: position.y / dpr });
+      })
+      .then((unlisten) => {
+        if (generation !== fileDropGeneration) unlisten();
+        else fileDropCleanup = unlisten;
+      })
+      .catch((error) => {
+        if (generation === fileDropGeneration) stopFileDropListeners();
+        console.warn('File drop listener failed:', error);
+      });
+  } catch (error) {
+    stopFileDropListeners();
+    console.warn('File drop listener failed:', error);
   }
 }
 
-// Style template for custom HTML context menu overlay
-const menuStyle = `
-  position: fixed;
-  z-index: 99999;
-  background-color: #1e1e1e;
-  border: 1px solid #3c3c3c;
-  border-radius: 6px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
-  padding: 4px 0;
-  min-width: 150px;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  font-size: 13px;
-  color: #cccccc;
-`;
+function createContextMenu(items: MenuItem[]) {
+  openContextMenu(items, { x: lastMouseX, y: lastMouseY });
+}
 
-const itemStyle = `
-  padding: 6px 12px;
-  cursor: pointer;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  user-select: none;
-`;
-
-const separatorStyle = `
-  height: 1px;
-  background-color: #3c3c3c;
-  margin: 4px 0;
-`;
-
-function createContextMenu(items: { label?: string; action?: string; callback?: () => void; isSeparator?: boolean }[]) {
-  // Remove existing menu if any
-  const existingMenu = document.getElementById('tauri-custom-context-menu');
-  if (existingMenu) existingMenu.remove();
-
-  const menu = document.createElement('div');
-  menu.id = 'tauri-custom-context-menu';
-  menu.setAttribute('style', menuStyle);
-  menu.style.left = `${lastMouseX}px`;
-  menu.style.top = `${lastMouseY}px`;
-
-  items.forEach((item) => {
-    if (item.isSeparator) {
-      const sep = document.createElement('div');
-      sep.setAttribute('style', separatorStyle);
-      menu.appendChild(sep);
-      return;
-    }
-
-    const div = document.createElement('div');
-    div.setAttribute('style', itemStyle);
-    div.innerText = item.label || '';
-
-    // Hover effect
-    div.addEventListener('mouseenter', () => {
-      div.style.backgroundColor = '#007acc';
-      div.style.color = '#ffffff';
-    });
-    div.addEventListener('mouseleave', () => {
-      div.style.backgroundColor = 'transparent';
-      div.style.color = '#cccccc';
-    });
-
-    div.addEventListener('click', () => {
-      if (item.callback) item.callback();
-      menu.remove();
-    });
-
-    menu.appendChild(div);
-  });
-
-  document.body.appendChild(menu);
-
-  // Close menu when clicking outside
-  const closeMenu = (e: MouseEvent) => {
-    if (!menu.contains(e.target as Node)) {
-      menu.remove();
-      document.removeEventListener('mousedown', closeMenu);
-    }
+function updateInfo(update: Update): UpdateInfo {
+  return {
+    version: update.version,
+    files: [],
+    path: '',
+    sha512: '',
+    releaseDate: update.date || '',
+    releaseNotes: update.body,
   };
-  document.addEventListener('mousedown', closeMenu);
+}
+function updateProgress(percent: number) {
+  return { percent, total: 0, delta: 0, transferred: 0, bytesPerSecond: 0 };
 }
 
-export const tauriBridge = {
-  codexSessionsList: (cwd: string, cursor?: string | null) => invoke<{ sessions: CodexSession[]; nextCursor: string | null }>('codex_sessions_list', { cwd, cursor: cursor ?? null }),
-  codexSessionContext: (cwd: string, id: string) => invoke<SessionContext>('codex_session_context', { cwd, id }),
+const bridge = {
+  codexSessionsList: (cwd: string, cursor?: string | null) =>
+    invoke<{ sessions: CodexSession[]; nextCursor: string | null }>('codex_sessions_list', {
+      cwd,
+      cursor: cursor ?? null,
+    }),
+  codexSessionContext: (cwd: string, id: string) =>
+    invoke<SessionContext>('codex_session_context', { cwd, id }),
   writeClipboard: (text: string) => invoke<void>('write_clipboard', { text }),
   workflowStart: (options: WorkflowOptions) => invoke<WorkflowRun>('workflow_start', { options }),
-  workflowList: () => invoke<WorkflowRun[]>('workflow_list'),
+  workflowList: (cwd: string | undefined, selectedId: string | null, includeHistory: boolean) =>
+    invoke<WorkflowOverview>('workflow_list', { cwd, selectedId, includeHistory }),
+  workflowCheckpoint: (id: string) => invoke<WorkflowCheckpoint>('workflow_checkpoint', { id }),
   workflowCancel: (id: string) => invoke<void>('workflow_cancel', { id }),
   workflowOpenArtifacts: (id: string) => invoke<void>('workflow_open_artifacts', { id }),
-  workflowModels: (provider: 'agy' | 'codex') => invoke<{ id: string; label: string; efforts: string[] }[]>('workflow_models', { provider }),
+  workflowModels: (provider: 'agy' | 'codex') =>
+    invoke<{ id: string; label: string; efforts: string[] }[]>('workflow_models', { provider }),
   createTerminal: async (options?: {
     cols?: number;
     rows?: number;
@@ -374,8 +212,10 @@ export const tauriBridge = {
   },
 
   getProjectDetails: async (path: string) => {
-    return await invoke<any>('get_project_details', { projectPath: path });
+    return await invoke<ProjectDetails>('get_project_details', { projectPath: path });
   },
+  getProjectUpdate: (path: string, previousMetadataVersion?: string) =>
+    invoke<ProjectUpdate>('get_project_update', { projectPath: path, previousMetadataVersion }),
 
   gitStageAll: async (projectPath: string) => {
     return await invoke<string>('git_stage_all', { projectPath });
@@ -387,14 +227,14 @@ export const tauriBridge = {
 
   gitPull: async (projectPath: string) => {
     return await invoke<string>('git_pull', { projectPath });
-   },
+  },
 
   gitPush: async (projectPath: string) => {
     return await invoke<string>('git_push', { projectPath });
   },
 
   getActivePorts: async () => {
-    return await invoke<any[]>('get_active_ports');
+    return await invoke<ActivePort[]>('get_active_ports');
   },
 
   killProcessByPid: async (pid: number) => {
@@ -402,7 +242,7 @@ export const tauriBridge = {
   },
 
   listDirectory: async (path: string) => {
-    return await invoke<any[]>('fs_list_directory', { dirPath: path });
+    return await invoke<FileEntry[]>('fs_list_directory', { dirPath: path });
   },
 
   getPlatform: async (): Promise<'windows' | 'linux' | 'macos' | 'other'> => {
@@ -447,20 +287,16 @@ export const tauriBridge = {
         updateStatusCallbacks.forEach((cb) =>
           cb({
             status: 'available',
-            info: {
-              version: update.version,
-              releaseDate: update.date,
-              body: update.body,
-            },
+            info: updateInfo(update),
           })
         );
-        return { success: true, updateInfo: { version: update.version } };
+        return { success: true, updateInfo: updateInfo(update) };
       } else {
         activeUpdate = null;
         updateStatusCallbacks.forEach((cb) => cb({ status: 'not-available' }));
-        return { success: true, updateInfo: null };
+        return { success: true };
       }
-    } catch (e: any) {
+    } catch (e) {
       console.error(e);
       updateStatusCallbacks.forEach((cb) => cb({ status: 'error', error: String(e) }));
       return { success: false, error: String(e) };
@@ -474,7 +310,9 @@ export const tauriBridge = {
       );
       return { success: false, error: 'No update available to download' };
     }
-    updateStatusCallbacks.forEach((cb) => cb({ status: 'downloading', progress: { percent: 0 } }));
+    updateStatusCallbacks.forEach((cb) =>
+      cb({ status: 'downloading', progress: updateProgress(0) })
+    );
     try {
       let totalLength = 0;
       let downloaded = 0;
@@ -483,14 +321,14 @@ export const tauriBridge = {
           case 'Started':
             totalLength = event.data.contentLength || 0;
             updateStatusCallbacks.forEach((cb) =>
-              cb({ status: 'downloading', progress: { percent: 0 } })
+              cb({ status: 'downloading', progress: updateProgress(0) })
             );
             break;
           case 'Progress': {
             downloaded += event.data.chunkLength;
             const percent = totalLength ? Math.round((downloaded / totalLength) * 100) : 0;
             updateStatusCallbacks.forEach((cb) =>
-              cb({ status: 'downloading', progress: { percent } })
+              cb({ status: 'downloading', progress: updateProgress(percent) })
             );
             break;
           }
@@ -500,7 +338,7 @@ export const tauriBridge = {
         }
       });
       return { success: true };
-    } catch (e: any) {
+    } catch (e) {
       console.error(e);
       updateStatusCallbacks.forEach((cb) => cb({ status: 'error', error: String(e) }));
       return { success: false, error: String(e) };
@@ -515,7 +353,7 @@ export const tauriBridge = {
     }
   },
 
-  onUpdateStatus: (callback: (data: any) => void) => {
+  onUpdateStatus: (callback: (data: UpdateStatus) => void) => {
     updateStatusCallbacks.add(callback);
     return () => {
       updateStatusCallbacks.delete(callback);
@@ -536,7 +374,7 @@ export const tauriBridge = {
 
   onSingleInstance: (callback: (argv: string[], cwd: string) => void) => {
     let unlistenFn: (() => void) | null = null;
-    listen<any>('single-instance', (event) => {
+    listen<[string[], string]>('single-instance', (event) => {
       // payload in Tauri 2 contains tuple (argv, cwd)
       if (Array.isArray(event.payload)) {
         callback(event.payload[0], event.payload[1]);
@@ -558,7 +396,7 @@ export const tauriBridge = {
   },
 
   setStayAwake: (enabled: boolean) => {
-    invoke('set_stay_awake', { enabled }).catch(err => {
+    invoke('set_stay_awake', { enabled }).catch((err) => {
       console.error('Failed to set stay awake in Tauri:', err);
     });
   },
@@ -570,16 +408,20 @@ export const tauriBridge = {
   settingsGet: async <T>(key?: string): Promise<T | null> => {
     return await invoke<T | null>('settings_get', { key });
   },
+  settingsGetMany: (keys: string[]) =>
+    invoke<Record<string, unknown>>('settings_get_many', { keys }),
 
   settingsSet: async (key: string, value: unknown) => {
     await invoke('settings_set', { key, value });
   },
+  settingsSetMany: (changes: Record<string, unknown>) =>
+    invoke<void>('settings_set_many', { changes }),
 
   fileCreate: async (path: string) => {
     try {
       await invoke('file_create', { filePath: path });
       return { success: true };
-    } catch (e: any) {
+    } catch (e) {
       return { success: false, error: String(e) };
     }
   },
@@ -588,7 +430,7 @@ export const tauriBridge = {
     try {
       await invoke('file_mkdir', { dirPath: path });
       return { success: true };
-    } catch (e: any) {
+    } catch (e) {
       return { success: false, error: String(e) };
     }
   },
@@ -597,7 +439,7 @@ export const tauriBridge = {
     try {
       await invoke('file_rename', { oldPath, newPath });
       return { success: true };
-    } catch (e: any) {
+    } catch (e) {
       return { success: false, error: String(e) };
     }
   },
@@ -606,7 +448,7 @@ export const tauriBridge = {
     try {
       await invoke('file_delete', { itemPath: path });
       return { success: true };
-    } catch (e: any) {
+    } catch (e) {
       return { success: false, error: String(e) };
     }
   },
@@ -615,53 +457,86 @@ export const tauriBridge = {
     try {
       await invoke('file_show_in_folder', { itemPath: path });
       return { success: true };
-    } catch (e: any) {
+    } catch (e) {
       return { success: false, error: String(e) };
     }
   },
 
-  showContextMenu: async (type: string, data?: any) => {
+  showContextMenu: async (type: string, data?: ContextMenuData) => {
     if (type === 'terminal') {
       createContextMenu([
         { label: '📋 Copy', callback: () => terminalCallbacks.forEach((cb) => cb('copy')) },
         { label: '📥 Paste', callback: () => terminalCallbacks.forEach((cb) => cb('paste')) },
         { isSeparator: true },
-        { label: '━ Split Horizontal', callback: () => terminalCallbacks.forEach((cb) => cb('split-horizontal')) },
-        { label: '┃ Split Vertical', callback: () => terminalCallbacks.forEach((cb) => cb('split-vertical')) },
+        {
+          label: '━ Split Horizontal',
+          callback: () => terminalCallbacks.forEach((cb) => cb('split-horizontal')),
+        },
+        {
+          label: '┃ Split Vertical',
+          callback: () => terminalCallbacks.forEach((cb) => cb('split-vertical')),
+        },
         { isSeparator: true },
-        { label: '🧹 Clear Terminal', callback: () => terminalCallbacks.forEach((cb) => cb('clear')) },
+        {
+          label: '🧹 Clear Terminal',
+          callback: () => terminalCallbacks.forEach((cb) => cb('clear')),
+        },
       ]);
-    } else if (type === 'project') {
+    } else if (type === 'project' && data && 'path' in data) {
       createContextMenu([
-        { label: '📂 Open Folder', callback: () => invoke('shell_open_path', { filePath: data.path }) },
-        { label: '💻 Open in VS Code', callback: () => invoke('open_in_vscode', { path: data.path }) },
+        {
+          label: '📂 Open Folder',
+          callback: () => invoke('shell_open_path', { filePath: data.path }),
+        },
+        {
+          label: '💻 Open in VS Code',
+          callback: () => invoke('open_in_vscode', { path: data.path }),
+        },
         { isSeparator: true },
         {
           label: '❌ Remove Project',
-          callback: () => sidebarCallbacks.forEach((cb) => cb({ action: 'remove-project', path: data.path })),
+          callback: () =>
+            sidebarCallbacks.forEach((cb) => cb({ action: 'remove-project', path: data.path })),
         },
       ]);
-    } else if (type === 'tab') {
+    } else if (type === 'tab' && data && 'id' in data) {
       createContextMenu([
-        { label: '✏️ Rename', callback: () => sidebarCallbacks.forEach((cb) => cb({ action: 'rename-tab', id: data.id })) },
-        { label: '❌ Close', callback: () => sidebarCallbacks.forEach((cb) => cb({ action: 'close-tab', id: data.id })) },
+        {
+          label: '✏️ Rename',
+          callback: () =>
+            sidebarCallbacks.forEach((cb) => cb({ action: 'rename-tab', id: data.id })),
+        },
+        {
+          label: '❌ Close',
+          callback: () =>
+            sidebarCallbacks.forEach((cb) => cb({ action: 'close-tab', id: data.id })),
+        },
       ]);
-    } else if (type === 'file-explorer') {
+    } else if (type === 'file-explorer' && data && 'path' in data) {
       const menuItems: { label?: string; callback?: () => void; isSeparator?: boolean }[] = [];
       if (data.isDirectory) {
         menuItems.push(
           {
             label: '💻 Open in Terminal',
-            callback: () => sidebarCallbacks.forEach((cb) => cb({ action: 'explorer-open-terminal', path: data.path })),
+            callback: () =>
+              sidebarCallbacks.forEach((cb) =>
+                cb({ action: 'explorer-open-terminal', path: data.path })
+              ),
           },
           { isSeparator: true },
           {
             label: '📄 New File',
-            callback: () => sidebarCallbacks.forEach((cb) => cb({ action: 'explorer-new-file', path: data.path })),
+            callback: () =>
+              sidebarCallbacks.forEach((cb) =>
+                cb({ action: 'explorer-new-file', path: data.path })
+              ),
           },
           {
             label: '📁 New Folder',
-            callback: () => sidebarCallbacks.forEach((cb) => cb({ action: 'explorer-new-folder', path: data.path })),
+            callback: () =>
+              sidebarCallbacks.forEach((cb) =>
+                cb({ action: 'explorer-new-folder', path: data.path })
+              ),
           },
           { isSeparator: true }
         );
@@ -669,14 +544,19 @@ export const tauriBridge = {
       menuItems.push(
         {
           label: '✏️ Rename',
-          callback: () => sidebarCallbacks.forEach((cb) => cb({ action: 'explorer-rename', path: data.path })),
+          callback: () =>
+            sidebarCallbacks.forEach((cb) => cb({ action: 'explorer-rename', path: data.path })),
         },
         {
           label: '🗑️ Delete',
-          callback: () => sidebarCallbacks.forEach((cb) => cb({ action: 'explorer-delete', path: data.path })),
+          callback: () =>
+            sidebarCallbacks.forEach((cb) => cb({ action: 'explorer-delete', path: data.path })),
         },
         { isSeparator: true },
-        { label: '📂 Show in Explorer', callback: () => invoke('file_show_in_folder', { itemPath: data.path }) }
+        {
+          label: '📂 Show in Explorer',
+          callback: () => invoke('file_show_in_folder', { itemPath: data.path }),
+        }
       );
       createContextMenu(menuItems);
     }
@@ -689,7 +569,7 @@ export const tauriBridge = {
     };
   },
 
-  onSidebarContextAction: (callback: (data: any) => void) => {
+  onSidebarContextAction: (callback: (data: SidebarAction) => void) => {
     sidebarCallbacks.add(callback);
     return () => {
       sidebarCallbacks.delete(callback);
@@ -697,10 +577,13 @@ export const tauriBridge = {
   },
 
   onFileDrop: (callback: (paths: string[], position?: { x: number; y: number }) => void) => {
-    initFileDropListeners();
     fileDropCallbacks.add(callback);
+    initFileDropListeners();
     return () => {
       fileDropCallbacks.delete(callback);
+      if (!fileDropCallbacks.size) stopFileDropListeners();
     };
   },
 };
+
+export const tauriBridge = bridge satisfies ElectronAPI;

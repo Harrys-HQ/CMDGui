@@ -96,8 +96,8 @@ export default function CodexSessionPicker({
     <details className="mission-settings mission-session-picker">
       <summary>Continue a previous Codex session</summary>
       <p>
-        Load local sessions for this project. Review the excerpt before sharing it with AGY.
-        Browsing does not run inference.
+        Load local sessions for this project. Review the excerpt before sharing it with the selected
+        provider. Browsing does not run inference.
       </p>
       <button
         type="button"
@@ -170,7 +170,7 @@ export default function CodexSessionPicker({
             <p>
               {selection.resume
                 ? 'Codex retains its original conversation history. Finish any active turn in that session before starting here.'
-                : 'Codex starts a fresh thread using this excerpt, the new task, and AGY’s brief.'}
+                : 'Codex starts a fresh thread using this excerpt, the new task, and any handoff.'}
             </p>
           )}
           <CopyTextButton text={selection.context} label="Copy excerpt" onError={onError} />

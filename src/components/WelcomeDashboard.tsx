@@ -7,7 +7,6 @@ import {
   FolderOpen,
   Sparkles,
   Shield,
-  Command,
   GitBranch,
   Cpu,
   Keyboard,

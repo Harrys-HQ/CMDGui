@@ -108,9 +108,6 @@ const StatusBar: React.FC<StatusBarProps> = ({
 
       <div style={{ flex: 1 }} />
 
-      <div className="status-item" title="RAM Footprint">
-        <span style={{ fontSize: '11px', color: 'var(--fg-secondary)' }}>⚡ RAM: ~140MB</span>
-      </div>
       {activeTabTitle && (
         <div className="status-item" title="Active Task">
           <span>{activeTabTitle}</span>

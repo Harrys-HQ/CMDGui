@@ -1,13 +1,14 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
-import { ToastProvider } from './hooks/useToast';
+import ContextMenu from './components/ContextMenu';
+import { ToastProvider } from './components/ToastProvider';
 import 'xterm/css/xterm.css';
 import './index.css';
 import { tauriBridge } from './tauriBridge';
 
 // Inject Tauri bridge
-window.electron = tauriBridge as any;
+window.electron = tauriBridge;
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -69,6 +70,7 @@ ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <ErrorBoundary>
     <ToastProvider>
       <App />
+      <ContextMenu />
     </ToastProvider>
   </ErrorBoundary>
 );

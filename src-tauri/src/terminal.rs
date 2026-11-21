@@ -1,4 +1,4 @@
-use portable_pty::{native_pty_system, CommandBuilder, MasterPty, PtySize, ChildKiller};
+use portable_pty::{native_pty_system, ChildKiller, CommandBuilder, MasterPty, PtySize};
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::io::{Read, Write};
@@ -61,7 +61,10 @@ pub async fn create_terminal(
             let system_root = std::env::var("SystemRoot")
                 .or_else(|_| std::env::var("windir"))
                 .unwrap_or_else(|_| "C:\\Windows".to_string());
-            format!(r"{}\System32\WindowsPowerShell\v1.0\powershell.exe", system_root)
+            format!(
+                r"{}\System32\WindowsPowerShell\v1.0\powershell.exe",
+                system_root
+            )
         }
     } else {
         std::env::var("SHELL").unwrap_or_else(|_| "bash".to_string())
@@ -75,7 +78,10 @@ pub async fn create_terminal(
             let system_root = std::env::var("SystemRoot")
                 .or_else(|_| std::env::var("windir"))
                 .unwrap_or_else(|_| "C:\\Windows".to_string());
-            shell_cmd = format!(r"{}\System32\WindowsPowerShell\v1.0\powershell.exe", system_root);
+            shell_cmd = format!(
+                r"{}\System32\WindowsPowerShell\v1.0\powershell.exe",
+                system_root
+            );
         } else if lower == "pwsh.exe" || lower == "pwsh" {
             let pwsh_7_path = r"C:\Program Files\PowerShell\7\pwsh.exe";
             if std::path::Path::new(pwsh_7_path).exists() {
@@ -138,16 +144,27 @@ pub async fn create_terminal(
                 format!(r"{}\AppData\Roaming\Python\Scripts", home_str),
                 format!(r"{}\AppData\Roaming\Python\Python312\Scripts", home_str),
                 format!(r"{}\AppData\Roaming\Python\Python311\Scripts", home_str),
-                format!(r"{}\AppData\Local\Programs\Python\Python312\Scripts", home_str),
-                format!(r"{}\AppData\Local\Programs\Python\Python311\Scripts", home_str),
+                format!(
+                    r"{}\AppData\Local\Programs\Python\Python312\Scripts",
+                    home_str
+                ),
+                format!(
+                    r"{}\AppData\Local\Programs\Python\Python311\Scripts",
+                    home_str
+                ),
                 format!(r"{}\AppData\Local\Programs\Ollama", home_str),
                 format!(r"{}\AppData\Local\Programs\Claude\bin", home_str),
-                format!(r"{}\AppData\Local\Programs\cursor\resources\app\bin", home_str),
+                format!(
+                    r"{}\AppData\Local\Programs\cursor\resources\app\bin",
+                    home_str
+                ),
                 r"C:\Program Files\Git\cmd".to_string(),
                 r"C:\Program Files\Git\bin".to_string(),
             ];
             for bin_path in additional_bins {
-                if std::path::Path::new(&bin_path).exists() && !path_val.to_lowercase().contains(&bin_path.to_lowercase()) {
+                if std::path::Path::new(&bin_path).exists()
+                    && !path_val.to_lowercase().contains(&bin_path.to_lowercase())
+                {
                     if !path_val.is_empty() {
                         path_val.push(';');
                     }
@@ -240,14 +257,53 @@ pub async fn create_terminal(
     let app_handle_clone = app_handle.clone();
     let sessions_clone = state.sessions.clone();
 
+    let session = TerminalSession {
+        master,
+        writer: Arc::new(Mutex::new(writer)),
+        killer: Arc::new(Mutex::new(killer)),
+    };
+
+    state.sessions.lock().unwrap().insert(pid.clone(), session);
+
     // Spawn a thread to read output from the PTY master
     thread::spawn(move || {
-        let mut buffer = [0u8; 8192];
+        // A bounded queue provides backpressure without growing memory under heavy output.
+        let (tx, rx) = std::sync::mpsc::sync_channel::<Vec<u8>>(16);
+        thread::spawn(move || {
+            let mut buffer = [0u8; 8192];
+            loop {
+                match reader.read(&mut buffer) {
+                    Ok(0) => break,
+                    Ok(n) => {
+                        if tx.send(buffer[..n].to_vec()).is_err() {
+                            break;
+                        }
+                    }
+                    Err(e) if e.kind() == std::io::ErrorKind::Interrupted => continue,
+                    Err(_) => break,
+                }
+            }
+        });
         let mut leftover: Vec<u8> = Vec::with_capacity(4);
 
         loop {
-            match reader.read(&mut buffer) {
-                Ok(n) if n > 0 => {
+            match rx.recv() {
+                Ok(mut buffer) => {
+                    // Use a fixed deadline, not a resettable debounce: prompts are delivered
+                    // within 8ms even when output continues, and batches stay below 64KiB.
+                    let deadline = std::time::Instant::now() + std::time::Duration::from_millis(8);
+                    while buffer.len() < 65536 {
+                        let remaining =
+                            deadline.saturating_duration_since(std::time::Instant::now());
+                        if remaining.is_zero() {
+                            break;
+                        }
+                        match rx.recv_timeout(remaining) {
+                            Ok(chunk) => buffer.extend_from_slice(&chunk),
+                            Err(_) => break,
+                        }
+                    }
+                    let n = buffer.len();
                     let to_process = if leftover.is_empty() {
                         buffer[..n].to_vec()
                     } else {
@@ -268,9 +324,14 @@ pub async fn create_terminal(
                             if e.error_len().is_none() {
                                 // Trailing bytes form an incomplete UTF-8 codepoint across chunk boundaries
                                 if valid_len > 0 {
-                                    let valid_text = String::from_utf8_lossy(&to_process[..valid_len]).to_string();
+                                    let valid_text =
+                                        String::from_utf8_lossy(&to_process[..valid_len])
+                                            .to_string();
                                     app_handle_clone
-                                        .emit(&format!("terminal-incoming-{}", pid_clone), valid_text)
+                                        .emit(
+                                            &format!("terminal-incoming-{}", pid_clone),
+                                            valid_text,
+                                        )
                                         .ok();
                                 }
                                 leftover = to_process[valid_len..].to_vec();
@@ -305,15 +366,6 @@ pub async fn create_terminal(
             }
         }
     });
-
-    let session = TerminalSession {
-        master,
-        writer: Arc::new(Mutex::new(writer)),
-        killer: Arc::new(Mutex::new(killer)),
-    };
-
-    let mut sessions = state.sessions.lock().unwrap();
-    sessions.insert(pid.clone(), session);
 
     Ok(pid)
 }

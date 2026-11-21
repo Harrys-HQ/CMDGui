@@ -11,8 +11,8 @@ describe('task routing', () => {
     expect(resolveRoute('analysis', 'auto').mode).toBe('agy-only');
   });
 
-  it('uses a handoff only for discovery and honors manual routing', () => {
-    expect(resolveRoute('discovery', 'auto').mode).toBe('pipeline');
-    expect(resolveRoute('discovery', 'codex-only').mode).toBe('codex-only');
+  it('uses direct implementation by default and honors an explicit planning provider', () => {
+    expect(resolveRoute('discovery', 'auto').mode).toBe('codex-only');
+    expect(resolveRoute('discovery', 'copilot-pipeline').mode).toBe('copilot-pipeline');
   });
 });

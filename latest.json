@@ -1,19 +1,19 @@
 {
-  "version": "2.6.0",
-  "notes": "CmdGUI v2.6.0: Mission Control session continuation, automatic handoffs, native text copying, and local project workflows.",
-  "pub_date": "2026-11-03T07:55:22.097Z",
+  "version": "2.6.2",
+  "notes": "- Restored workspaces display all saved tabs immediately and start background shells when you first open them. Running shells stay alive when you switch tabs.\n- Settings load and save in batches. The project sidebar refreshes Git status separately from scripts and other project metadata.\n- Mission Control runs configured checks after Codex completes, shows remaining work, and can continue from an editable checkpoint. Compact windows offer separate setup and run views.\n- A file drop pastes one path per file into the terminal pane under the cursor. Terminal tabs support keyboard selection, closing, and opening.\n- Copilot → Codex is a pilot. Occasional PowerShell command delays can still occur under heavy concurrent test load.",
+  "pub_date": "2026-11-21T06:12:01.113Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRTFBBRTlkRm42aVJkNkRheXppSkFlemJoVmZERkF2WDNoWEVYalJGOGJOR1YzcTNSdmVlZ3pBTVFBZVduN0JBTzZlaDkwcTFGVG9uSVhYTlIwQ0M0bGI0RE5UOXd5ZHdFPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkzNjkyNDAzCWZpbGU6Q21kR1VJXzIuNi4wX3g2NC1zZXR1cC5leGUKeWhCTVY0T2pWVjR2R2JBMUg1RWhtOVVKdklPVGRRemRqYnhzQUN4OHFQc2JzNDN5SFg4aHVCeXMvWXhCMmtubXl6djk3ekF3bEw3dmtRcGhQYUtmQVE9PQo=",
-      "url": "https://github.com/Harrys-HQ/CMDGui/releases/download/v2.6.0/CmdGUI_2.6.0_x64-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRTFBBRTlkRm42aWVMUmYzMmo1amxxZ3k5TlArOGUvUmxueVJlU3hncTNOSWZ1T0pvRTdJeGwxOVI0Z1IzSkJrMGZMWFNZRTExWUdpNlFIT3VpV0pnODQzMFVFNk95S3dNPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk1MjQxNTA2CWZpbGU6Q21kR1VJXzIuNi4yX3g2NC1zZXR1cC5leGUKaFVMRGR5R1ZOc2wzRk1LUXo5S0Z2RUJ2UkJXZlU5NWNJdm5mNFp5N3pFaktiUWtPSWd1aUtKN0YzVE5sV280d2h4anREdndubXlBLzVoa3pSZEwzRGc9PQo=",
+      "url": "https://github.com/Harrys-HQ/CMDGui/releases/download/v2.6.2/CmdGUI_2.6.2_x64-setup.exe"
     },
     "windows-x86_64-nsis": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRTFBBRTlkRm42aVJkNkRheXppSkFlemJoVmZERkF2WDNoWEVYalJGOGJOR1YzcTNSdmVlZ3pBTVFBZVduN0JBTzZlaDkwcTFGVG9uSVhYTlIwQ0M0bGI0RE5UOXd5ZHdFPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkzNjkyNDAzCWZpbGU6Q21kR1VJXzIuNi4wX3g2NC1zZXR1cC5leGUKeWhCTVY0T2pWVjR2R2JBMUg1RWhtOVVKdklPVGRRemRqYnhzQUN4OHFQc2JzNDN5SFg4aHVCeXMvWXhCMmtubXl6djk3ekF3bEw3dmtRcGhQYUtmQVE9PQo=",
-      "url": "https://github.com/Harrys-HQ/CMDGui/releases/download/v2.6.0/CmdGUI_2.6.0_x64-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRTFBBRTlkRm42aWVMUmYzMmo1amxxZ3k5TlArOGUvUmxueVJlU3hncTNOSWZ1T0pvRTdJeGwxOVI0Z1IzSkJrMGZMWFNZRTExWUdpNlFIT3VpV0pnODQzMFVFNk95S3dNPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk1MjQxNTA2CWZpbGU6Q21kR1VJXzIuNi4yX3g2NC1zZXR1cC5leGUKaFVMRGR5R1ZOc2wzRk1LUXo5S0Z2RUJ2UkJXZlU5NWNJdm5mNFp5N3pFaktiUWtPSWd1aUtKN0YzVE5sV280d2h4anREdndubXlBLzVoa3pSZEwzRGc9PQo=",
+      "url": "https://github.com/Harrys-HQ/CMDGui/releases/download/v2.6.2/CmdGUI_2.6.2_x64-setup.exe"
     },
     "windows-x86_64-msi": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRTFBBRTlkRm42aVNvWEpmR0VsUkRZNFJTYjIxUytpTklPSHkrTVBsL28xaTNKdVROb3B0NmNvVTFEaW5UWW1NelZLdldWRFI0eDBNM2E1aWcweFprWlhkMmJrcmFxMGd3PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkzNjkyNDAzCWZpbGU6Q21kR1VJXzIuNi4wX3g2NF9lbi1VUy5tc2kKMjZpR01LT1U4Q2xvYWtUdVo3UStxMFhCWjhicGx2cW1nbUdYem5hK204OG1RNHMvZEhEa1M5Mi9HdVRzUjBMTXdtTFBFUmJRMjN5bldIQzdjQjNTQ3c9PQo=",
-      "url": "https://github.com/Harrys-HQ/CMDGui/releases/download/v2.6.0/CmdGUI_2.6.0_x64_en-US.msi"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRTFBBRTlkRm42aVdObzEvMFF3Z21OZzFUZWNPMjdTV09pTlRoS0sxQmZONFhja3paVklEdmlLelhWZzVSWUtTaXdtaXk5MWttaEtUeHFQQkFnVzl0ZkR1THB5SGRUOHdVPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk1MjQxNTA2CWZpbGU6Q21kR1VJXzIuNi4yX3g2NF9lbi1VUy5tc2kKNHgyZGtUVHMzVjdUNDNycHdZay95aS9aZmMyM2VHMTFUSnlWRWdnMmhDL2hHbVdEaDI4UVV0TVlreGVSdXRPUzJtSUJ4QnNQOXk4TWVvOEFVRG5HRFE9PQo=",
+      "url": "https://github.com/Harrys-HQ/CMDGui/releases/download/v2.6.2/CmdGUI_2.6.2_x64_en-US.msi"
     }
   }
 }

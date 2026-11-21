@@ -1,4 +1,4 @@
-export type WorkflowMode = 'pipeline' | 'codex-only' | 'agy-only';
+export type WorkflowMode = 'pipeline' | 'codex-only' | 'agy-only' | 'copilot-pipeline';
 export type WorkflowStatus =
   | 'running'
   | 'verified'
@@ -22,6 +22,32 @@ export interface WorkflowOptions {
   sessionId?: string | null;
   sessionContext?: string;
   resumeSession?: boolean;
+  yoloMode?: boolean;
+  handoff?: string;
+  continuation?: { runId: string; fingerprint: string };
+}
+
+export interface WorkflowCheckpoint {
+  continuation: NonNullable<WorkflowOptions['continuation']>;
+  handoff: string;
+  diff: string;
+  prompt: string;
+  codexSessionId: string | null;
+  checks: string[];
+}
+
+export interface WorkflowSummary {
+  id: string;
+  cwd: string;
+  prompt: string;
+  status: WorkflowStatus;
+  startedAt: number;
+}
+
+export interface WorkflowOverview {
+  history: WorkflowSummary[] | null;
+  active: WorkflowSummary | null;
+  selected: WorkflowRun | null;
 }
 
 export const taskProfiles = {
@@ -45,12 +71,11 @@ export const taskProfiles = {
   },
   discovery: {
     label: 'Feature needing repository discovery',
-    mode: 'pipeline',
+    mode: 'codex-only',
     agyModel: 'gemini-3.8-flash-medium',
     codexModel: 'gpt-6.1-sol',
     codexEffort: 'medium',
-    reason:
-      'AGY produces a compact evidence-based brief; Codex implements without repeating the repository survey.',
+    reason: 'Codex investigates and implements. Paste a plan from another provider to hand it off.',
   },
   analysis: {
     label: 'Investigation / implementation plan only',
@@ -81,6 +106,7 @@ export function resolveRoute(taskType: TaskType, override: 'auto' | WorkflowMode
       'AGY investigates, then Codex implements from the saved brief and the coordinator runs checks.',
     'codex-only': 'Codex investigates and implements directly, then the coordinator runs checks.',
     'agy-only': 'AGY produces a read-only brief. Implementation and checks are skipped.',
+    'copilot-pipeline': 'Copilot investigates, Codex implements, and CMDGui runs the checks.',
   };
   return {
     mode: override === 'auto' ? profile.mode : override,
@@ -107,6 +133,7 @@ export interface WorkflowRun {
   checks: { command: string; exitCode: number | null; passed: boolean }[];
   artifactDir: string;
   codexSessionId?: string | null;
+  unresolved?: string[];
 }
 
 export interface CodexSession {

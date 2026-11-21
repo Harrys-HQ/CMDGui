@@ -11,12 +11,15 @@ const tauri = readJson('src-tauri/tauri.conf.json');
 const lock = readJson('package-lock.json');
 const cargo = fs.readFileSync(path.join(root, 'src-tauri/Cargo.toml'), 'utf8');
 const cargoLock = fs.readFileSync(path.join(root, 'src-tauri/Cargo.lock'), 'utf8');
-const settings = fs.readFileSync(path.join(root, 'src/components/SettingsModal.tsx'), 'utf8');
+const notes = fs.readFileSync(path.join(root, 'release_notes.md'), 'utf8');
 if (tauri.version !== version || lock.version !== version || lock.packages[''].version !== version
   || !cargo.includes(`version = "${version}"`)
-  || !cargoLock.includes(`name = "cmdgui"\nversion = "${version}"`)
-  || !settings.includes(`useState<string>('${version}')`)) {
+  || !cargoLock.replaceAll('\r\n', '\n').includes(`name = "cmdgui"\nversion = "${version}"`)) {
   throw new Error('Version metadata is out of sync. Update all version fields before staging.');
+}
+const [heading, ...highlights] = notes.split(/^---\s*$/m)[0].trim().split(/\r?\n/);
+if (!heading.endsWith(` v${version}`) || !highlights.join('').trim()) {
+  throw new Error(`Add release notes for v${version} before staging.`);
 }
 
 const nsis = `CmdGUI_${version}_x64-setup.exe`;
@@ -37,7 +40,7 @@ const url = pkg.repository.url.replace(/\.git$/, '') + `/releases/download/v${ve
 const entry = (name) => ({ signature: fs.readFileSync(path.join(out, `${name}.sig`), 'utf8').trim(), url: url + name });
 const manifest = {
   version,
-  notes: `CmdGUI v${version}: Mission Control session continuation, automatic handoffs, native text copying, and local project workflows.`,
+  notes: highlights.join('\n').trim(),
   pub_date: new Date().toISOString(),
   platforms: { 'windows-x86_64': entry(nsis), 'windows-x86_64-nsis': entry(nsis), 'windows-x86_64-msi': entry(msi) },
 };

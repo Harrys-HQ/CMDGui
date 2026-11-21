@@ -44,18 +44,33 @@ export const useSettings = () => {
 
   useEffect(() => {
     const init = async () => {
-      const savedTheme = await loadState('terminalTheme', 'vscode');
-      const savedUiTheme = await loadState('uiTheme', 'dark');
-      const savedCustomTheme = await loadState<TerminalTheme>('customTheme', DEFAULT_CUSTOM_THEME);
-      const savedFontSize = await loadState('terminalFontSize', 14);
-      const savedScrollback = await loadState('terminalScrollback', 1000);
-      const savedQuakeMode = await loadState('isQuakeModeEnabled', false);
-      const savedStayAwake = await loadState('isStayAwakeEnabled', false);
-      const savedYoloMode = await loadState('isYoloModeEnabled', false);
-      const savedGPU = await loadState('isGPUAccelerationEnabled', true);
-      const savedRenderer = await loadState<TerminalRendererType>('terminalRendererType', 'canvas');
-      const savedShell = await loadState('defaultShell', '');
-      const savedShowTabs = await loadState('showTopTabBar', true);
+      const [
+        savedTheme,
+        savedUiTheme,
+        savedCustomTheme,
+        savedFontSize,
+        savedScrollback,
+        savedQuakeMode,
+        savedStayAwake,
+        savedYoloMode,
+        savedGPU,
+        savedRenderer,
+        savedShell,
+        savedShowTabs,
+      ] = await Promise.all([
+        loadState('terminalTheme', 'vscode'),
+        loadState('uiTheme', 'dark'),
+        loadState<TerminalTheme>('customTheme', DEFAULT_CUSTOM_THEME),
+        loadState('terminalFontSize', 14),
+        loadState('terminalScrollback', 1000),
+        loadState('isQuakeModeEnabled', false),
+        loadState('isStayAwakeEnabled', false),
+        loadState('isYoloModeEnabled', false),
+        loadState('isGPUAccelerationEnabled', true),
+        loadState<TerminalRendererType>('terminalRendererType', 'canvas'),
+        loadState('defaultShell', ''),
+        loadState('showTopTabBar', true),
+      ]);
 
       setTerminalTheme(savedTheme);
       setUiTheme(savedUiTheme);
@@ -140,17 +155,6 @@ export const useSettings = () => {
     if (window.electron) {
       window.electron.checkAdmin().then(setIsAdmin);
     }
-
-    // Sync quake mode initial state with main process
-    const syncQuake = async () => {
-      const savedQuakeMode = await loadState('isQuakeModeEnabled', false);
-      const savedStayAwake = await loadState('isStayAwakeEnabled', false);
-      if (window.electron) {
-        window.electron.setQuakeMode(savedQuakeMode);
-        window.electron.setStayAwake(savedStayAwake);
-      }
-    };
-    syncQuake();
   }, []);
 
   useEffect(() => {

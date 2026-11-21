@@ -19,6 +19,7 @@ const createTerminalPane = (
 export const useTabs = () => {
   const [tabs, setTabs] = useState<Tab[]>([]);
   const [activeTabId, setActiveTabId] = useState<string>('');
+  const [deferredTabIds, setDeferredTabIds] = useState<ReadonlySet<string>>(() => new Set());
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [activeWorkspaceId, setActiveWorkspaceId] = useState<string | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
@@ -26,12 +27,15 @@ export const useTabs = () => {
   // Initial load
   useEffect(() => {
     const init = async () => {
-      const savedTabsRaw = await loadState<Tab[]>('tabs', []);
+      const [savedTabsRaw, savedActiveId, savedWorkspacesRaw, savedActiveWorkspaceId] =
+        await Promise.all([
+          loadState<Tab[]>('tabs', []),
+          loadState<string>('activeTabId', ''),
+          loadState<Workspace[]>('workspaces', []),
+          loadState<string | null>('activeWorkspaceId', null),
+        ]);
       const savedTabs = Array.isArray(savedTabsRaw) ? savedTabsRaw : [];
-      const savedActiveId = await loadState<string>('activeTabId', '');
-      const savedWorkspacesRaw = await loadState<Workspace[]>('workspaces', []);
       const savedWorkspaces = Array.isArray(savedWorkspacesRaw) ? savedWorkspacesRaw : [];
-      const savedActiveWorkspaceId = await loadState<string | null>('activeWorkspaceId', null);
 
       // Validate and filter saved tabs
       const validatedTabs = savedTabs
@@ -64,6 +68,7 @@ export const useTabs = () => {
         setTabs([initialTab]);
         setActiveTabId(initialTab.id);
       } else {
+        setDeferredTabIds(new Set(validatedTabs.map((tab) => tab.id)));
         setTabs(validatedTabs);
         setActiveTabId(savedActiveId && validatedTabs.some((t) => t.id === savedActiveId) ? savedActiveId : validatedTabs[0].id);
       }
@@ -72,6 +77,15 @@ export const useTabs = () => {
       setIsLoaded(true);
     };
     init();
+  }, []);
+
+  const markTerminalTabOpened = useCallback((id: string) => {
+    setDeferredTabIds((previous) => {
+      if (!previous.has(id)) return previous;
+      const next = new Set(previous);
+      next.delete(id);
+      return next;
+    });
   }, []);
 
   // Save changes
@@ -130,11 +144,13 @@ export const useTabs = () => {
               });
               tab.panes = newPanes;
               if (tab.layout) {
-                const remapLayout = (node: any) => {
+                type LegacyPaneLayout = PaneLayout & { first?: LegacyPaneLayout; second?: LegacyPaneLayout };
+                const remapLayout = (node: LegacyPaneLayout) => {
                   if (!node) return;
                   if (node.paneId && idMap[node.paneId]) {
                     node.paneId = idMap[node.paneId];
                   }
+                  node.children?.forEach(remapLayout);
                   if (node.first) remapLayout(node.first);
                   if (node.second) remapLayout(node.second);
                 };
@@ -145,7 +161,12 @@ export const useTabs = () => {
 
           return clonedTabs;
         });
-        setActiveTabId(workspace.activeTabId);
+        setDeferredTabIds(new Set(workspace.tabs.map((tab) => tab.id)));
+        setActiveTabId(
+          workspace.tabs.find((tab) => tab.id === workspace.activeTabId)?.id ??
+            workspace.tabs[0]?.id ??
+            ''
+        );
         setActiveWorkspaceId(id);
       }
     },
@@ -188,6 +209,7 @@ export const useTabs = () => {
   );
 
   const closeTab = useCallback((id: string) => {
+    markTerminalTabOpened(id);
     setTabs((prev) => {
       const tabToClose = prev.find((t) => t.id === id);
       if (tabToClose && tabToClose.panes) {
@@ -208,7 +230,7 @@ export const useTabs = () => {
       });
       return newTabs;
     });
-  }, []);
+  }, [markTerminalTabOpened]);
 
   const splitPane = useCallback(
     (tabId: string, targetPaneId: string, direction: 'horizontal' | 'vertical') => {
@@ -324,6 +346,8 @@ export const useTabs = () => {
     setTabs,
     activeTabId,
     setActiveTabId,
+    deferredTabIds,
+    markTerminalTabOpened,
     addTab,
     closeTab,
     splitPane,

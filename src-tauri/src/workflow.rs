@@ -139,6 +139,30 @@ pub struct WorkflowOptions {
     session_context: String,
     #[serde(default)]
     resume_session: bool,
+    #[serde(default)]
+    yolo_mode: bool,
+    #[serde(default)]
+    handoff: String,
+    #[serde(default)]
+    continuation: Option<Continuation>,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct Continuation {
+    run_id: String,
+    fingerprint: String,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkflowCheckpoint {
+    continuation: Continuation,
+    handoff: String,
+    diff: String,
+    prompt: String,
+    codex_session_id: Option<String>,
+    checks: Vec<String>,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -175,6 +199,8 @@ pub struct WorkflowRun {
     artifact_dir: String,
     #[serde(default)]
     codex_session_id: Option<String>,
+    #[serde(default)]
+    unresolved: Vec<String>,
 }
 
 struct Store {
@@ -259,6 +285,9 @@ impl WorkflowState {
 }
 
 fn validate_options(options: &WorkflowOptions) -> Result<(), String> {
+    if options.handoff.len() > 24000 {
+        return Err("Handoff exceeds 24 KB. Shorten the checkpoint.".into());
+    }
     if options.session_context.len() > 12000 {
         return Err("Imported session context exceeds 12 KB. Shorten the excerpt.".into());
     }
@@ -280,7 +309,7 @@ fn validate_options(options: &WorkflowOptions) -> Result<(), String> {
     }
     if !matches!(
         options.mode.as_str(),
-        "pipeline" | "codex-only" | "agy-only"
+        "pipeline" | "codex-only" | "agy-only" | "copilot-pipeline"
     ) {
         return Err("Unknown workflow mode.".into());
     }
@@ -313,12 +342,166 @@ fn validate_options(options: &WorkflowOptions) -> Result<(), String> {
     Ok(())
 }
 
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct WorkflowSummary {
+    id: String,
+    cwd: String,
+    prompt: String,
+    status: String,
+    started_at: u64,
+}
+
+impl From<&WorkflowRun> for WorkflowSummary {
+    fn from(run: &WorkflowRun) -> Self {
+        Self {
+            id: run.id.clone(),
+            cwd: run.options.cwd.clone(),
+            prompt: bounded(&run.options.prompt, 240).to_owned(),
+            status: run.status.clone(),
+            started_at: run.started_at,
+        }
+    }
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkflowOverview {
+    history: Option<Vec<WorkflowSummary>>,
+    active: Option<WorkflowSummary>,
+    selected: Option<WorkflowRun>,
+}
+
 #[tauri::command]
-pub async fn workflow_list(state: State<'_, WorkflowState>) -> Result<Vec<WorkflowRun>, String> {
+pub async fn workflow_list(
+    state: State<'_, WorkflowState>,
+    cwd: Option<String>,
+    selected_id: Option<String>,
+    include_history: bool,
+) -> Result<WorkflowOverview, String> {
+    let cwd = cwd.and_then(|path| fs::canonicalize(path).ok());
     let store = state.store.lock().map_err(|e| e.to_string())?;
-    let mut runs: Vec<_> = store.runs.values().cloned().collect();
-    runs.sort_by(|a, b| b.started_at.cmp(&a.started_at));
-    Ok(runs)
+    Ok(workflow_overview(
+        &store,
+        cwd.as_deref(),
+        selected_id.as_deref(),
+        include_history,
+    ))
+}
+
+fn workflow_overview(
+    store: &Store,
+    cwd: Option<&Path>,
+    selected_id: Option<&str>,
+    include_history: bool,
+) -> WorkflowOverview {
+    let matches_project = |run: &WorkflowRun| {
+        cwd.is_some_and(|cwd| {
+            let path = Path::new(&run.options.cwd);
+            if cfg!(windows) {
+                cwd.to_string_lossy()
+                    .eq_ignore_ascii_case(&path.to_string_lossy())
+            } else {
+                cwd == path
+            }
+        })
+    };
+    let active = store.active.as_ref().and_then(|(id, _)| store.runs.get(id));
+    let selected = selected_id
+        .and_then(|id| store.runs.get(id))
+        .filter(|run| matches_project(run) || active.is_some_and(|active| active.id == run.id))
+        .or_else(|| active.filter(|run| matches_project(run)))
+        .or_else(|| {
+            store
+                .runs
+                .values()
+                .filter(|run| matches_project(run))
+                .max_by_key(|run| (run.started_at, &run.id))
+        });
+    let history = include_history.then(|| {
+        let mut runs: Vec<_> = store
+            .runs
+            .values()
+            .filter(|run| matches_project(run))
+            .collect();
+        runs.sort_by_key(|run| std::cmp::Reverse((run.started_at, &run.id)));
+        runs.into_iter().map(WorkflowSummary::from).collect()
+    });
+    WorkflowOverview {
+        history,
+        active: active.map(WorkflowSummary::from),
+        selected: selected
+            .filter(|run| include_history || active.is_some_and(|active| active.id == run.id))
+            .cloned(),
+    }
+}
+
+#[tauri::command]
+pub async fn workflow_checkpoint(
+    state: State<'_, WorkflowState>,
+    id: String,
+) -> Result<WorkflowCheckpoint, String> {
+    let run = {
+        let store = state.store.lock().map_err(|e| e.to_string())?;
+        if store.active.is_some() {
+            return Err(
+                "Wait for the active workflow to stop before capturing a checkpoint.".into(),
+            );
+        }
+        store.runs.get(&id).ok_or("Run not found")?.clone()
+    };
+    capture_checkpoint(&run).await
+}
+
+async fn capture_checkpoint(run: &WorkflowRun) -> Result<WorkflowCheckpoint, String> {
+    let cwd = &run.options.cwd;
+    let before = fingerprint(cwd).await?;
+    let status = git_preview(cwd, &["status", "--short", "--untracked-files=all"], 1800).await?;
+    let diff = git_preview(
+        cwd,
+        &["diff", "--no-ext-diff", "--no-textconv", "HEAD", "--"],
+        48000,
+    )
+    .await?;
+    if before != fingerprint(cwd).await? {
+        return Err("The working tree changed during capture. Load the checkpoint again.".into());
+    }
+    let checks = run
+        .checks
+        .iter()
+        .map(|check| {
+            format!(
+                "{} {} (exit {})",
+                if check.passed { "PASS" } else { "FAIL" },
+                check.command,
+                check
+                    .exit_code
+                    .map_or_else(|| "unknown".into(), |code| code.to_string())
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    let handoff = format!(
+        "Task\n{}\n\nRun status\n{}\n\nPrevious plan or handoff\n{}\n\nLast implementation summary\n{}\n\nRemaining work\n{}\n\nChecks recorded for the previous run\n{}\n\nCurrent Git status (includes pre-existing edits)\n{}",
+        bounded(&run.options.prompt, 4000),
+        bounded(&run.message, 1000),
+        bounded(run.brief.as_deref().unwrap_or(&run.options.handoff), 10000),
+        bounded(run.summary.as_deref().unwrap_or("No implementation summary was recorded."), 2000),
+        bounded(&run.unresolved.join("\n"), 2000),
+        bounded(&checks, 2000),
+        bounded(&status, 2000),
+    );
+    Ok(WorkflowCheckpoint {
+        continuation: Continuation {
+            run_id: run.id.clone(),
+            fingerprint: before,
+        },
+        handoff,
+        diff,
+        prompt: run.options.prompt.clone(),
+        codex_session_id: run.codex_session_id.clone(),
+        checks: run.options.checks.clone(),
+    })
 }
 
 #[tauri::command]
@@ -336,6 +519,15 @@ pub async fn workflow_start(
     let mut store = state.store.lock().map_err(|e| e.to_string())?;
     if store.active.is_some() {
         return Err("Another workflow is running. Cancel it or wait for it to finish.".into());
+    }
+    if let Some(continuation) = &options.continuation {
+        let previous = store
+            .runs
+            .get(&continuation.run_id)
+            .ok_or("Previous run not found.")?;
+        if fs::canonicalize(&previous.options.cwd).ok().as_ref() != Some(&cwd) {
+            return Err("The checkpoint belongs to another project.".into());
+        }
     }
     let id = format!(
         "{}",
@@ -359,6 +551,7 @@ pub async fn workflow_start(
         output: String::new(),
         usage: None,
         checks: vec![],
+        unresolved: vec![],
     };
     save(&run)?;
     let cancel = Arc::new(AtomicBool::new(false));
@@ -390,7 +583,7 @@ fn finish_run(run: &mut WorkflowRun, result: Result<(), String>, cancelled: bool
                 && run.checks.iter().all(|c| c.passed);
             run.status = if run.options.mode == "agy-only" {
                 "planned"
-            } else if checked {
+            } else if checked && run.unresolved.is_empty() {
                 "verified"
             } else {
                 "needs-review"
@@ -398,6 +591,13 @@ fn finish_run(run: &mut WorkflowRun, result: Result<(), String>, cancelled: bool
             .into();
             run.message = if run.options.mode == "agy-only" {
                 "Investigation complete. The saved brief is ready for review; implementation was not requested.".into()
+            } else if !run.unresolved.is_empty() {
+                if checked {
+                    "All configured checks passed. Review the remaining work reported by Codex."
+                        .into()
+                } else {
+                    "Review the remaining work reported by Codex and validate the changes.".into()
+                }
             } else if checked {
                 "Implementation finished and all configured checks passed.".into()
             } else {
@@ -570,7 +770,14 @@ async fn read_output<R: AsyncRead + Unpin>(
     mut stream: R,
     state: WorkflowState,
     id: String,
+    log_path: PathBuf,
+    capture_thread: bool,
+    expected_thread: Option<String>,
 ) -> Result<String, String> {
+    let mut log = tokio::fs::File::create(log_path)
+        .await
+        .map_err(|e| e.to_string())?;
+    let mut thread_cursor = capture_thread.then_some(0);
     let mut output = Vec::new();
     let mut buffer = [0u8; 4096];
     loop {
@@ -581,9 +788,31 @@ async fn read_output<R: AsyncRead + Unpin>(
         if output.len() + count > OUTPUT_LIMIT {
             return Err("Process output exceeded the 8 MiB limit.".into());
         }
+        log.write_all(&buffer[..count])
+            .await
+            .map_err(|e| e.to_string())?;
         output.extend_from_slice(&buffer[..count]);
         state.output(&id, &String::from_utf8_lossy(&buffer[..count]));
+        while let Some(cursor) = thread_cursor {
+            let Some(length) = output[cursor..].iter().position(|byte| *byte == b'\n') else {
+                break;
+            };
+            let line = &output[cursor..cursor + length];
+            thread_cursor = Some(cursor + length + 1);
+            if let Ok(event) = serde_json::from_slice::<Value>(line) {
+                if event["type"] == "thread.started" {
+                    if let Some(thread) = event["thread_id"].as_str().filter(|thread| {
+                        !thread.is_empty()
+                            && expected_thread.as_deref().is_none_or(|id| id == *thread)
+                    }) {
+                        state.update(&id, |run| run.codex_session_id = Some(thread.to_owned()))?;
+                        thread_cursor = None;
+                    }
+                }
+            }
+        }
     }
+    log.flush().await.map_err(|e| e.to_string())?;
     Ok(String::from_utf8_lossy(&output).into_owned())
 }
 
@@ -622,8 +851,28 @@ async fn run_process(
     });
     let stdout = child.stdout.take().ok_or("Missing stdout")?;
     let stderr = child.stderr.take().ok_or("Missing stderr")?;
-    let mut out = tokio::spawn(read_output(stdout, state.clone(), run.id.clone()));
-    let mut err = tokio::spawn(read_output(stderr, state.clone(), run.id.clone()));
+    let dir = Path::new(&run.artifact_dir);
+    let expected_thread = run
+        .options
+        .resume_session
+        .then(|| run.options.session_id.clone())
+        .flatten();
+    let mut out = tokio::spawn(read_output(
+        stdout,
+        state.clone(),
+        run.id.clone(),
+        dir.join(format!("{label}.stdout.log")),
+        label == "codex",
+        expected_thread,
+    ));
+    let mut err = tokio::spawn(read_output(
+        stderr,
+        state.clone(),
+        run.id.clone(),
+        dir.join(format!("{label}.stderr.log")),
+        false,
+        None,
+    ));
     let stdin = child.stdin.take();
     let input = input.map(str::to_owned);
     let mut writer = tokio::spawn(async move {
@@ -674,7 +923,7 @@ async fn run_process(
                 .map_err(|_| "Output stream did not close".to_string())?
                 .map_err(|e| e.to_string())??,
         };
-        let stderr = match captured_err {
+        match captured_err {
             Some(text) => text,
             None => tokio::time::timeout(remaining, &mut err)
                 .await
@@ -682,16 +931,6 @@ async fn run_process(
                 .map_err(|e| e.to_string())??,
         };
         let _ = tokio::time::timeout(Duration::from_secs(1), &mut writer).await;
-        fs::write(
-            Path::new(&run.artifact_dir).join(format!("{label}.stdout.log")),
-            &stdout,
-        )
-        .map_err(|e| e.to_string())?;
-        fs::write(
-            Path::new(&run.artifact_dir).join(format!("{label}.stderr.log")),
-            &stderr,
-        )
-        .map_err(|e| e.to_string())?;
         Ok(ProcessResult {
             code: status.code(),
             stdout,
@@ -725,15 +964,55 @@ async fn git(cwd: &str, args: &[&str]) -> Result<Vec<u8>, String> {
     Ok(result.stdout)
 }
 
+fn bounded(text: &str, max_bytes: usize) -> &str {
+    let mut end = max_bytes.min(text.len());
+    while !text.is_char_boundary(end) {
+        end -= 1;
+    }
+    &text[..end]
+}
+
+async fn git_preview(cwd: &str, args: &[&str], max_bytes: usize) -> Result<String, String> {
+    let mut child = command(Path::new("git"))
+        .args(args)
+        .current_dir(cwd)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .kill_on_drop(true)
+        .spawn()
+        .map_err(|e| format!("Could not start Git: {e}"))?;
+    let mut bytes = Vec::new();
+    child
+        .stdout
+        .take()
+        .ok_or("Missing Git output")?
+        .take(max_bytes as u64 + 1)
+        .read_to_end(&mut bytes)
+        .await
+        .map_err(|e| e.to_string())?;
+    if bytes.len() > max_bytes {
+        let _ = child.kill().await;
+        bytes.truncate(max_bytes);
+        return Ok(format!(
+            "{}\n[Preview truncated]",
+            String::from_utf8_lossy(&bytes)
+        ));
+    }
+    if !child.wait().await.map_err(|e| e.to_string())?.success() {
+        return Err("Git could not read the working tree preview.".into());
+    }
+    Ok(String::from_utf8_lossy(&bytes).into_owned())
+}
+
 async fn fingerprint(cwd: &str) -> Result<String, String> {
     let mut hash = DefaultHasher::new();
     // Includes tracked edits, staging, deletions and untracked file contents;
     // ignored build outputs do not invalidate a handoff.
     git(cwd, &["rev-parse", "HEAD"]).await?.hash(&mut hash);
-    git(cwd, &["diff", "--cached", "--binary"])
+    git(cwd, &["diff", "--cached", "--raw", "-z"])
         .await?
         .hash(&mut hash);
-    git(cwd, &["diff", "--binary"]).await?.hash(&mut hash);
+    git(cwd, &["diff", "--raw", "-z"]).await?.hash(&mut hash);
     let files = git(cwd, &["ls-files", "-c", "-o", "--exclude-standard", "-z"]).await?;
     let root = fs::canonicalize(cwd).map_err(|e| e.to_string())?;
     let mut paths: Vec<_> = files.split(|b| *b == 0).filter(|p| !p.is_empty()).collect();
@@ -830,14 +1109,34 @@ fn validate_brief(value: &Value) -> Result<(), String> {
 fn extract_brief(output: &str) -> Result<Value, String> {
     let envelope: Value =
         serde_json::from_str(output).map_err(|e| format!("AGY did not return JSON: {e}"))?;
+    if envelope
+        .get("denied_actions")
+        .and_then(Value::as_array)
+        .is_some_and(|items| !items.is_empty())
+    {
+        return Err("AGY tool permissions were denied in headless mode. Enable YOLO mode for this project or configure AGY permission allow-rules, then start a new run. See its output.".into());
+    }
     if envelope.get("is_error").and_then(Value::as_bool) == Some(true) {
+        return Err("AGY reported an unsuccessful run. See its output.".into());
+    }
+    if envelope
+        .get("status")
+        .and_then(Value::as_str)
+        .is_some_and(|status| status != "SUCCESS")
+    {
         return Err("AGY reported an unsuccessful run. See its output.".into());
     }
     let candidate = envelope
         .get("structured_output")
         .or_else(|| envelope.get("result"))
+        .or_else(|| envelope.get("response"))
         .unwrap_or(&envelope);
     let value = match candidate.as_str() {
+        Some(text) if text.trim().is_empty() => {
+            return Err(
+                "AGY returned no brief. See its output for permission or model errors.".into(),
+            )
+        }
         Some(text) => serde_json::from_str(text)
             .map_err(|e| format!("AGY result is not a structured brief: {e}"))?,
         None => candidate.clone(),
@@ -921,12 +1220,17 @@ async fn execute(
     } else {
         None
     };
-    let agy = if run.options.mode != "codex-only" {
-        Some(Worker::installed("agy")?)
-    } else {
-        None
+    let planner = match run.options.mode.as_str() {
+        "codex-only" => None,
+        "copilot-pipeline" => Some(Worker::installed("copilot")?),
+        _ => {
+            if !std::env::var("GEMINI_API_KEY").is_ok_and(|key| !key.trim().is_empty()) {
+                return Err("Automated AGY requires GEMINI_API_KEY for Gemini API billing. For a Google AI subscription, run Antigravity separately and paste the plan into Handoff notes.".into());
+            }
+            Some(Worker::installed("agy")?)
+        }
     };
-    execute_workers(state, run, cancel, codex, agy).await
+    execute_workers(state, run, cancel, codex, planner).await
 }
 
 async fn execute_workers(
@@ -934,7 +1238,7 @@ async fn execute_workers(
     run: &WorkflowRun,
     cancel: &AtomicBool,
     codex: Option<Worker>,
-    agy: Option<Worker>,
+    planner: Option<Worker>,
 ) -> Result<(), String> {
     let dir = Path::new(&run.artifact_dir);
     if let Some(id) = &run.options.session_id {
@@ -943,39 +1247,73 @@ async fn execute_workers(
             .map_err(|e| e.to_string())?;
     }
     let before = fingerprint(&run.options.cwd).await?;
+    if run
+        .options
+        .continuation
+        .as_ref()
+        .is_some_and(|checkpoint| checkpoint.fingerprint != before)
+    {
+        return Err(
+            "The working tree changed after checkpoint review. Load the checkpoint again.".into(),
+        );
+    }
     fs::write(dir.join("source-fingerprint.txt"), &before).map_err(|e| e.to_string())?;
     let mut brief = None;
-    if let Some(agy) = agy {
+    if let Some(planner) = planner {
+        let copilot = run.options.mode == "copilot-pipeline";
+        let label = if copilot { "copilot" } else { "agy" };
+        let name = if copilot { "Copilot" } else { "AGY" };
         state.update(&run.id, |r| {
             r.stage = "planning".into();
-            r.message = "AGY is preparing a bounded implementation brief.".into();
+            r.message = format!("{name} is preparing an implementation brief.");
         })?;
         let schema = dir.join("brief.schema.json");
         fs::write(&schema, brief_schema().to_string()).map_err(|e| e.to_string())?;
         let prompt = format!("Read-only investigation. Do not edit project files or implement the task. Do not launch other agents, commit, push, or deploy. Follow repository instructions. Inspect only files needed for the task. Produce the requested structured implementation brief under 12000 bytes. relevantFiles must be relative paths using forward slashes, without line suffixes. Include evidence in findings, bounded steps, acceptance criteria and unresolved risks. Task:\n{}\nPrior session context (verify against current files):\n{}", run.options.prompt, run.options.session_context);
-        let mut args = vec![
-            "--print".into(),
-            prompt,
-            "--mode".into(),
-            "plan".into(),
-            "--sandbox".into(),
-            "--disable-slash-commands".into(),
-            "--output-format".into(),
-            "json".into(),
-            "--json-schema".into(),
-            schema.to_string_lossy().into_owned(),
-        ];
-        if !run.options.agy_model.trim().is_empty() {
-            args.extend(["--model".into(), run.options.agy_model.trim().into()]);
-        }
-        let result = agy.run(state, run, cancel, args, None, "agy").await?;
+        let prompt = format!(
+            "{prompt}\nHandoff (verify against current files):\n{}",
+            bounded(&run.options.handoff, 6000)
+        );
+        let result = if copilot {
+            let prompt = format!(
+                "{prompt}\nReturn only one JSON object matching this schema:\n{}",
+                brief_schema()
+            );
+            planner
+                .run(state, run, cancel, copilot_args(), Some(&prompt), label)
+                .await?
+        } else {
+            planner
+                .run(
+                    state,
+                    run,
+                    cancel,
+                    agy_args(&run.options, prompt, &schema),
+                    None,
+                    label,
+                )
+                .await?
+        };
         if result.code != Some(0) {
             return Err(format!(
-                "AGY exited with code {:?}. See its output.",
+                "{name} exited with code {:?}. See its output.",
                 result.code
             ));
         }
-        let value = extract_brief(&result.stdout)?;
+        let value = if copilot {
+            let text = result.stdout.trim();
+            let text = text
+                .strip_prefix("```json")
+                .and_then(|body| body.strip_suffix("```"))
+                .unwrap_or(text)
+                .trim();
+            let value = serde_json::from_str(text)
+                .map_err(|e| format!("Copilot did not return a JSON brief: {e}"))?;
+            validate_brief(&value)?;
+            value
+        } else {
+            extract_brief(&result.stdout)?
+        };
         let text = serde_json::to_string_pretty(&value).map_err(|e| e.to_string())?;
         fs::write(dir.join("brief.json"), &text).map_err(|e| e.to_string())?;
         state.update(&run.id, |r| r.brief = Some(text.clone()))?;
@@ -1013,17 +1351,24 @@ async fn execute_workers(
     };
     let prompt = format!("Implement this bounded task in the current project. Follow repository instructions. Preserve unrelated user edits. Do not commit, push, deploy, or launch other agents. Inspect the relevant implementation files; avoid a full repository survey when the brief suffices. The coordinator runs the user's configured checks after your turn, so do not repeat those checks unless needed to diagnose a problem. Report unresolved work honestly.\nTask:\n{}\nPrior session context:\n{}\nImplementation brief:\n{}\nCoordinator checks:\n{}",
         run.options.prompt, context, brief.as_deref().unwrap_or("No planning stage requested. Investigate only what this task requires."), run.options.checks.join("\n"));
+    let prompt = format!("{prompt}\nHandoff (verify against the current files and preserve completed work):\n{}\nList only substantive remaining work. Omit checks assigned to the coordinator.", run.options.handoff);
     let args = codex_args(&run.options, &schema, &result_path);
     let result = codex
         .run(state, run, cancel, args, Some(&prompt), "codex")
         .await?;
+    let events = codex_events(&result.stdout);
     if result.code != Some(0) {
+        if let Err(error) = &events {
+            if error.starts_with("Codex reported a failure:") {
+                return Err(error.clone());
+            }
+        }
         return Err(format!(
             "Codex exited with code {:?}. See its output.",
             result.code
         ));
     }
-    let usage = codex_events(&result.stdout)?;
+    let usage = events?;
     let actual_session = result
         .stdout
         .lines()
@@ -1059,13 +1404,12 @@ async fn execute_workers(
     state.update(&run.id, |r| {
         r.usage = usage;
         r.summary = Some(summary);
+        r.unresolved = unresolved
+            .iter()
+            .filter_map(Value::as_str)
+            .map(str::to_owned)
+            .collect();
     })?;
-    if !unresolved.is_empty() {
-        return Err(format!(
-            "Codex reported unresolved work: {}",
-            implementation["unresolved"]
-        ));
-    }
     state.update(&run.id, |r| {
         r.stage = "validating".into();
         r.message = "Running the configured project checks.".into();
@@ -1107,14 +1451,57 @@ async fn execute_workers(
     Ok(())
 }
 
-fn codex_args(options: &WorkflowOptions, schema: &Path, result: &Path) -> Vec<String> {
+fn agy_args(options: &WorkflowOptions, prompt: String, schema: &Path) -> Vec<String> {
     let mut args = vec![
-        "-a".into(),
-        "never".into(),
-        "--sandbox".into(),
-        "workspace-write".into(),
-        "exec".into(),
+        "--print".into(),
+        prompt,
+        "--disable-slash-commands".into(),
+        "--output-format".into(),
+        "json".into(),
+        "--json-schema".into(),
+        schema.to_string_lossy().into_owned(),
+        "--settings".into(),
+        r#"{"modelProvider":"gemini"}"#.into(),
     ];
+    args.push(
+        if options.yolo_mode {
+            "--dangerously-skip-permissions"
+        } else {
+            "--sandbox"
+        }
+        .into(),
+    );
+    if !options.agy_model.trim().is_empty() {
+        args.extend(["--model".into(), options.agy_model.trim().into()]);
+    }
+    args
+}
+
+fn copilot_args() -> Vec<String> {
+    [
+        "-s",
+        "--no-ask-user",
+        "--no-auto-update",
+        "--available-tools=view,grep,glob",
+        "--allow-tool=read",
+    ]
+    .into_iter()
+    .map(str::to_owned)
+    .collect()
+}
+
+fn codex_args(options: &WorkflowOptions, schema: &Path, result: &Path) -> Vec<String> {
+    let mut args: Vec<String> = if options.yolo_mode {
+        vec!["--dangerously-bypass-approvals-and-sandbox".into()]
+    } else {
+        vec![
+            "-a".into(),
+            "never".into(),
+            "--sandbox".into(),
+            "workspace-write".into(),
+        ]
+    };
+    args.push("exec".into());
     if options.resume_session {
         args.push("resume".into());
     }
@@ -1187,6 +1574,9 @@ mod tests {
                 session_id: None,
                 session_context: String::new(),
                 resume_session: false,
+                yolo_mode: false,
+                handoff: String::new(),
+                continuation: None,
             },
             status: "running".into(),
             stage: "preflight".into(),
@@ -1198,6 +1588,7 @@ mod tests {
             output: String::new(),
             usage: None,
             codex_session_id: None,
+            unresolved: vec![],
             checks: vec![],
             artifact_dir: root
                 .path()
@@ -1216,8 +1607,48 @@ mod tests {
     }
 
     #[test]
+    fn workflow_overview_scopes_history_and_omits_inactive_detail_on_poll() {
+        let (_root, state, mut run) = fixture();
+        run.status = "verified".into();
+        run.output = "historical output".into();
+        let mut active = run.clone();
+        active.id = "other-run".into();
+        active.options.cwd = Path::new(&run.options.cwd)
+            .join("other")
+            .to_string_lossy()
+            .into_owned();
+        active.status = "running".into();
+        active.output = "active output".into();
+        let mut store = state.store.lock().unwrap();
+        store.runs.insert(run.id.clone(), run.clone());
+        store.runs.insert(active.id.clone(), active.clone());
+        store.active = Some((active.id.clone(), Arc::new(AtomicBool::new(false))));
+        let cwd = Some(Path::new(&run.options.cwd));
+        let overview = workflow_overview(&store, cwd, None, true);
+        assert_eq!(
+            overview
+                .history
+                .unwrap()
+                .iter()
+                .map(|run| run.id.as_str())
+                .collect::<Vec<_>>(),
+            [run.id.as_str()]
+        );
+        assert_eq!(overview.active.unwrap().id, active.id);
+        assert_eq!(overview.selected.unwrap().output, "historical output");
+        let poll = workflow_overview(&store, cwd, Some(&run.id), false);
+        assert!(poll.history.is_none() && poll.selected.is_none());
+        let live = workflow_overview(&store, cwd, Some(&active.id), false);
+        assert_eq!(live.selected.unwrap().output, "active output");
+    }
+
+    #[test]
     fn validates_structured_handoffs_and_rejects_missing_evidence_contract() {
         assert!(extract_brief(&json!({"structured_output":brief()}).to_string()).is_ok());
+        assert!(extract_brief(
+            &json!({"status":"SUCCESS","response":brief().to_string()}).to_string()
+        )
+        .is_ok());
         assert!(extract_brief(&json!({"result":brief().to_string()}).to_string()).is_ok());
         assert!(extract_brief(&brief().to_string()).is_ok());
         assert!(extract_brief("finished successfully").is_err());
@@ -1227,6 +1658,62 @@ mod tests {
         assert!(
             extract_brief(&json!({"is_error":true,"structured_output":brief()}).to_string())
                 .is_err()
+        );
+    }
+
+    #[test]
+    fn reports_denied_permissions_and_empty_responses_before_brief_validation() {
+        let denied = json!({"status":"SUCCESS", "response":"", "denied_actions":[{"action":"command","display_name":"RunCommand"}]});
+        assert!(extract_brief(&denied.to_string())
+            .unwrap_err()
+            .contains("permissions were denied"));
+        assert!(
+            extract_brief(&json!({"status":"SUCCESS","response":""}).to_string())
+                .unwrap_err()
+                .contains("no brief")
+        );
+        assert!(extract_brief(
+            &json!({"status":"ERROR","response":brief().to_string()}).to_string()
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn worker_permissions_match_yolo_choice_for_new_and_resumed_runs() {
+        let (_root, _state, mut run) = fixture();
+        for yolo in [false, true] {
+            run.options.yolo_mode = yolo;
+            let agy = agy_args(
+                &run.options,
+                run.options.prompt.clone(),
+                Path::new("schema.json"),
+            );
+            assert_eq!(agy.contains(&"--dangerously-skip-permissions".into()), yolo);
+            assert_eq!(agy.contains(&"--sandbox".into()), !yolo);
+            assert!(!agy.contains(&"--mode".into()));
+            for resume in [false, true] {
+                run.options.resume_session = resume;
+                run.options.session_id = resume.then(|| "session-123".into());
+                let codex = codex_args(
+                    &run.options,
+                    Path::new("schema.json"),
+                    Path::new("result.json"),
+                );
+                assert_eq!(
+                    codex.contains(&"--dangerously-bypass-approvals-and-sandbox".into()),
+                    yolo
+                );
+                assert_eq!(codex.contains(&"--sandbox".into()), !yolo);
+                assert_eq!(codex.contains(&"never".into()), !yolo);
+                assert_eq!(codex.contains(&"resume".into()), resume);
+            }
+        }
+        let mut old_options = serde_json::to_value(&run.options).unwrap();
+        old_options.as_object_mut().unwrap().remove("yoloMode");
+        assert!(
+            !serde_json::from_value::<WorkflowOptions>(old_options)
+                .unwrap()
+                .yolo_mode
         );
     }
 
@@ -1323,6 +1810,42 @@ mod tests {
         ] {
             git(&run.options.cwd, &args).await.unwrap();
         }
+    }
+
+    #[tokio::test]
+    #[ignore = "Uses the signed-in Codex account for one task in a disposable Git repository"]
+    async fn live_codex_smoke() {
+        let (_root, state, mut run) = fixture();
+        init_repo(&run).await;
+        run.options.mode = "codex-only".into();
+        run.options.codex_model = String::new();
+        run.options.codex_effort = String::new();
+        run.options.timeout_minutes = 3;
+        run.options.prompt = "This is a smoke test. Create mission-smoke.txt containing only the text mission-ready. Report that file in changedFiles and leave unresolved empty. The coordinator verifies the file.".into();
+        run.options.checks = if cfg!(windows) {
+            vec![
+                "if ((Get-Content -Raw mission-smoke.txt).Trim() -ne 'mission-ready') { exit 1 }"
+                    .into(),
+            ]
+        } else {
+            vec!["test \"$(cat mission-smoke.txt)\" = mission-ready".into()]
+        };
+        state
+            .update(&run.id, |saved| saved.options = run.options.clone())
+            .unwrap();
+        let result = execute(&state, &run, &AtomicBool::new(false)).await;
+        state
+            .update(&run.id, |saved| finish_run(saved, result, false))
+            .unwrap();
+        let store = state.store.lock().unwrap();
+        let saved = &store.runs[&run.id];
+        assert_eq!(
+            saved.status,
+            "verified",
+            "{}\n{}",
+            saved.message,
+            bounded(&saved.output, 4000)
+        );
     }
 
     #[tokio::test]
@@ -1426,6 +1949,120 @@ $resultPath = {result_path}
         }
 
         #[tokio::test]
+        async fn copilot_route_uses_validated_brief_and_runs_checks_with_remaining_work() {
+            let (root, state, mut run) = fixture();
+            init_repo(&run).await;
+            run.options.mode = "copilot-pipeline".into();
+            run.options.checks = vec!["Write-Output 'validation passed'".into()];
+            let coder = worker(
+                root.path(),
+                "coder-with-unresolved",
+                &format!(
+                    r#"
+$taskText = [Console]::In.ReadToEnd()
+if (-not $taskText.Contains('Evidence: src/main.ts handler')) {{ exit 9 }}
+[IO.File]::WriteAllText({}, '{{"summary":"Work started","changedFiles":[],"unresolved":["Verify behavior manually"]}}')
+[Console]::WriteLine('{{"type":"turn.completed"}}')
+"#,
+                    quote(&Path::new(&run.artifact_dir).join("implementation.json"))
+                ),
+            );
+            let result = execute_workers(
+                &state,
+                &run,
+                &AtomicBool::new(false),
+                Some(coder),
+                Some(planner(root.path(), "")),
+            )
+            .await;
+            assert!(result.is_ok(), "{result:?}");
+            state
+                .update(&run.id, |run| finish_run(run, result, false))
+                .unwrap();
+            let store = state.store.lock().unwrap();
+            let saved = &store.runs[&run.id];
+            assert!(saved.checks[0].passed);
+            assert_eq!(saved.status, "needs-review");
+            assert_eq!(saved.unresolved, ["Verify behavior manually"]);
+        }
+
+        #[tokio::test]
+        async fn recovers_a_partial_run_and_refuses_a_stale_checkpoint() {
+            let (root, state, mut run) = fixture();
+            init_repo(&run).await;
+            let cwd = Path::new(&run.options.cwd);
+            let tracked = cwd.join("tracked.txt");
+            fs::write(&tracked, "original").unwrap();
+            git(&run.options.cwd, &["add", "tracked.txt"])
+                .await
+                .unwrap();
+            git(&run.options.cwd, &["commit", "-qm", "track file"])
+                .await
+                .unwrap();
+            let interrupted = worker(
+                root.path(),
+                "partial-coder",
+                &format!(
+                    r#"
+[Console]::WriteLine('{{"type":"thread.started","thread_id":"partial-thread"}}')
+[IO.File]::WriteAllText({}, 'partial work')
+[IO.File]::WriteAllText({}, 'new work')
+exit 7
+"#,
+                    quote(&tracked),
+                    quote(&cwd.join("untracked.txt"))
+                ),
+            );
+            run.options.mode = "codex-only".into();
+            let result = execute_workers(
+                &state,
+                &run,
+                &AtomicBool::new(false),
+                Some(interrupted),
+                None,
+            )
+            .await;
+            assert!(result.is_err());
+            let reopened = WorkflowState::load(state.root.clone());
+            let saved = reopened.store.lock().unwrap().runs[&run.id].clone();
+            assert_eq!(saved.status, "interrupted");
+            assert_eq!(saved.codex_session_id.as_deref(), Some("partial-thread"));
+            let checkpoint = capture_checkpoint(&saved).await.unwrap();
+            assert!(checkpoint.diff.contains("+partial work"));
+            assert!(checkpoint.handoff.contains("?? untracked.txt"));
+
+            run.options.handoff = checkpoint.handoff;
+            run.options.continuation = Some(checkpoint.continuation);
+            fs::write(&tracked, "updated after review").unwrap();
+            let stale = execute_workers(
+                &reopened,
+                &run,
+                &AtomicBool::new(false),
+                Some(coder(root.path(), false)),
+                None,
+            )
+            .await;
+            assert!(stale
+                .unwrap_err()
+                .contains("changed after checkpoint review"));
+            assert!(!root.path().join("codex-started").exists());
+
+            let checkpoint = capture_checkpoint(&saved).await.unwrap();
+            run.options.handoff = checkpoint.handoff;
+            run.options.continuation = Some(checkpoint.continuation);
+            let resumed = execute_workers(
+                &reopened,
+                &run,
+                &AtomicBool::new(false),
+                Some(coder(root.path(), false)),
+                None,
+            )
+            .await;
+            assert!(resumed.is_ok(), "{resumed:?}");
+            assert_eq!(fs::read_to_string(tracked).unwrap(), "updated after review");
+        }
+
+        #[tokio::test]
         async fn malformed_planner_result_never_launches_codex() {
             let (root, state, run) = fixture();
             init_repo(&run).await;
@@ -1443,6 +2080,27 @@ $resultPath = {result_path}
             )
             .await;
             assert!(result.is_err());
+            assert!(!root.path().join("codex-started").exists());
+        }
+
+        #[tokio::test]
+        async fn denied_planner_permissions_block_handoff_despite_success_status() {
+            let (root, state, run) = fixture();
+            init_repo(&run).await;
+            let denied = worker(
+                root.path(),
+                "denied-planner",
+                r#"[Console]::WriteLine('{"status":"SUCCESS","response":"","denied_actions":[{"action":"command","display_name":"RunCommand"}]}')"#,
+            );
+            let result = execute_workers(
+                &state,
+                &run,
+                &AtomicBool::new(false),
+                Some(coder(root.path(), true)),
+                Some(denied),
+            )
+            .await;
+            assert!(result.unwrap_err().contains("permissions were denied"));
             assert!(!root.path().join("codex-started").exists());
         }
 

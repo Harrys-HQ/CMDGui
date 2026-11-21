@@ -39,35 +39,87 @@ export const saveLocalState = <T>(key: string, value: T): void => {
   }
 };
 
+type ReadRequest = {
+  key: string;
+  resolve: (value: unknown) => void;
+  reject: (error: unknown) => void;
+};
+let readQueue: ReadRequest[] = [];
+
+const readSetting = (key: string): Promise<unknown> =>
+  new Promise((resolve, reject) => {
+    if (readQueue.length === 0) {
+      queueMicrotask(async () => {
+        const requests = readQueue;
+        readQueue = [];
+        try {
+          const keys = [...new Set(requests.map((request) => request.key))];
+          const values = await window.electron.settingsGetMany(keys);
+          requests.forEach((request) =>
+            request.resolve(Object.hasOwn(values, request.key) ? values[request.key] : undefined)
+          );
+        } catch (error) {
+          requests.forEach((request) => request.reject(error));
+        }
+      });
+    }
+    readQueue.push({ key, resolve, reject });
+  });
+
 // Async Tauri-based persistence with fallback timeout
 export const loadState = async <T>(key: string, defaultVal: T): Promise<T> => {
+  let timeout: ReturnType<typeof setTimeout> | undefined;
   try {
     if (!window.electron) {
       console.warn('window.electron not available for loadState');
       return defaultVal;
     }
 
-    const fetchPromise = window.electron.settingsGet<unknown>(key);
-    const timeoutPromise = new Promise<null>((resolve) =>
-      setTimeout(() => {
+    const fetchPromise = readSetting(key);
+    const timeoutPromise = new Promise<null>((resolve) => {
+      timeout = setTimeout(() => {
         console.warn(`loadState timeout for key "${key}", falling back to default.`);
         resolve(null);
-      }, 1500)
-    );
+      }, 1500);
+    });
 
     const saved = await Promise.race([fetchPromise, timeoutPromise]);
     return validateLoaded(saved, defaultVal);
   } catch (e) {
     console.error('Failed to load Tauri state for ' + key, e);
+  } finally {
+    clearTimeout(timeout);
   }
   return defaultVal;
 };
 
-
 // Debounce timer for saveState
-let saveTimer: ReturnType<typeof setTimeout> | null = null;
-const saveQueue: Record<string, unknown> = {};
-const pendingResolves: (() => void)[] = [];
+let saveTimer: ReturnType<typeof setTimeout> | undefined;
+let saveQueue = new Map<string, unknown>();
+let pendingResolves: (() => void)[] = [];
+let saving = false;
+
+async function flushSettings() {
+  saveTimer = undefined;
+  if (saving) return;
+  saving = true;
+  const changes = saveQueue;
+  const resolves = pendingResolves;
+  saveQueue = new Map();
+  pendingResolves = [];
+  try {
+    await window.electron.settingsSetMany(Object.fromEntries(changes));
+  } catch (error) {
+    console.error('Failed to save settings:', error);
+    for (const [key, value] of changes) {
+      if (!saveQueue.has(key)) saveQueue.set(key, value);
+    }
+  } finally {
+    saving = false;
+    resolves.forEach((resolve) => resolve());
+    if (saveTimer === undefined && pendingResolves.length > 0) void flushSettings();
+  }
+}
 
 export const saveState = async <T>(key: string, value: T): Promise<void> => {
   if (!window.electron) {
@@ -75,7 +127,7 @@ export const saveState = async <T>(key: string, value: T): Promise<void> => {
     return Promise.resolve();
   }
   // Update the queue with the latest value for this key
-  saveQueue[key] = value;
+  saveQueue.set(key, value);
 
   // Clear existing timer
   if (saveTimer) {
@@ -86,24 +138,6 @@ export const saveState = async <T>(key: string, value: T): Promise<void> => {
   return new Promise((resolve) => {
     pendingResolves.push(resolve);
 
-    saveTimer = setTimeout(async () => {
-      saveTimer = null;
-      const keysToSave = Object.keys(saveQueue);
-
-      for (const k of keysToSave) {
-        const val = saveQueue[k];
-        try {
-          await window.electron.settingsSet(k, val);
-          delete saveQueue[k];
-        } catch (e) {
-          console.error('Failed to save Electron state for ' + k, e);
-        }
-      }
-
-      // Resolve all pending promises
-      const resolves = [...pendingResolves];
-      pendingResolves.length = 0;
-      resolves.forEach((res) => res());
-    }, 500);
+    saveTimer = setTimeout(() => void flushSettings(), 500);
   });
 };

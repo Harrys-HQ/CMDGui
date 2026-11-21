@@ -12,6 +12,7 @@ vi.mock('../tauriBridge', () => ({
     settingsSet: vi.fn(),
     getProjectDetails: vi.fn(),
     workflowList: vi.fn(),
+    workflowCheckpoint: vi.fn(),
     workflowStart: vi.fn(),
     workflowCancel: vi.fn(),
     workflowModels: vi.fn(),
@@ -50,18 +51,81 @@ const fixture = (changes: Partial<WorkflowRun> = {}): WorkflowRun => ({
   ...changes,
 });
 
+const overview = (selected: WorkflowRun | null, includeHistory = true) => {
+  const summary = selected
+    ? {
+        id: selected.id,
+        cwd: selected.options.cwd,
+        prompt: selected.options.prompt,
+        startedAt: selected.startedAt,
+        status: selected.status,
+      }
+    : null;
+  return {
+    history: includeHistory ? (summary ? [summary] : []) : null,
+    active: selected?.status === 'running' ? summary : null,
+    selected,
+  };
+};
+
 beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(tauriBridge.settingsGet).mockResolvedValue(null);
   vi.mocked(tauriBridge.settingsSet).mockResolvedValue(undefined);
   vi.mocked(tauriBridge.getProjectDetails).mockResolvedValue({
+    type: 'node',
+    envVars: {},
+    gitBranch: null,
+    gitDirty: false,
+    gitFiles: [],
     scripts: { build: 'tsc', test: 'vitest' },
   });
-  vi.mocked(tauriBridge.workflowList).mockResolvedValue([]);
+  vi.mocked(tauriBridge.workflowList).mockResolvedValue(overview(null));
   vi.mocked(tauriBridge.workflowStart).mockResolvedValue(fixture());
 });
 
 describe('Mission Control', () => {
+  it('restores the saved project YOLO setting over the app default', async () => {
+    vi.mocked(tauriBridge.settingsGet).mockResolvedValue({ taskType: 'discovery', yoloMode: true });
+    render(<DualBrainStudio {...props} initialPrompt="Fix focus" />);
+    await waitFor(() => expect(screen.getByRole('button', { name: /Start task/ })).toBeEnabled());
+    expect(screen.getByRole('checkbox', { name: /YOLO mode/ })).toBeChecked();
+    fireEvent.click(screen.getByRole('button', { name: /Start task/ }));
+    await waitFor(() =>
+      expect(tauriBridge.workflowStart).toHaveBeenCalledWith(
+        expect.objectContaining({ yoloMode: true })
+      )
+    );
+  });
+
+  it('inherits app YOLO mode and sends it to workflow initiation', async () => {
+    render(<DualBrainStudio {...props} isYoloModeEnabled initialPrompt="Fix focus" />);
+    await waitFor(() => expect(screen.getByRole('button', { name: /Start task/ })).toBeEnabled());
+    expect(screen.getByRole('checkbox', { name: /YOLO mode/ })).toBeChecked();
+    fireEvent.click(screen.getByRole('button', { name: /Start task/ }));
+    await waitFor(() =>
+      expect(tauriBridge.workflowStart).toHaveBeenCalledWith(
+        expect.objectContaining({ yoloMode: true })
+      )
+    );
+  });
+
+  it('saves a project YOLO override and sends the disabled mode explicitly', async () => {
+    render(<DualBrainStudio {...props} isYoloModeEnabled initialPrompt="Fix focus" />);
+    await waitFor(() => expect(screen.getByRole('button', { name: /Start task/ })).toBeEnabled());
+    fireEvent.click(screen.getByRole('checkbox', { name: /YOLO mode/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Start task/ }));
+    await waitFor(() =>
+      expect(tauriBridge.workflowStart).toHaveBeenCalledWith(
+        expect.objectContaining({ yoloMode: false })
+      )
+    );
+    expect(tauriBridge.settingsSet).toHaveBeenCalledWith(
+      'workflow:C:/project',
+      expect.objectContaining({ yoloMode: false })
+    );
+  });
+
   it('imports reviewed context and resumes the specifically selected session', async () => {
     vi.mocked(tauriBridge.codexSessionsList).mockResolvedValue({
       sessions: [
@@ -138,13 +202,15 @@ describe('Mission Control', () => {
   });
 
   it('restores history and exposes the saved brief without a manual handoff', async () => {
-    vi.mocked(tauriBridge.workflowList).mockResolvedValue([
-      fixture({
-        status: 'failed',
-        brief: '{"objective":"saved evidence"}',
-        message: 'Build failed',
-      }),
-    ]);
+    vi.mocked(tauriBridge.workflowList).mockResolvedValue(
+      overview(
+        fixture({
+          status: 'failed',
+          brief: '{"objective":"saved evidence"}',
+          message: 'Build failed',
+        })
+      )
+    );
     render(<DualBrainStudio {...props} />);
     expect((await screen.findAllByText('Build failed')).length).toBeGreaterThan(0);
     expect(
@@ -155,7 +221,7 @@ describe('Mission Control', () => {
   });
 
   it('blocks concurrent tasks across projects and cancels the actual active run', async () => {
-    vi.mocked(tauriBridge.workflowList).mockResolvedValue([fixture()]);
+    vi.mocked(tauriBridge.workflowList).mockResolvedValue(overview(fixture()));
     render(<DualBrainStudio {...props} initialPrompt="Another task" />);
     await screen.findByRole('button', { name: 'Cancel run' });
     expect(screen.getByRole('button', { name: /Start task/ })).toBeDisabled();
@@ -164,13 +230,66 @@ describe('Mission Control', () => {
     expect(tauriBridge.workflowStart).not.toHaveBeenCalled();
   });
 
-  it('does not show another project’s old runs as this project’s result', async () => {
-    const other = fixture({ status: 'verified' });
-    other.options.cwd = 'C:/another-project';
-    vi.mocked(tauriBridge.workflowList).mockResolvedValue([other]);
+  it('loads an interrupted run, previews its changes, and sends the reviewed handoff', async () => {
+    vi.mocked(tauriBridge.workflowList).mockResolvedValue(
+      overview(
+        fixture({ status: 'interrupted', stage: 'implementing', codexSessionId: 'partial-1' })
+      )
+    );
+    vi.mocked(tauriBridge.workflowCheckpoint).mockResolvedValue({
+      handoff: 'Partial edits in src/main.ts',
+      diff: '+pending change',
+      continuation: { runId: 'run-1', fingerprint: 'fixture' },
+      prompt: 'Fix focus handling',
+      codexSessionId: 'partial-1',
+      checks: ['npm run build'],
+    });
     render(<DualBrainStudio {...props} />);
-    await waitFor(() => expect(tauriBridge.workflowList).toHaveBeenCalled());
-    expect(screen.getByText('One task. The right route.')).toBeInTheDocument();
-    expect(screen.queryByText('Fix focus handling')).not.toBeInTheDocument();
+    const continueButton = await screen.findByRole('button', { name: 'Continue with…' });
+    await waitFor(() => expect(continueButton).toBeEnabled());
+    fireEvent.click(continueButton);
+    const notes = await screen.findByDisplayValue('Partial edits in src/main.ts');
+    expect(screen.getByText('+pending change')).toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: /Resume this run/ })).not.toBeChecked();
+    fireEvent.change(notes, { target: { value: 'Preserve the verified edits.' } });
+    fireEvent.click(screen.getByRole('button', { name: /Start task/ }));
+    await waitFor(() =>
+      expect(tauriBridge.workflowStart).toHaveBeenCalledWith(
+        expect.objectContaining({
+          mode: 'codex-only',
+          handoff: 'Preserve the verified edits.',
+          continuation: { runId: 'run-1', fingerprint: 'fixture' },
+          resumeSession: false,
+        })
+      )
+    );
+  });
+
+  it('requests project history and offers a separate compact run view', async () => {
+    render(<DualBrainStudio {...props} />);
+    await waitFor(() =>
+      expect(tauriBridge.workflowList).toHaveBeenCalledWith(props.cwd, null, true)
+    );
+    const details = screen.getByRole('button', { name: 'Run details' });
+    fireEvent.click(details);
+    expect(details).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByText('No runs for this project')).toBeInTheDocument();
+  });
+
+  it('refreshes only the live run, then reloads history when the run finishes', async () => {
+    const running = fixture();
+    const finished = fixture({ status: 'verified', message: 'Checks passed' });
+    vi.mocked(tauriBridge.workflowList)
+      .mockResolvedValueOnce(overview(running))
+      .mockResolvedValueOnce(overview(null, false))
+      .mockResolvedValue(overview(finished));
+    render(<DualBrainStudio {...props} />);
+    expect(await screen.findByRole('button', { name: 'Cancel run' })).toBeInTheDocument();
+    await waitFor(() => expect(tauriBridge.workflowList).toHaveBeenCalledTimes(3), {
+      timeout: 2500,
+    });
+    expect(tauriBridge.workflowList).toHaveBeenNthCalledWith(2, props.cwd, null, false);
+    expect(tauriBridge.workflowList).toHaveBeenNthCalledWith(3, props.cwd, null, true);
+    expect(screen.queryByRole('button', { name: 'Cancel run' })).not.toBeInTheDocument();
   });
 });

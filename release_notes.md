@@ -1,3 +1,13 @@
+## Release CmdGUI v2.6.2
+
+- Restored workspaces display all saved tabs immediately and start background shells when you first open them. Running shells stay alive when you switch tabs.
+- Settings load and save in batches. The project sidebar refreshes Git status separately from scripts and other project metadata.
+- Mission Control runs configured checks after Codex completes, shows remaining work, and can continue from an editable checkpoint. Compact windows offer separate setup and run views.
+- A file drop pastes one path per file into the terminal pane under the cursor. Terminal tabs support keyboard selection, closing, and opening.
+- Copilot → Codex is a pilot. Occasional PowerShell command delays can still occur under heavy concurrent test load.
+
+---
+
 ## 🚀 Release: CmdGUI v2.6.0
 
 ### Mission Control, Codex Session Continuation & Text Copying

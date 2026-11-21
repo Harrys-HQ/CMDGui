@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Project } from '../types';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { Project, ProjectUpdate } from '../types';
 import { loadState, saveState } from './usePersistence';
 
 export const useProjects = () => {
@@ -23,65 +23,80 @@ export const useProjects = () => {
     }
   }, [projects, isLoaded]);
 
-  // Detect Project Types
+  const projectsRef = useRef(projects);
+  const refreshingRef = useRef(false);
+  const mountedRef = useRef(true);
   useEffect(() => {
-    if (!isLoaded || !window.electron) return;
-
-    const safeProjects = Array.isArray(projects) ? projects : [];
-    const needsDetection = safeProjects.some((p) => p && !p.type);
-    if (!needsDetection) return;
-
-    const detectTypes = async () => {
-      if (!window.electron) return;
-      let changed = false;
-      const updatedProjects = await Promise.all(
-        safeProjects.map(async (p) => {
-          if (!p.type) {
-            const details = await window.electron.getProjectDetails(p.path);
-            changed = true;
-            return {
-              ...p,
-              type: details.type,
-              scripts: details.scripts,
-              envVars: details.envVars,
-              gitBranch: details.gitBranch || undefined,
-              gitDirty: details.gitDirty,
-              gitFiles: details.gitFiles,
-            };
-          }
-          return p;
-        })
-      );
-
-      if (changed) {
-        setProjects(updatedProjects);
-      }
+    projectsRef.current = projects;
+  }, [projects]);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
     };
-    detectTypes();
-  }, [projects, isLoaded]);
+  }, []);
 
   const refreshGitStatus = useCallback(async () => {
-    if (!window.electron || !isLoaded) return;
-    const safeProjects = Array.isArray(projects) ? projects : [];
-    const updatedProjects = await Promise.all(
-      safeProjects.map(async (p) => {
-        const details = await window.electron.getProjectDetails(p.path);
-        return {
-          ...p,
-          gitBranch: details.gitBranch || undefined,
-          gitDirty: details.gitDirty,
-          gitFiles: details.gitFiles,
-          // Update type and scripts as well while we're at it
-          type: details.type,
-          scripts: details.scripts,
-        };
-      })
-    );
-    // Only update state if something actually changed to avoid re-renders
-    if (JSON.stringify(updatedProjects) !== JSON.stringify(projects)) {
-      setProjects(updatedProjects);
+    if (!window.electron || !isLoaded || refreshingRef.current) return;
+    refreshingRef.current = true;
+    const snapshot = projectsRef.current;
+    const updates = new Map<Project, ProjectUpdate>();
+    let next = 0;
+    try {
+      // Bound concurrent git subprocesses, including initial type detection.
+      await Promise.all(
+        Array.from({ length: Math.min(4, snapshot.length) }, async () => {
+          while (next < snapshot.length) {
+            const project = snapshot[next++];
+            try {
+              const update = await window.electron.getProjectUpdate(
+                project.path,
+                project.type ? project.metadataVersion : undefined
+              );
+              updates.set(project, update);
+            } catch (error) {
+              console.warn(`Failed to refresh project ${project.path}:`, error);
+            }
+          }
+        })
+      );
+      if (mountedRef.current)
+        setProjects((current) => {
+          // Merge into current state so a slow poll cannot resurrect removed projects.
+          let changed = false;
+          const updated = current.map((project) => {
+            const update = updates.get(project);
+            if (!update) return project;
+            const gitBranch = update.gitBranch ?? undefined;
+            const gitFiles = project.gitFiles ?? [];
+            if (
+              !update.metadata &&
+              gitBranch === project.gitBranch &&
+              update.gitDirty === project.gitDirty &&
+              update.gitFiles.length === gitFiles.length &&
+              update.gitFiles.every((file, index) => file === gitFiles[index])
+            )
+              return project;
+            changed = true;
+            return {
+              ...project,
+              ...update.metadata,
+              metadataVersion: update.metadataVersion,
+              gitBranch,
+              gitDirty: update.gitDirty,
+              gitFiles: update.gitFiles,
+            };
+          });
+          return changed ? updated : current;
+        });
+    } finally {
+      refreshingRef.current = false;
     }
-  }, [projects, isLoaded]);
+  }, [isLoaded]);
+
+  useEffect(() => {
+    if (projects.some((project) => !project.type)) void refreshGitStatus();
+  }, [projects, refreshGitStatus]);
 
   // Periodic Git Status Refresh (every 30 seconds)
   useEffect(() => {
@@ -98,7 +113,7 @@ export const useProjects = () => {
 
   const addProject = useCallback(async (path?: string) => {
     if (!window.electron) return;
-    const folderPath = path || await window.electron.selectFolder();
+    const folderPath = path || (await window.electron.selectFolder());
     if (folderPath) {
       const name = folderPath.split(/[\\/]/).pop() || folderPath;
       setProjects((prev) => {

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Tab } from '../types';
 import { Terminal, AlertCircle, HelpCircle, X, Edit3, Copy, Trash2, Plus } from 'lucide-react';
 
@@ -34,6 +34,17 @@ const TopTabBar: React.FC<TopTabBarProps> = ({
   const [menuPos, setMenuPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [isAddMenuOpen, setIsAddMenuOpen] = useState(false);
   const [addMenuPos, setAddMenuPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const tabButtons = useRef(new Map<string, HTMLButtonElement>());
+  const addTabButton = useRef<HTMLButtonElement>(null);
+
+  const closeTabButton = (id: string, index: number, e: React.MouseEvent<HTMLButtonElement>) => {
+    e.stopPropagation();
+    if (e.detail === 0) {
+      const neighbor = tabs[index + 1] ?? tabs[index - 1];
+      (neighbor ? tabButtons.current.get(neighbor.id) : addTabButton.current)?.focus();
+    }
+    onCloseTab(id, e);
+  };
 
   const handleContextMenu = (e: React.MouseEvent, tab: Tab) => {
     e.preventDefault();
@@ -108,12 +119,21 @@ const TopTabBar: React.FC<TopTabBarProps> = ({
           } ${tab.hasConfirmation ? 'has-confirmation' : ''} ${
             dragOverIdx === idx ? 'drag-over-indicator' : ''
           }`}
-          onClick={() => onSelectTab(tab.id)}
           onContextMenu={(e) => handleContextMenu(e, tab)}
           title={tab.title}
           style={{ opacity: draggedIdx === idx ? 0.4 : 1 }}
         >
           {tab.id === activeTabId && <div className="active-tab-indicator" />}
+          <button
+            type="button"
+            className="tab-select"
+            aria-pressed={tab.id === activeTabId}
+            ref={(button) => {
+              if (button) tabButtons.current.set(tab.id, button);
+              else tabButtons.current.delete(tab.id);
+            }}
+            onClick={() => onSelectTab(tab.id)}
+          >
           <span className="tab-icon">
             {tab.hasAlert ? (
               <AlertCircle size={14} color="#f14c4c" />
@@ -126,20 +146,23 @@ const TopTabBar: React.FC<TopTabBarProps> = ({
           <span className="tab-title">{tab.title}</span>
           {tab.hasAlert && <span className="tab-status-dot alert" title="Activity alert" />}
           {tab.hasConfirmation && <span className="tab-status-dot confirmation" title="Requires input" />}
-          <div
+          </button>
+          <button
+            type="button"
             className="tab-close"
-            onClick={(e) => {
-              e.stopPropagation();
-              onCloseTab(tab.id, e);
-            }}
+            aria-label={`Close ${tab.title}`}
+            onClick={(e) => closeTabButton(tab.id, idx, e)}
           >
             <X size={12} />
-          </div>
+          </button>
         </div>
       ))}
 
       {onAddTab && (
-        <div
+        <button
+          type="button"
+          ref={addTabButton}
+          aria-label="New terminal tab"
           onClick={onAddTab}
           onContextMenu={(e) => {
             if (onAddAdminTab) {
@@ -161,7 +184,7 @@ const TopTabBar: React.FC<TopTabBarProps> = ({
           }}
         >
           <Plus size={14} />
-        </div>
+        </button>
       )}
 
       {isAddMenuOpen && onAddAdminTab && (

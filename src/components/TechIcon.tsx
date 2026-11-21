@@ -3,7 +3,6 @@ import {
   Code,
   Folder,
   GitBranch,
-  Terminal,
   Cpu,
   Layers,
   Box,

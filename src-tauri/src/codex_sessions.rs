@@ -108,7 +108,7 @@ fn project_path(cwd: &str) -> Result<String, String> {
         if let Some(path) = path.strip_prefix(r"\\?\UNC\") {
             return Ok(format!(r"\\{path}"));
         }
-        return Ok(path.strip_prefix(r"\\?\").unwrap_or(&path).to_owned());
+        Ok(path.strip_prefix(r"\\?\").unwrap_or(&path).to_owned())
     }
     #[cfg(not(windows))]
     Ok(path.into_owned())

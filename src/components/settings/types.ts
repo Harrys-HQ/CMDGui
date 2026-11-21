@@ -1,0 +1,42 @@
+import type { Workspace, TerminalTheme, TerminalRendererType } from '../../types';
+import type { HistoryItem } from '../../hooks/useCommandHistory';
+import type { Keymap, KeybindingAction, Keybinding } from '../../hooks/useKeybindings';
+
+export interface SettingsModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  terminalTheme: string;
+  onThemeChange: (theme: string) => void;
+  customTheme?: TerminalTheme;
+  onCustomThemeChange?: (theme: TerminalTheme) => void;
+  uiTheme?: string;
+  onUiThemeChange?: (theme: string) => void;
+  terminalFontSize: number;
+  onFontSizeChange: (size: number) => void;
+  terminalScrollback?: number;
+  onScrollbackChange?: (size: number) => void;
+  isQuakeModeEnabled?: boolean;
+  onQuakeModeChange?: (enabled: boolean) => void;
+  isStayAwakeEnabled?: boolean;
+  onStayAwakeChange?: (enabled: boolean) => void;
+  isGPUAccelerationEnabled?: boolean;
+  onGPUAccelerationChange?: (enabled: boolean) => void;
+  terminalRendererType?: TerminalRendererType;
+  onTerminalRendererTypeChange?: (renderer: TerminalRendererType) => void;
+  onRefreshDisplay?: () => void;
+  workspaces?: Workspace[];
+  onDeleteWorkspace?: (id: string) => void;
+  history?: HistoryItem[];
+  onToggleBookmark?: (id: string) => void;
+  onClearHistory?: () => void;
+  onRunCommand?: (command: string) => void;
+  defaultShell?: string;
+  onShellChange?: (shell: string) => void;
+  keymap?: Keymap;
+  onUpdateKeybinding?: (action: KeybindingAction, binding: Keybinding) => void;
+  onResetKeybindings?: () => void;
+  showTopTabBar?: boolean;
+  onShowTopTabBarChange?: (show: boolean) => void;
+  isYoloModeEnabled?: boolean;
+  onYoloModeChange?: (enabled: boolean) => void;
+}

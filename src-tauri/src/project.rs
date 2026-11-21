@@ -1,101 +1,137 @@
-use std::collections::{HashMap, BTreeMap};
+use std::collections::{BTreeMap, HashMap};
 use std::fs;
-use std::path::Path;
-use std::process::Command;
 #[cfg(target_os = "windows")]
 use std::os::windows::process::CommandExt;
+use std::path::Path;
+use std::process::Command;
 
 #[derive(serde::Serialize, serde::Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
-pub struct ProjectDetails {
+pub struct ProjectMetadata {
     pub r#type: String,
     pub scripts: BTreeMap<String, String>,
     pub env_vars: BTreeMap<String, String>,
-    pub git_branch: Option<String>,
-    pub git_dirty: bool,
-    pub git_files: Vec<String>,
+}
+
+impl Default for ProjectMetadata {
+    fn default() -> Self {
+        Self {
+            r#type: "folder".into(),
+            scripts: BTreeMap::new(),
+            env_vars: BTreeMap::new(),
+        }
+    }
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Clone, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectDetails {
+    #[serde(flatten)]
+    metadata: ProjectMetadata,
+    #[serde(flatten)]
+    git: ProjectGitStatus,
 }
 
 #[tauri::command]
 pub async fn get_project_info(project_path: String) -> String {
-    let path = Path::new(&project_path);
-    if !path.exists() {
-        return "folder".to_string();
-    }
-
-    let read_dir = match fs::read_dir(path) {
-        Ok(dir) => dir,
-        Err(_) => return "folder".to_string(),
-    };
-
-    let mut files = Vec::new();
-    for entry in read_dir.flatten() {
-        if let Some(name) = entry.file_name().to_str() {
-            files.push(name.to_lowercase());
+    tokio::task::spawn_blocking(move || {
+        let path = Path::new(&project_path);
+        if !path.exists() {
+            return "folder".to_string();
         }
-    }
 
-    if files.contains(&"package.json".to_string()) {
-        let pkg_path = path.join("package.json");
-        if let Ok(content) = fs::read_to_string(pkg_path) {
-            if let Ok(pkg) = serde_json::from_str::<serde_json::Value>(&content) {
-                if let Some(deps) = get_all_deps(&pkg) {
-                    if deps.contains_key("react") || deps.contains_key("next") {
-                        return "react".to_string();
-                    }
-                    if deps.contains_key("vue") || deps.contains_key("nuxt") {
-                        return "vue".to_string();
-                    }
-                    if deps.contains_key("@angular/core") {
-                        return "angular".to_string();
-                    }
-                    if deps.contains_key("svelte") {
-                        return "svelte".to_string();
-                    }
-                }
-                if files.contains(&"vite.config.ts".to_string()) || files.contains(&"vite.config.js".to_string()) {
-                    return "react".to_string();
-                }
-                return "node".to_string();
+        let read_dir = match fs::read_dir(path) {
+            Ok(dir) => dir,
+            Err(_) => return "folder".to_string(),
+        };
+
+        let mut files = Vec::new();
+        for entry in read_dir.flatten() {
+            if let Some(name) = entry.file_name().to_str() {
+                files.push(name.to_lowercase());
             }
         }
-    }
 
-    if files.contains(&"deno.json".to_string()) || files.contains(&"deno.jsonc".to_string()) {
-        return "deno".to_string();
-    }
-    if files.contains(&"requirements.txt".to_string()) || files.contains(&"pyproject.toml".to_string()) || files.iter().any(|f| f.ends_with(".py")) {
-        return "python".to_string();
-    }
-    if files.contains(&"cargo.toml".to_string()) {
-        return "rust".to_string();
-    }
-    if files.contains(&"go.mod".to_string()) {
-        return "go".to_string();
-    }
-    if files.contains(&"composer.json".to_string()) {
-        return "php".to_string();
-    }
-    if files.contains(&"gemfile".to_string()) || files.iter().any(|f| f.ends_with(".rb")) {
-        return "ruby".to_string();
-    }
-    if files.contains(&"pom.xml".to_string()) || files.contains(&"build.gradle".to_string()) || files.iter().any(|f| f.ends_with(".java")) {
-        return "java".to_string();
-    }
-    if files.contains(&"dockerfile".to_string()) || files.contains(&"docker-compose.yml".to_string()) {
-        return "docker".to_string();
-    }
-    if files.iter().any(|f| f.ends_with(".sln") || f.ends_with(".csproj")) {
-        return "dotnet".to_string();
-    }
-    if files.iter().any(|f| f.ends_with(".cpp") || f.ends_with(".hpp") || f.ends_with(".cc")) {
-        return "cpp".to_string();
-    }
-    if files.contains(&".git".to_string()) {
-        return "git".to_string();
-    }
+        if files.contains(&"package.json".to_string()) {
+            let pkg_path = path.join("package.json");
+            if let Ok(content) = fs::read_to_string(pkg_path) {
+                if let Ok(pkg) = serde_json::from_str::<serde_json::Value>(&content) {
+                    if let Some(deps) = get_all_deps(&pkg) {
+                        if deps.contains_key("react") || deps.contains_key("next") {
+                            return "react".to_string();
+                        }
+                        if deps.contains_key("vue") || deps.contains_key("nuxt") {
+                            return "vue".to_string();
+                        }
+                        if deps.contains_key("@angular/core") {
+                            return "angular".to_string();
+                        }
+                        if deps.contains_key("svelte") {
+                            return "svelte".to_string();
+                        }
+                    }
+                    if files.contains(&"vite.config.ts".to_string())
+                        || files.contains(&"vite.config.js".to_string())
+                    {
+                        return "react".to_string();
+                    }
+                    return "node".to_string();
+                }
+            }
+        }
 
-    "folder".to_string()
+        if files.contains(&"deno.json".to_string()) || files.contains(&"deno.jsonc".to_string()) {
+            return "deno".to_string();
+        }
+        if files.contains(&"requirements.txt".to_string())
+            || files.contains(&"pyproject.toml".to_string())
+            || files.iter().any(|f| f.ends_with(".py"))
+        {
+            return "python".to_string();
+        }
+        if files.contains(&"cargo.toml".to_string()) {
+            return "rust".to_string();
+        }
+        if files.contains(&"go.mod".to_string()) {
+            return "go".to_string();
+        }
+        if files.contains(&"composer.json".to_string()) {
+            return "php".to_string();
+        }
+        if files.contains(&"gemfile".to_string()) || files.iter().any(|f| f.ends_with(".rb")) {
+            return "ruby".to_string();
+        }
+        if files.contains(&"pom.xml".to_string())
+            || files.contains(&"build.gradle".to_string())
+            || files.iter().any(|f| f.ends_with(".java"))
+        {
+            return "java".to_string();
+        }
+        if files.contains(&"dockerfile".to_string())
+            || files.contains(&"docker-compose.yml".to_string())
+        {
+            return "docker".to_string();
+        }
+        if files
+            .iter()
+            .any(|f| f.ends_with(".sln") || f.ends_with(".csproj"))
+        {
+            return "dotnet".to_string();
+        }
+        if files
+            .iter()
+            .any(|f| f.ends_with(".cpp") || f.ends_with(".hpp") || f.ends_with(".cc"))
+        {
+            return "cpp".to_string();
+        }
+        if files.contains(&".git".to_string()) {
+            return "git".to_string();
+        }
+
+        "folder".to_string()
+    })
+    .await
+    .unwrap_or_else(|_| "folder".to_string())
 }
 
 fn get_all_deps(pkg: &serde_json::Value) -> Option<HashMap<String, serde_json::Value>> {
@@ -117,18 +153,8 @@ fn get_all_deps(pkg: &serde_json::Value) -> Option<HashMap<String, serde_json::V
     }
 }
 
-#[tauri::command]
-pub async fn get_project_details(project_path: String) -> ProjectDetails {
-    let mut details = ProjectDetails {
-        r#type: "folder".to_string(),
-        scripts: BTreeMap::new(),
-        env_vars: BTreeMap::new(),
-        git_branch: None,
-        git_dirty: false,
-        git_files: Vec::new(),
-    };
-
-    let path = Path::new(&project_path);
+fn read_project_metadata(path: &Path) -> ProjectMetadata {
+    let mut details = ProjectMetadata::default();
     if !path.exists() {
         return details;
     }
@@ -188,28 +214,54 @@ pub async fn get_project_details(project_path: String) -> ProjectDetails {
                         details.r#type = "svelte".to_string();
                     }
                 }
-                if details.r#type == "node" && (files.contains(&"vite.config.ts".to_string()) || files.contains(&"vite.config.js".to_string())) {
+                if details.r#type == "node"
+                    && (files.contains(&"vite.config.ts".to_string())
+                        || files.contains(&"vite.config.js".to_string()))
+                {
                     details.r#type = "react".to_string();
                 }
             }
         }
-    } else if files.contains(&"deno.json".to_string()) || files.contains(&"deno.jsonc".to_string()) {
+    } else if files.contains(&"deno.json".to_string()) || files.contains(&"deno.jsonc".to_string())
+    {
         details.r#type = "deno".to_string();
-    } else if files.contains(&"requirements.txt".to_string()) || files.contains(&"pyproject.toml".to_string()) || files.iter().any(|f| f.ends_with(".py")) {
+    } else if files.contains(&"requirements.txt".to_string())
+        || files.contains(&"pyproject.toml".to_string())
+        || files.iter().any(|f| f.ends_with(".py"))
+    {
         details.r#type = "python".to_string();
-        details.scripts.insert("run".to_string(), "python main.py".to_string());
-        details.scripts.insert("pip".to_string(), "pip install -r requirements.txt".to_string());
+        details
+            .scripts
+            .insert("run".to_string(), "python main.py".to_string());
+        details.scripts.insert(
+            "pip".to_string(),
+            "pip install -r requirements.txt".to_string(),
+        );
     } else if files.contains(&"cargo.toml".to_string()) {
         details.r#type = "rust".to_string();
-        details.scripts.insert("build".to_string(), "cargo build".to_string());
-        details.scripts.insert("run".to_string(), "cargo run".to_string());
-        details.scripts.insert("test".to_string(), "cargo test".to_string());
-        details.scripts.insert("check".to_string(), "cargo check".to_string());
+        details
+            .scripts
+            .insert("build".to_string(), "cargo build".to_string());
+        details
+            .scripts
+            .insert("run".to_string(), "cargo run".to_string());
+        details
+            .scripts
+            .insert("test".to_string(), "cargo test".to_string());
+        details
+            .scripts
+            .insert("check".to_string(), "cargo check".to_string());
     } else if files.contains(&"go.mod".to_string()) {
         details.r#type = "go".to_string();
-        details.scripts.insert("build".to_string(), "go build".to_string());
-        details.scripts.insert("run".to_string(), "go run .".to_string());
-        details.scripts.insert("test".to_string(), "go test ./...".to_string());
+        details
+            .scripts
+            .insert("build".to_string(), "go build".to_string());
+        details
+            .scripts
+            .insert("run".to_string(), "go run .".to_string());
+        details
+            .scripts
+            .insert("test".to_string(), "go test ./...".to_string());
     } else if files.contains(&"composer.json".to_string()) {
         let comp_path = path.join("composer.json");
         if let Ok(content) = fs::read_to_string(comp_path) {
@@ -223,30 +275,65 @@ pub async fn get_project_details(project_path: String) -> ProjectDetails {
         }
     } else if files.contains(&"gemfile".to_string()) || files.iter().any(|f| f.ends_with(".rb")) {
         details.r#type = "ruby".to_string();
-    } else if files.contains(&"androidmanifest.xml".to_string()) || files.contains(&"build.gradle".to_string()) || files.contains(&"build.gradle.kts".to_string()) || files.contains(&"gradlew".to_string()) {
+    } else if files.contains(&"androidmanifest.xml".to_string())
+        || files.contains(&"build.gradle".to_string())
+        || files.contains(&"build.gradle.kts".to_string())
+        || files.contains(&"gradlew".to_string())
+    {
         details.r#type = "android".to_string();
-        details.scripts.insert("installDevRelease".to_string(), "./gradlew installDevRelease".to_string());
-        details.scripts.insert("assembleDevRelease".to_string(), "./gradlew assembleDevRelease".to_string());
-        details.scripts.insert("bundleDevRelease".to_string(), "./gradlew bundleDevRelease".to_string());
+        details.scripts.insert(
+            "installDevRelease".to_string(),
+            "./gradlew installDevRelease".to_string(),
+        );
+        details.scripts.insert(
+            "assembleDevRelease".to_string(),
+            "./gradlew assembleDevRelease".to_string(),
+        );
+        details.scripts.insert(
+            "bundleDevRelease".to_string(),
+            "./gradlew bundleDevRelease".to_string(),
+        );
     } else if files.contains(&"pubspec.yaml".to_string()) {
         details.r#type = "flutter".to_string();
-        details.scripts.insert("run".to_string(), "flutter run".to_string());
-        details.scripts.insert("build apk".to_string(), "flutter build apk".to_string());
+        details
+            .scripts
+            .insert("run".to_string(), "flutter run".to_string());
+        details
+            .scripts
+            .insert("build apk".to_string(), "flutter build apk".to_string());
     } else if files.contains(&"pom.xml".to_string()) || files.iter().any(|f| f.ends_with(".java")) {
         details.r#type = "java".to_string();
-    } else if files.contains(&"dockerfile".to_string()) || files.contains(&"docker-compose.yml".to_string()) {
+    } else if files.contains(&"dockerfile".to_string())
+        || files.contains(&"docker-compose.yml".to_string())
+    {
         details.r#type = "docker".to_string();
         if files.contains(&"docker-compose.yml".to_string()) {
-            details.scripts.insert("up".to_string(), "docker-compose up".to_string());
-            details.scripts.insert("down".to_string(), "docker-compose down".to_string());
-            details.scripts.insert("build".to_string(), "docker-compose build".to_string());
+            details
+                .scripts
+                .insert("up".to_string(), "docker-compose up".to_string());
+            details
+                .scripts
+                .insert("down".to_string(), "docker-compose down".to_string());
+            details
+                .scripts
+                .insert("build".to_string(), "docker-compose build".to_string());
         } else {
-            details.scripts.insert("build".to_string(), "docker build -t app .".to_string());
-            details.scripts.insert("run".to_string(), "docker run app".to_string());
+            details
+                .scripts
+                .insert("build".to_string(), "docker build -t app .".to_string());
+            details
+                .scripts
+                .insert("run".to_string(), "docker run app".to_string());
         }
-    } else if files.iter().any(|f| f.ends_with(".sln") || f.ends_with(".csproj")) {
+    } else if files
+        .iter()
+        .any(|f| f.ends_with(".sln") || f.ends_with(".csproj"))
+    {
         details.r#type = "dotnet".to_string();
-    } else if files.iter().any(|f| f.ends_with(".cpp") || f.ends_with(".hpp") || f.ends_with(".cc")) {
+    } else if files
+        .iter()
+        .any(|f| f.ends_with(".cpp") || f.ends_with(".hpp") || f.ends_with(".cc"))
+    {
         details.r#type = "cpp".to_string();
     } else if files.contains(&".git".to_string()) {
         details.r#type = "git".to_string();
@@ -259,64 +346,15 @@ pub async fn get_project_details(project_path: String) -> ProjectDetails {
             for line in content.lines() {
                 if let Some(idx) = line.find(':') {
                     let target = line[..idx].trim();
-                    if !target.is_empty() && !target.starts_with('.') && !target.starts_with('#') && !target.contains(' ') {
-                        details.scripts.insert(target.to_string(), format!("make {}", target));
+                    if !target.is_empty()
+                        && !target.starts_with('.')
+                        && !target.starts_with('#')
+                        && !target.contains(' ')
+                    {
+                        details
+                            .scripts
+                            .insert(target.to_string(), format!("make {}", target));
                     }
-                }
-            }
-        }
-    }
-
-    // Git Status checking
-    #[cfg(target_os = "windows")]
-    const CREATE_NO_WINDOW: u32 = 0x08000000;
-
-    let is_git = {
-        let mut git_check = Command::new("git");
-        git_check.args(["rev-parse", "--is-inside-work-tree"])
-            .current_dir(path);
-        #[cfg(target_os = "windows")]
-        git_check.creation_flags(CREATE_NO_WINDOW);
-        
-        git_check.output()
-            .map(|out| out.status.success() && String::from_utf8_lossy(&out.stdout).trim() == "true")
-            .unwrap_or(false)
-    };
-
-    if is_git {
-        // Run branch
-        let mut cmd = Command::new("git");
-        cmd.args(["branch", "--show-current"])
-            .current_dir(path);
-        #[cfg(target_os = "windows")]
-        cmd.creation_flags(CREATE_NO_WINDOW);
-
-        if let Ok(out) = cmd.output() {
-            if out.status.success() {
-                let br = String::from_utf8_lossy(&out.stdout).trim().to_string();
-                if !br.is_empty() {
-                    details.git_branch = Some(br);
-                }
-            }
-        }
-
-        // Run status
-        let mut cmd_status = Command::new("git");
-        cmd_status.args(["status", "--porcelain"])
-            .current_dir(path);
-        #[cfg(target_os = "windows")]
-        cmd_status.creation_flags(CREATE_NO_WINDOW);
-
-        if let Ok(out) = cmd_status.output() {
-            if out.status.success() {
-                let status_str = String::from_utf8_lossy(&out.stdout).trim().to_string();
-                if !status_str.is_empty() {
-                    details.git_dirty = true;
-                    details.git_files = status_str
-                        .lines()
-                        .map(|line| line.trim().to_string())
-                        .filter(|line| !line.is_empty())
-                        .collect();
                 }
             }
         }
@@ -325,120 +363,284 @@ pub async fn get_project_details(project_path: String) -> ProjectDetails {
     details
 }
 
-#[tauri::command]
-pub async fn git_stage_all(project_path: String) -> Result<String, String> {
-    let path = Path::new(&project_path);
-    if !path.exists() {
-        return Err("Project path does not exist".to_string());
+#[derive(serde::Serialize, serde::Deserialize, Clone, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectGitStatus {
+    git_branch: Option<String>,
+    git_dirty: bool,
+    git_files: Vec<String>,
+}
+
+fn parse_git_status(status: &str) -> ProjectGitStatus {
+    let mut lines = status.lines();
+    let git_branch = lines.next().and_then(|line| {
+        let branch = line.strip_prefix("## ")?;
+        let branch = branch
+            .strip_prefix("No commits yet on ")
+            .or_else(|| branch.strip_prefix("Initial commit on "))
+            .unwrap_or(branch);
+        let branch = branch.split("...").next()?.trim();
+        if branch.is_empty() || branch == "HEAD (no branch)" {
+            None
+        } else {
+            Some(branch.to_owned())
+        }
+    });
+    let git_files: Vec<_> = lines
+        .map(str::trim)
+        .filter(|line| !line.is_empty())
+        .map(str::to_owned)
+        .collect();
+    ProjectGitStatus {
+        git_branch,
+        git_dirty: !git_files.is_empty(),
+        git_files,
     }
+}
 
-    #[cfg(target_os = "windows")]
-    const CREATE_NO_WINDOW: u32 = 0x08000000;
-
-    let mut cmd = Command::new("git");
-    cmd.args(["add", "."])
+fn read_git_status(path: &Path) -> ProjectGitStatus {
+    let mut command = Command::new("git");
+    command
+        .args([
+            "--no-optional-locks",
+            "status",
+            "--porcelain=v1",
+            "--branch",
+        ])
         .current_dir(path);
     #[cfg(target_os = "windows")]
-    cmd.creation_flags(CREATE_NO_WINDOW);
+    command.creation_flags(0x08000000);
 
-    match cmd.output() {
-        Ok(out) => {
-            if out.status.success() {
-                Ok("Staged all files successfully".to_string())
-            } else {
-                Err(String::from_utf8_lossy(&out.stderr).trim().to_string())
-            }
+    match command.output() {
+        Ok(output) if output.status.success() => {
+            parse_git_status(&String::from_utf8_lossy(&output.stdout))
         }
-        Err(e) => Err(e.to_string()),
+        _ => ProjectGitStatus::default(),
     }
+}
+
+#[cfg(test)]
+mod project_update_tests {
+    use super::*;
+
+    #[test]
+    fn parses_tracked_changes_upstream_and_detached_head() {
+        let status = parse_git_status("## main...origin/main [ahead 1]\n M src.rs\n?? new.txt\n");
+        assert_eq!(status.git_branch.as_deref(), Some("main"));
+        assert_eq!(status.git_files, ["M src.rs", "?? new.txt"]);
+        assert!(status.git_dirty);
+        let status = parse_git_status("## HEAD (no branch)\n");
+        assert_eq!(status.git_branch, None);
+        assert!(!status.git_dirty);
+        assert_eq!(
+            parse_git_status("## No commits yet on main\n")
+                .git_branch
+                .as_deref(),
+            Some("main")
+        );
+    }
+
+    #[tokio::test]
+    async fn skips_metadata_until_an_in_place_manifest_change() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().to_string_lossy().into_owned();
+        let manifest = directory.path().join("package.json");
+        fs::write(&manifest, r#"{"scripts":{"start":"node a"}}"#).unwrap();
+        let initial = get_project_update(path.clone(), None).await.unwrap();
+        assert_eq!(initial.metadata.unwrap().scripts["start"], "node a");
+        let unchanged = get_project_update(path.clone(), Some(initial.metadata_version.clone()))
+            .await
+            .unwrap();
+        assert!(unchanged.metadata.is_none());
+        fs::write(manifest, r#"{"scripts":{"start":"node changed"}}"#).unwrap();
+        let changed = get_project_update(path, Some(initial.metadata_version))
+            .await
+            .unwrap();
+        assert_eq!(changed.metadata.unwrap().scripts["start"], "node changed");
+    }
+}
+
+fn metadata_version(path: &Path) -> String {
+    // Directory changes cover added and removed manifests. These files also
+    // affect metadata when edited in place without changing the directory.
+    use std::hash::{Hash, Hasher};
+    let mut version = std::collections::hash_map::DefaultHasher::new();
+    for name in ["", ".env", "package.json", "composer.json", "Makefile"] {
+        if let Ok(info) = fs::metadata(path.join(name)) {
+            name.hash(&mut version);
+            info.len().hash(&mut version);
+            info.modified().ok().hash(&mut version);
+        }
+    }
+    format!("{:016x}", version.finish())
+}
+
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectUpdate {
+    #[serde(flatten)]
+    git: ProjectGitStatus,
+    metadata: Option<ProjectMetadata>,
+    metadata_version: String,
+}
+
+#[tauri::command]
+pub async fn get_project_update(
+    project_path: String,
+    previous_metadata_version: Option<String>,
+) -> Result<ProjectUpdate, String> {
+    tokio::task::spawn_blocking(move || {
+        let path = Path::new(&project_path);
+        let version = metadata_version(path);
+        let metadata = (previous_metadata_version.as_deref() != Some(version.as_str()))
+            .then(|| read_project_metadata(path));
+        ProjectUpdate {
+            git: read_git_status(path),
+            metadata,
+            metadata_version: version,
+        }
+    })
+    .await
+    .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub async fn get_project_details(project_path: String) -> ProjectDetails {
+    match get_project_update(project_path, None).await {
+        Ok(update) => ProjectDetails {
+            metadata: update.metadata.unwrap_or_default(),
+            git: update.git,
+        },
+        Err(_) => ProjectDetails::default(),
+    }
+}
+
+#[tauri::command]
+pub async fn git_stage_all(project_path: String) -> Result<String, String> {
+    tokio::task::spawn_blocking(move || {
+        let path = Path::new(&project_path);
+        if !path.exists() {
+            return Err("Project path does not exist".to_string());
+        }
+
+        #[cfg(target_os = "windows")]
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+
+        let mut cmd = Command::new("git");
+        cmd.args(["add", "."]).current_dir(path);
+        #[cfg(target_os = "windows")]
+        cmd.creation_flags(CREATE_NO_WINDOW);
+
+        match cmd.output() {
+            Ok(out) => {
+                if out.status.success() {
+                    Ok("Staged all files successfully".to_string())
+                } else {
+                    Err(String::from_utf8_lossy(&out.stderr).trim().to_string())
+                }
+            }
+            Err(e) => Err(e.to_string()),
+        }
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
 pub async fn git_commit(project_path: String, message: String) -> Result<String, String> {
-    let path = Path::new(&project_path);
-    if !path.exists() {
-        return Err("Project path does not exist".to_string());
-    }
-
-    if message.trim().is_empty() {
-        return Err("Commit message cannot be empty".to_string());
-    }
-
-    #[cfg(target_os = "windows")]
-    const CREATE_NO_WINDOW: u32 = 0x08000000;
-
-    let mut cmd = Command::new("git");
-    cmd.args(["commit", "-m", &message])
-        .current_dir(path);
-    #[cfg(target_os = "windows")]
-    cmd.creation_flags(CREATE_NO_WINDOW);
-
-    match cmd.output() {
-        Ok(out) => {
-            if out.status.success() {
-                Ok(String::from_utf8_lossy(&out.stdout).trim().to_string())
-            } else {
-                Err(String::from_utf8_lossy(&out.stderr).trim().to_string())
-            }
+    tokio::task::spawn_blocking(move || {
+        let path = Path::new(&project_path);
+        if !path.exists() {
+            return Err("Project path does not exist".to_string());
         }
-        Err(e) => Err(e.to_string()),
-    }
+
+        if message.trim().is_empty() {
+            return Err("Commit message cannot be empty".to_string());
+        }
+
+        #[cfg(target_os = "windows")]
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+
+        let mut cmd = Command::new("git");
+        cmd.args(["commit", "-m", &message]).current_dir(path);
+        #[cfg(target_os = "windows")]
+        cmd.creation_flags(CREATE_NO_WINDOW);
+
+        match cmd.output() {
+            Ok(out) => {
+                if out.status.success() {
+                    Ok(String::from_utf8_lossy(&out.stdout).trim().to_string())
+                } else {
+                    Err(String::from_utf8_lossy(&out.stderr).trim().to_string())
+                }
+            }
+            Err(e) => Err(e.to_string()),
+        }
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
 pub async fn git_pull(project_path: String) -> Result<String, String> {
-    let path = Path::new(&project_path);
-    if !path.exists() {
-        return Err("Project path does not exist".to_string());
-    }
-
-    #[cfg(target_os = "windows")]
-    const CREATE_NO_WINDOW: u32 = 0x08000000;
-
-    let mut cmd = Command::new("git");
-    cmd.args(["pull"])
-        .current_dir(path);
-    #[cfg(target_os = "windows")]
-    cmd.creation_flags(CREATE_NO_WINDOW);
-
-    match cmd.output() {
-        Ok(out) => {
-            if out.status.success() {
-                Ok(String::from_utf8_lossy(&out.stdout).trim().to_string())
-            } else {
-                Err(String::from_utf8_lossy(&out.stderr).trim().to_string())
-            }
+    tokio::task::spawn_blocking(move || {
+        let path = Path::new(&project_path);
+        if !path.exists() {
+            return Err("Project path does not exist".to_string());
         }
-        Err(e) => Err(e.to_string()),
-    }
+
+        #[cfg(target_os = "windows")]
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+
+        let mut cmd = Command::new("git");
+        cmd.args(["pull"]).current_dir(path);
+        #[cfg(target_os = "windows")]
+        cmd.creation_flags(CREATE_NO_WINDOW);
+
+        match cmd.output() {
+            Ok(out) => {
+                if out.status.success() {
+                    Ok(String::from_utf8_lossy(&out.stdout).trim().to_string())
+                } else {
+                    Err(String::from_utf8_lossy(&out.stderr).trim().to_string())
+                }
+            }
+            Err(e) => Err(e.to_string()),
+        }
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
 pub async fn git_push(project_path: String) -> Result<String, String> {
-    let path = Path::new(&project_path);
-    if !path.exists() {
-        return Err("Project path does not exist".to_string());
-    }
-
-    #[cfg(target_os = "windows")]
-    const CREATE_NO_WINDOW: u32 = 0x08000000;
-
-    let mut cmd = Command::new("git");
-    cmd.args(["push"])
-        .current_dir(path);
-    #[cfg(target_os = "windows")]
-    cmd.creation_flags(CREATE_NO_WINDOW);
-
-    match cmd.output() {
-        Ok(out) => {
-            if out.status.success() {
-                Ok(String::from_utf8_lossy(&out.stdout).trim().to_string())
-            } else {
-                Err(String::from_utf8_lossy(&out.stderr).trim().to_string())
-            }
+    tokio::task::spawn_blocking(move || {
+        let path = Path::new(&project_path);
+        if !path.exists() {
+            return Err("Project path does not exist".to_string());
         }
-        Err(e) => Err(e.to_string()),
-    }
+
+        #[cfg(target_os = "windows")]
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+
+        let mut cmd = Command::new("git");
+        cmd.args(["push"]).current_dir(path);
+        #[cfg(target_os = "windows")]
+        cmd.creation_flags(CREATE_NO_WINDOW);
+
+        match cmd.output() {
+            Ok(out) => {
+                if out.status.success() {
+                    Ok(String::from_utf8_lossy(&out.stdout).trim().to_string())
+                } else {
+                    Err(String::from_utf8_lossy(&out.stderr).trim().to_string())
+                }
+            }
+            Err(e) => Err(e.to_string()),
+        }
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Clone)]
@@ -451,104 +653,57 @@ pub struct ActivePort {
 
 #[tauri::command]
 pub async fn get_active_ports() -> Result<Vec<ActivePort>, String> {
-    #[cfg(target_os = "windows")]
-    {
-        const CREATE_NO_WINDOW: u32 = 0x08000000;
+    tokio::task::spawn_blocking(move || {
+        #[cfg(target_os = "windows")]
+        {
+            const CREATE_NO_WINDOW: u32 = 0x08000000;
 
-        // 1. Build PID -> Process Name map using tasklist
-        let mut pid_map = HashMap::new();
-        let mut tasklist_cmd = Command::new("tasklist");
-        tasklist_cmd.args(["/NH", "/FO", "CSV"]);
-        tasklist_cmd.creation_flags(CREATE_NO_WINDOW);
+            // 1. Build PID -> Process Name map using tasklist
+            let mut pid_map = HashMap::new();
+            let mut tasklist_cmd = Command::new("tasklist");
+            tasklist_cmd.args(["/NH", "/FO", "CSV"]);
+            tasklist_cmd.creation_flags(CREATE_NO_WINDOW);
 
-        if let Ok(output) = tasklist_cmd.output() {
-            let stdout = String::from_utf8_lossy(&output.stdout);
-            for line in stdout.lines() {
-                let line = line.trim();
-                if line.starts_with('"') && line.ends_with('"') {
-                    let parts: Vec<&str> = line[1..line.len()-1].split("\",\"").collect();
-                    if parts.len() >= 2 {
-                        let process_name = parts[0].to_string();
-                        if let Ok(pid) = parts[1].parse::<u32>() {
-                            pid_map.insert(pid, process_name);
-                        }
-                    }
-                }
-            }
-        }
-
-        // 2. Query netstat to find listening ports
-        let mut active_ports = Vec::new();
-        let mut netstat_cmd = Command::new("netstat");
-        netstat_cmd.args(["-ano", "-p", "tcp"]);
-        netstat_cmd.creation_flags(CREATE_NO_WINDOW);
-
-        if let Ok(output) = netstat_cmd.output() {
-            let stdout = String::from_utf8_lossy(&output.stdout);
-            for line in stdout.lines() {
-                let tokens: Vec<&str> = line.split_whitespace().collect();
-                if tokens.len() >= 5 && tokens[0] == "TCP" && tokens[3] == "LISTENING" {
-                    let local_addr = tokens[1];
-                    let pid_str = tokens[4];
-
-                    if let Some(port_str) = local_addr.split(':').next_back() {
-                        if let (Ok(port), Ok(pid)) = (port_str.parse::<u16>(), pid_str.parse::<u32>()) {
-                            let process_name = pid_map.get(&pid).cloned().unwrap_or_else(|| "Unknown".to_string());
-                            
-                            // Prevent duplicates
-                            if !active_ports.iter().any(|ap: &ActivePort| ap.port == port) {
-                                active_ports.push(ActivePort {
-                                    port,
-                                    pid,
-                                    process_name,
-                                });
+            if let Ok(output) = tasklist_cmd.output() {
+                let stdout = String::from_utf8_lossy(&output.stdout);
+                for line in stdout.lines() {
+                    let line = line.trim();
+                    if line.starts_with('"') && line.ends_with('"') {
+                        let parts: Vec<&str> = line[1..line.len() - 1].split("\",\"").collect();
+                        if parts.len() >= 2 {
+                            let process_name = parts[0].to_string();
+                            if let Ok(pid) = parts[1].parse::<u32>() {
+                                pid_map.insert(pid, process_name);
                             }
                         }
                     }
                 }
             }
-        }
 
-        // Sort ports numerically
-        active_ports.sort_by_key(|ap| ap.port);
-        Ok(active_ports)
-    }
+            // 2. Query netstat to find listening ports
+            let mut active_ports = Vec::new();
+            let mut netstat_cmd = Command::new("netstat");
+            netstat_cmd.args(["-ano", "-p", "tcp"]);
+            netstat_cmd.creation_flags(CREATE_NO_WINDOW);
 
-    #[cfg(not(target_os = "windows"))]
-    {
-        let mut active_ports = Vec::new();
-
-        // 1. Try `ss -tlpn -H` (standard on modern Linux distributions / iproute2)
-        if let Ok(output) = Command::new("ss").args(&["-tlpn", "-H"]).output() {
-            if output.status.success() {
+            if let Ok(output) = netstat_cmd.output() {
                 let stdout = String::from_utf8_lossy(&output.stdout);
                 for line in stdout.lines() {
                     let tokens: Vec<&str> = line.split_whitespace().collect();
-                    if tokens.len() >= 4 {
-                        let local_addr = tokens[3];
-                        if let Some(port_str) = local_addr.rsplit(':').next() {
-                            if let Ok(port) = port_str.parse::<u16>() {
-                                let mut pid = 0u32;
-                                let mut process_name = "Unknown".to_string();
+                    if tokens.len() >= 5 && tokens[0] == "TCP" && tokens[3] == "LISTENING" {
+                        let local_addr = tokens[1];
+                        let pid_str = tokens[4];
 
-                                for tok in &tokens[4..] {
-                                    if tok.contains("pid=") {
-                                        if let Some(pid_start) = tok.find("pid=") {
-                                            let sub = &tok[pid_start + 4..];
-                                            let pid_digits: String = sub.chars().take_while(|c| c.is_ascii_digit()).collect();
-                                            if let Ok(parsed_pid) = pid_digits.parse::<u32>() {
-                                                pid = parsed_pid;
-                                            }
-                                        }
-                                        if let Some(name_start) = tok.find("((\"") {
-                                            let sub = &tok[name_start + 3..];
-                                            if let Some(name_end) = sub.find('"') {
-                                                process_name = sub[..name_end].to_string();
-                                            }
-                                        }
-                                    }
-                                }
+                        if let Some(port_str) = local_addr.split(':').next_back() {
+                            if let (Ok(port), Ok(pid)) =
+                                (port_str.parse::<u16>(), pid_str.parse::<u32>())
+                            {
+                                let process_name = pid_map
+                                    .get(&pid)
+                                    .cloned()
+                                    .unwrap_or_else(|| "Unknown".to_string());
 
+                                // Prevent duplicates
                                 if !active_ports.iter().any(|ap: &ActivePort| ap.port == port) {
                                     active_ports.push(ActivePort {
                                         port,
@@ -561,26 +716,55 @@ pub async fn get_active_ports() -> Result<Vec<ActivePort>, String> {
                     }
                 }
             }
+
+            // Sort ports numerically
+            active_ports.sort_by_key(|ap| ap.port);
+            Ok(active_ports)
         }
 
-        // 2. Fallback to `lsof -iTCP -sTCP:LISTEN -n -P` (standard on macOS and also common on Linux)
-        if active_ports.is_empty() {
-            if let Ok(output) = Command::new("lsof").args(&["-iTCP", "-sTCP:LISTEN", "-n", "-P"]).output() {
+        #[cfg(not(target_os = "windows"))]
+        {
+            let mut active_ports = Vec::new();
+
+            // 1. Try `ss -tlpn -H` (standard on modern Linux distributions / iproute2)
+            if let Ok(output) = Command::new("ss").args(&["-tlpn", "-H"]).output() {
                 if output.status.success() {
                     let stdout = String::from_utf8_lossy(&output.stdout);
-                    for line in stdout.lines().skip(1) {
+                    for line in stdout.lines() {
                         let tokens: Vec<&str> = line.split_whitespace().collect();
-                        if tokens.len() >= 9 {
-                            let proc_name = tokens[0].to_string();
-                            let pid_res = tokens[1].parse::<u32>();
-                            let name_field = tokens[8];
-                            if let (Ok(pid), Some(port_str)) = (pid_res, name_field.rsplit(':').next()) {
+                        if tokens.len() >= 4 {
+                            let local_addr = tokens[3];
+                            if let Some(port_str) = local_addr.rsplit(':').next() {
                                 if let Ok(port) = port_str.parse::<u16>() {
+                                    let mut pid = 0u32;
+                                    let mut process_name = "Unknown".to_string();
+
+                                    for tok in &tokens[4..] {
+                                        if tok.contains("pid=") {
+                                            if let Some(pid_start) = tok.find("pid=") {
+                                                let sub = &tok[pid_start + 4..];
+                                                let pid_digits: String = sub
+                                                    .chars()
+                                                    .take_while(|c| c.is_ascii_digit())
+                                                    .collect();
+                                                if let Ok(parsed_pid) = pid_digits.parse::<u32>() {
+                                                    pid = parsed_pid;
+                                                }
+                                            }
+                                            if let Some(name_start) = tok.find("((\"") {
+                                                let sub = &tok[name_start + 3..];
+                                                if let Some(name_end) = sub.find('"') {
+                                                    process_name = sub[..name_end].to_string();
+                                                }
+                                            }
+                                        }
+                                    }
+
                                     if !active_ports.iter().any(|ap: &ActivePort| ap.port == port) {
                                         active_ports.push(ActivePort {
                                             port,
                                             pid,
-                                            process_name: proc_name,
+                                            process_name,
                                         });
                                     }
                                 }
@@ -589,51 +773,91 @@ pub async fn get_active_ports() -> Result<Vec<ActivePort>, String> {
                     }
                 }
             }
-        }
 
-        active_ports.sort_by_key(|ap| ap.port);
-        Ok(active_ports)
-    }
+            // 2. Fallback to `lsof -iTCP -sTCP:LISTEN -n -P` (standard on macOS and also common on Linux)
+            if active_ports.is_empty() {
+                if let Ok(output) = Command::new("lsof")
+                    .args(&["-iTCP", "-sTCP:LISTEN", "-n", "-P"])
+                    .output()
+                {
+                    if output.status.success() {
+                        let stdout = String::from_utf8_lossy(&output.stdout);
+                        for line in stdout.lines().skip(1) {
+                            let tokens: Vec<&str> = line.split_whitespace().collect();
+                            if tokens.len() >= 9 {
+                                let proc_name = tokens[0].to_string();
+                                let pid_res = tokens[1].parse::<u32>();
+                                let name_field = tokens[8];
+                                if let (Ok(pid), Some(port_str)) =
+                                    (pid_res, name_field.rsplit(':').next())
+                                {
+                                    if let Ok(port) = port_str.parse::<u16>() {
+                                        if !active_ports
+                                            .iter()
+                                            .any(|ap: &ActivePort| ap.port == port)
+                                        {
+                                            active_ports.push(ActivePort {
+                                                port,
+                                                pid,
+                                                process_name: proc_name,
+                                            });
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            active_ports.sort_by_key(|ap| ap.port);
+            Ok(active_ports)
+        }
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
 pub async fn kill_process_by_pid(pid: u32) -> Result<String, String> {
-    #[cfg(target_os = "windows")]
-    {
-        const CREATE_NO_WINDOW: u32 = 0x08000000;
+    tokio::task::spawn_blocking(move || {
+        #[cfg(target_os = "windows")]
+        {
+            const CREATE_NO_WINDOW: u32 = 0x08000000;
 
-        let mut cmd = Command::new("taskkill");
-        cmd.args(["/F", "/PID", &pid.to_string()]);
-        cmd.creation_flags(CREATE_NO_WINDOW);
+            let mut cmd = Command::new("taskkill");
+            cmd.args(["/F", "/PID", &pid.to_string()]);
+            cmd.creation_flags(CREATE_NO_WINDOW);
 
-        match cmd.output() {
-            Ok(out) => {
-                if out.status.success() {
-                    Ok(format!("Successfully terminated process with PID {}", pid))
-                } else {
-                    Err(String::from_utf8_lossy(&out.stderr).trim().to_string())
+            match cmd.output() {
+                Ok(out) => {
+                    if out.status.success() {
+                        Ok(format!("Successfully terminated process with PID {}", pid))
+                    } else {
+                        Err(String::from_utf8_lossy(&out.stderr).trim().to_string())
+                    }
                 }
+                Err(e) => Err(e.to_string()),
             }
-            Err(e) => Err(e.to_string()),
         }
-    }
 
-    #[cfg(not(target_os = "windows"))]
-    {
-        let mut cmd = Command::new("kill");
-        cmd.args(&["-9", &pid.to_string()]);
+        #[cfg(not(target_os = "windows"))]
+        {
+            let mut cmd = Command::new("kill");
+            cmd.args(&["-9", &pid.to_string()]);
 
-        match cmd.output() {
-            Ok(out) => {
-                if out.status.success() {
-                    Ok(format!("Successfully terminated process with PID {}", pid))
-                } else {
-                    Err(String::from_utf8_lossy(&out.stderr).trim().to_string())
+            match cmd.output() {
+                Ok(out) => {
+                    if out.status.success() {
+                        Ok(format!("Successfully terminated process with PID {}", pid))
+                    } else {
+                        Err(String::from_utf8_lossy(&out.stderr).trim().to_string())
+                    }
                 }
+                Err(e) => Err(e.to_string()),
             }
-            Err(e) => Err(e.to_string()),
         }
-    }
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
-
-

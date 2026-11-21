@@ -287,10 +287,10 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ rootPath, onSelectFolder })
         minHeight: '200px',
       }}
     >
-      <List
+      <List<Record<string, never>>
         rowCount={flattenedData.length}
         rowHeight={ITEM_HEIGHT}
-        rowComponent={Row as (props: any) => React.ReactElement | null}
+        rowComponent={Row}
         style={{ height: containerHeight }}
         rowProps={{}}
       />

@@ -36,6 +36,8 @@ const App: React.FC = () => {
     tabs,
     activeTabId,
     setActiveTabId,
+    deferredTabIds,
+    markTerminalTabOpened,
     addTab,
     closeTab,
     splitPane,
@@ -259,6 +261,11 @@ const App: React.FC = () => {
   // AI Assistant Modal State
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
   const [isDualBrainStudioOpen, setIsDualBrainStudioOpen] = useState(false);
+  useEffect(() => {
+    if (isAppReady && !isDualBrainStudioOpen && deferredTabIds.has(activeTabId)) {
+      markTerminalTabOpened(activeTabId);
+    }
+  }, [activeTabId, deferredTabIds, isAppReady, isDualBrainStudioOpen, markTerminalTabOpened]);
   const [studioInitialPrompt, setStudioInitialPrompt] = useState('');
 
   // Modal States
@@ -706,7 +713,7 @@ const App: React.FC = () => {
                 onNavigate={(path) => addTab(path)}
               />
               <div className="terminal-container">
-                {(Array.isArray(tabs) ? tabs : []).map((tab) => (
+                {tabs.filter((tab) => tab.id === activeTabId || !deferredTabIds.has(tab.id)).map((tab) => (
                   <div
                     key={tab.id}
                     style={{
